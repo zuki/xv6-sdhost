@@ -26,7 +26,7 @@ $(BOOT_IMG): $(KERN_IMG) $(shell find boot/*)
 
 $(FS_IMG): $(shell find obj/usr/bin -type f)
 	echo $^
-	cc $(shell find usr/src/mkfs/ -name "*.c") -o obj/mkfs
+	cc $(shell find usr/src/mkfs/ -name "*.c") -o obj/mkfs -Iusr/inc
 	./obj/mkfs $@ $^
 
 $(SD_IMG): $(BOOT_IMG) $(FS_IMG)
@@ -37,4 +37,3 @@ $(SD_IMG): $(BOOT_IMG) $(FS_IMG)
 	" | sfdisk $@
 	dd if=$(BOOT_IMG) of=$@ seek=$(BOOT_OFFSET) conv=notrunc
 	dd if=$(FS_IMG) of=$@ seek=$(FS_OFFSET) conv=notrunc
-

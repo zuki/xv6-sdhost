@@ -122,7 +122,7 @@
 #define EMMC_SPI_INT_SPT	(EMMC_BASE + 0xF0)
 #define EMMC_SLOTISR_VER	(EMMC_BASE + 0xFC)
 
-#endif
+#endif  // ifndef USE_SDHOST
 
 #define SD_CMD_INDEX(a)             ((a) << 24)
 #define SD_CMD_TYPE_NORMAL          0
@@ -184,7 +184,7 @@
 #define SD_CARD_REMOVAL         (1 << 7)
 #define SD_CARD_INTERRUPT       (1 << 8)
 
-#endif
+#endif  // ifndef USE_SDHOST
 
 #define SD_RESP_NONE        SD_CMD_RSPNS_TYPE_NONE
 #define SD_RESP_R1          (SD_CMD_RSPNS_TYPE_48 | SD_CMD_CRCCHK_EN)
@@ -220,11 +220,11 @@
 #define ADMA_ERROR(self)    (FAIL(self) && (self->last_error & (1 << 25)))
 #define TUNING_ERROR(self)  (FAIL(self) && (self->last_error & (1 << 26)))
 
-#else
+#else   // ifndef USE_SDHOST
 
 #define TIMEOUT(self)       (FAIL(self) && self->last_error == ETIMEDOUT)
 
-#endif
+#endif  // ifndef USE_SDHOST
 
 #define SD_VER_UNKNOWN      0
 #define SD_VER_1            1
@@ -257,7 +257,7 @@ const char *err_irpts[] = {
     "TUNING",
     "RSVD"
 };
-#endif
+#endif  // ifndef USE_SDHOST
 
 const uint32_t sd_commands[] = {
     SD_CMD_INDEX(0),
@@ -447,7 +447,7 @@ const uint32_t sd_acommands[] = {
 
 #define SD_GET_CLOCK_DIVIDER_FAIL	0xffffffff
 
-#endif
+#endif  // ifndef USE_SDHOST
 
 #define SD_BLOCK_SIZE        512
 
@@ -486,6 +486,7 @@ emmc_intr(struct emmc *self)
 #endif
 }
 
+#ifndef USE_SDHOST
 void
 emmc_clear_interrupt()
 {
@@ -493,6 +494,7 @@ emmc_clear_interrupt()
     debug("irpts: 0x%x", irpts);
     put32(EMMC_INTERRUPT, irpts);
 }
+#endif
 
 int
 emmc_init(struct emmc *self, void (*sleep_fn)(void *), void *sleep_arg)
@@ -510,13 +512,13 @@ emmc_init(struct emmc *self, void (*sleep_fn)(void *), void *sleep_arg)
     // delayus(5000);
 #endif
 
-#else
+#else   // ifndef USE_SDHOST
 
     if (!sdhost_init(&self->host, sleep_fn, sleep_arg)) {
         return -1;
     }
 
-#endif
+#endif  // ifndef USE_SDHOST
 
     if (emmc_card_init(self) != 0) {
         return -1;
@@ -1009,7 +1011,7 @@ emmc_handle_interrupts(struct emmc *self)
     put32(EMMC_INTERRUPT, reset_mask);
 }
 
-#else
+#else   // ifndef USE_SDHOST
 
 static void
 emmc_issue_command_int(struct emmc *self, uint32_t reg, uint32_t arg,
@@ -1089,7 +1091,7 @@ emmc_issue_command_int(struct emmc *self, uint32_t reg, uint32_t arg,
     self->last_cmd_success = 1;
 }
 
-#endif
+#endif  // ifndef USE_SDHOST
 
 
 static int
@@ -1125,7 +1127,7 @@ emmc_card_init(struct emmc *self)
 #endif
     }
 
-#endif
+#endif  // ifndef USE_SDHOST
 
     // The SEND_SCR command may fail with a DATA_TIMEOUT on the Raspberry Pi 4
     // for unknown reason. As a workaround the whole card reset is retried.
@@ -1184,7 +1186,7 @@ emmc_ensure_data_mode(struct emmc *self)
 #ifndef USE_SDHOST
         // Reset the data circuit
         emmc_reset_dat();
-#endif
+#endif  // ifndef USE_SDHOST
     } else if (cur_state != 4) {
         // Not in the transfer state, re-initialise.
         int ret = emmc_card_reset(self);
@@ -1421,9 +1423,9 @@ emmc_card_reset(struct emmc *self)
 
     delayus(2000);
 
-#else
+#else   // ifndef USE_SDHOST
     sdhost_set_clock(&self->host, SD_CLOCK_ID);
-#endif
+#endif  // ifndef USE_SDHOST
 
     // >> Prepare the device structure
     self->device_id[0] = 0;
@@ -1439,7 +1441,7 @@ emmc_card_reset(struct emmc *self)
 
 #ifndef USE_SDHOST
     self->last_interrupt = 0;
-#endif
+#endif  // ifndef USE_SDHOST
 
     self->last_error = 0;
 
@@ -1459,12 +1461,12 @@ emmc_card_reset(struct emmc *self)
 #ifndef USE_SDHOST
     self->card_removal = 0;
     self->base_clock = 0;
-#endif
+#endif  // ifndef USE_SDHOST
     // << Prepare the device structure
 
 #ifndef USE_SDHOST
     self->base_clock = base_clock;
-#endif
+#endif  // ifndef USE_SDHOST
 
     // Send CMD0 to the card (reset to idle state)
     if (!emmc_issue_command(self, GO_IDLE_STATE, 0, 500000)) {
@@ -1489,7 +1491,7 @@ emmc_card_reset(struct emmc *self)
         put32(EMMC_INTERRUPT, SD_ERR_MASK_CMD_TIMEOUT);
         v2_later = 0;
     }
-#endif
+#endif  // ifndef USE_SDHOST
     else if (FAIL(self)) {
         error("failed to send CMD8");
         return -1;
@@ -1516,7 +1518,7 @@ emmc_card_reset(struct emmc *self)
 
             put32(EMMC_INTERRUPT, SD_ERR_MASK_CMD_TIMEOUT);
         } else
-#endif
+#endif  // ifndef USE_SDHOST
         {
             error("found SDIO card, unimplemented");
             return -1;
@@ -1579,9 +1581,9 @@ emmc_card_reset(struct emmc *self)
     // support SDR12 mode which runs at 25 MHz
 #ifndef USE_SDHOST
     emmc_switch_clock_rate(base_clock, SD_CLOCK_NORMAL);
-#else
+#else   // ifndef USE_SDHOST
     sdhost_set_clock(&self->host, SD_CLOCK_NORMAL);
-#endif
+#endif  // ifndef USE_SDHOST
 
     // A small wait before the voltage switch
     delayus(5000);
@@ -1653,7 +1655,7 @@ emmc_card_reset(struct emmc *self)
         trace("voltage switch complete");
     }
 
-#endif
+#endif  // ifndef USE_SDHOST
 
     // Send CMD2 to get the cards CID
     if (!emmc_issue_command(self, ALL_SEND_CID, 0, 500000)) {
@@ -1720,7 +1722,7 @@ emmc_card_reset(struct emmc *self)
     controller_block_size &= (~0xfff);
     controller_block_size |= 0x200;
     put32(EMMC_BLKSIZECNT, controller_block_size);
-#endif
+#endif  // ifndef USE_SDHOST
 
     // Get the cards SCR register
     self->buf = &(self->scr.scr[0]);
@@ -1792,9 +1794,9 @@ emmc_card_reset(struct emmc *self)
                     // Success; switch clock to 50MHz
 #ifndef USE_SDHOST
                     emmc_switch_clock_rate(base_clock, SD_CLOCK_HIGH);
-#else
+#else   // ifndef USE_SDHOST
                     sdhost_set_clock(&self->host, SD_CLOCK_HIGH);
-#endif
+#endif  // ifndef USE_SDHOST
                     trace("switch to 50MHz clock complete");
                 }
             }
@@ -1817,7 +1819,7 @@ emmc_card_reset(struct emmc *self)
         uint32_t old_irpt_mask = get32(EMMC_IRPT_MASK);
         uint32_t new_iprt_mask = old_irpt_mask & ~(1 << 8);
         put32(EMMC_IRPT_MASK, new_iprt_mask);
-#endif
+#endif  // ifndef USE_SDHOST
         // Send ACMD6 to change the card's bit mode
         if (!emmc_issue_command(self, SET_BUS_WIDTH, 2, 500000)) {
             error("failed to switch to 4-bit data mode");
@@ -1830,13 +1832,13 @@ emmc_card_reset(struct emmc *self)
 
             // Re-enable card interrupt in host
             put32(EMMC_IRPT_MASK, old_irpt_mask);
-#else
+#else   // ifndef USE_SDHOST
             // Change bit mode for Host
             sdhost_set_bus_width(&self->host, 4);
-#endif
+#endif  // ifndef USE_SDHOST
             trace("switch to 4-bit complete");
         }
-#endif
+#endif  // ifdef SD_4BIT_DATA
     }
 
     info("found valid version %s SD card",
@@ -1845,7 +1847,7 @@ emmc_card_reset(struct emmc *self)
 #ifndef USE_SDHOST
     // Reset interrupt register
     put32(EMMC_INTERRUPT, 0xffffffff);
-#endif
+#endif  // ifndef USE_SDHOST
 
     return 0;
 }
@@ -1863,7 +1865,7 @@ emmc_issue_command(struct emmc *self, uint32_t cmd, uint32_t arg,
         self->last_cmd_success = 0;
         return 0;
     }
-#endif
+#endif  // ifndef USE_SDHOST
 
     // Now run the appropriate commands by calling IssueCommandInt()
     if (cmd & IS_APP_CMD) {

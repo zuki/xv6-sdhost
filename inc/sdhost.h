@@ -5,7 +5,7 @@
 
 #if RASPI == 3
 // FIXME: Use sdhost and reserve sdhci for wifi.
-// #define USE_SDHOST
+#define USE_SDHOST
 #endif
 
 struct sg_mapping_iter

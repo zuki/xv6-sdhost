@@ -1,12 +1,14 @@
 -include config.mk
 
+MUSL_INC = /Users/dspace/musl/include
+
 CFLAGS := -Wall -g -O2 \
           -fno-pie -fno-pic -fno-stack-protector \
           -fno-zero-initialized-in-bss \
           -static -fno-builtin -nostdlib -nostdinc -ffreestanding -nostartfiles \
           -mgeneral-regs-only \
           -MMD -MP \
-		  -Iinc -Ilibc/obj/include -Ilibc/arch/aarch64 -Ilibc/include -Ilibc/arch/generic
+		  -Iinc -I$(MUSL_INC) -I$(MUSL_INC)/sys  -I$(MUSL_INC)/bits 
 
 CFLAGS += -DNOT_DEBUG -DLOG_DEBUG -DRASPI=$(RASPI)
 
@@ -81,8 +83,6 @@ lint:
 
 clean:
 	$(MAKE) -C usr clean
-	$(MAKE) -C libc clean
-	$(MAKE) -C boot clean
 	rm -rf $(BUILD_DIR)
 
 .PHONY: init all lint clean qemu qemu-gdb gdb
