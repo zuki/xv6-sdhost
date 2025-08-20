@@ -56,7 +56,7 @@ struct spinlock slab_lock;
  */
 struct slab_header {
     struct slab_header *next;   /**< 次のスラブヘッダーへのポインタ */
-    uint32_t *free;             /**< フリーリスト中のフリーオブジェクトへのポインタ */
+    uint32_t *free;             /**< フリーオブジェクト番号リストへのポインタ */
     uint8_t *object;            /**< オブジェクトリストへのポインタ */
 };
 
@@ -72,6 +72,7 @@ struct slab_cache {
 
     uint32_t slab_size;         /**< スラブのサイズ（page * 2^order） */
     uint32_t object_size;       /**< オブジェクトのサイズ（4バイト切り上げ） */
+    uint32_t alignment;         /**< アライメント. 不要な場合は0 */
 
     struct slab_header *slabs_full;     /**< 全使用済みリスト */
     struct slab_header *slabs_partial;  /**< 一部使用済みリスト */
@@ -101,7 +102,7 @@ struct slab_cache *free_cache_head = NULL;
  * @return 最大オブジェクト数
  */
 static uint32_t slab_max_object_num(const struct slab_cache *cache) {
-    return (cache->slab_size - SLAB_HEADER_SIZE) / (cache->object_size + sizeof(uint32_t));
+    return (cache->slab_size - SLAB_HEADER_SIZE - cache->alignment) / (cache->object_size + sizeof(uint32_t));
 }
 
 /**
@@ -120,8 +121,11 @@ static struct slab_header *slab_new(const struct slab_cache *cache) {
     memset(header, 0, sizeof(struct slab_header));
     /* 2. free, objectメンバーのアドレスをセットする */
     header->free = (void*)(header + 1);     /* ヘッダーの直後 */
-    header->object = (void*)(header->free + max_object_num + 1); /* free objトリストの直後 */
-    /* 3. free objectリストにobject番号をセットする */
+    /* free objリストの直後, header->freeは4バイト、+ 1はSLAB_FREE_END用 */
+    header->object = (void *)(header->free + max_object_num + 1);
+    if (cache->alignment)
+        header->object = (void *)(((uint64_t)header->object + (cache->alignment - 1)) & ~(cache->alignment - 1));
+    /* 3. free objectリストに次のobject番号をセットする: 0->1->2->...->14->SLAB_FREE_END */
     for (i = 0; i < max_object_num; ++i) {
         header->free[i] = i + 1;
     }
@@ -133,12 +137,14 @@ static struct slab_header *slab_new(const struct slab_cache *cache) {
 
 /**
  * @ingroup slab_static
- * @brief スラブキャッシュを新規作成する.
+ * @brief 新規スラブキャッシュを取得する。
+ *      リストfree_cache_headの先頭のスラブキャッシュを切り取って返す。
+ *      free_cache_headが空の場合は新規作成してリストに追加し、先頭を返す
  *
  * @return 作成されたスラブキャッシュへのポインタ
  */
 static struct slab_cache *slab_cache_new(void) {
-    size_t i;
+    uint32_t i;
     struct slab_cache *cache;
 
     /* 1. free_cache_headリストが空の場合は割り当てる */
@@ -189,18 +195,18 @@ static void slab_cache_delete(struct slab_cache *cache) {
  * @brief スラブキャッシュシステムを初期化する.
  */
 void slab_cache_init(void) {
-    size_t i, page_size;
+    int i, slab_size;
 
     trace("SLAB_HEADER_SIZE: %d\n", SLAB_HEADER_SIZE);
 
     /* 1. メモリブロックの種別ごとに1ブロックに収まる最大のオブジェクト長をセットする */
     for (i = 0; i < PAGE_MAX_DEPTH; ++i) {
         /* 4KB * 0, 2, 4, 8, ..., 1024 */
-        page_size = PGSIZE * (1UL << i);
+        slab_size = PGSIZE * (1UL << i);
         /* 各スラブに無駄なくオブジェクトを詰めるための最大オブジェクト長
          * （FIXEME: 8オブジェクトが最適?） */
-        slab_size_limits[i] = (page_size / 8) - ((SLAB_HEADER_SIZE / 8) + 1) - sizeof(uint32_t);
-        trace("i: %d, page_size: %d, limits: %d", i, page_size, slab_size_limits[i]);
+        slab_size_limits[i] = (slab_size / 9) - ((SLAB_HEADER_SIZE / 8) + 1) - sizeof(uint32_t);
+        trace("i: %d, page_size: 0x%x, limits: %d", i, slab_size, slab_size_limits[i]);
     }
 
     initlock(&slab_lock);
@@ -216,7 +222,7 @@ void slab_cache_init(void) {
  * @param size 作成するスラブキャッシュのオブジェクトサイズ
  * @return 作成されたスラブキャッシュへのポインタ。エラーの場合は NULL
  */
-struct slab_cache *slab_cache_create(const char *name, size_t size) {
+struct slab_cache *slab_cache_create(const char *name, size_t size, uint32_t alignment) {
     int i;
     struct slab_cache *cache;
 
@@ -237,7 +243,10 @@ struct slab_cache *slab_cache_create(const char *name, size_t size) {
 
     /* 5. 名前とオブジェクトサイズを設定する */
     safestrcpy(cache->name, name, strlen(name));
-    cache->object_size = (size + 0x3) & ~0x3;         // 4バイトアラインで切り上げ
+    uint32_t align = alignment ? alignment : 4;         // 最低4バイトアライメント
+    cache->object_size = (size + align - 1) & ~(align - 1);
+    cache->alignment = alignment;
+
     /* 6. スラブサイズを決定する */
     for (i = 0; i < PAGE_MAX_DEPTH; ++i) {
         if (cache->object_size <= slab_size_limits[i]) {
@@ -295,7 +304,7 @@ void slab_cache_destroy(struct slab_cache *cache) {
  */
 void *slab_cache_alloc(struct slab_cache *cache) {
     struct slab_header *header;
-    uint32_t index, next_index, *free_list;
+    uint32_t index = 0, next_index, *free_list = 0;
 
     /* 1. lockを取得する */
     acquire(&cache->lock);
@@ -308,9 +317,9 @@ void *slab_cache_alloc(struct slab_cache *cache) {
         cache->slabs_partial = header;
     }
     /* 4. フリーリストを更新する */
-    free_list = (void*)(header + 1);            /* free_listの先頭アドレス*/
+    free_list = (uint32_t *)(header + 1);       /* free_listの先頭アドレス*/
+    index = (uint32_t)(header->free - free_list); /* 使用するフリーオブジェクトのインデックス */
 
-    index = (size_t)(header->free - free_list); /* 使用するフリーオブジェクトのインデックス */
     next_index = *header->free;                 /* 次のフリーオブジェクトのインデックス */
                                                 /* 初期化時に i+1 が設定されている */
     free_list[index] = SLAB_FREE_END;           /* 使用するオブジェクト位置に空き終了マークを付ける */
@@ -357,7 +366,7 @@ void slab_cache_free(struct slab_cache *cache, void *obj) {
     /* 3. オブジェクトのインデックスを求める */
     index = ((uint8_t*)obj - header->object) / cache->object_size;
     /* 4. 次のフリーオブジェクトのインデックスを求める */
-    next_index = (size_t)(header->free - free_list);
+    next_index = (uint32_t)(header->free - free_list);
     /* 5. 解放するオブジェクトを次のフリーオブジェクトとする */
     free_list[index] = next_index;
     header->free = &free_list[index];
