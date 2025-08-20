@@ -2,3 +2,4 @@
 
 - [SDHOSTを使う](sdhost.md)
 - [Pageシステム（BudyyとSlab）を導入](mm.md)
+- [ブロックサイズを4096に拡大する](blocksize.md)
