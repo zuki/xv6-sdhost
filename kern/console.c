@@ -131,7 +131,7 @@ console_intr1(int (*getc)())
     release(&conslock);
 
     if (prof) {
-        mm_dump();
+        //mm_dump();
         procdump();
     }
 }
