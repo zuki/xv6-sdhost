@@ -7,6 +7,9 @@
 
 #include <stdint.h>
 
+#define ROOTINO     1       // ルートディレクトリ('/')のinode番号
+#define BSIZE       4096    // ブロックサイズ
+
 // Kernel only
 #define NDEV            10                  // Maximum major device number
 #define NINODE          50                  // Maximum number of active i-nodes
@@ -20,8 +23,6 @@
 #define LOGSIZE         (MAXOPBLOCKS*3)     // Max data blocks in on-disk log
 #define ROOTDEV         1                   // Device number of file system root disk
 #define ROOTINO         1                   // Root i-number
-
-#define BSIZE           512                 // Block size
 
 /* Disk layout:
  * [ boot block | super block | log | inode blocks | free bit map | data blocks ]
@@ -39,9 +40,10 @@ struct superblock {
   uint32_t bmapstart;    // Block number of first free map block
 };
 
-#define NDIRECT 12
-#define NINDIRECT (BSIZE / sizeof(uint32_t))
-#define MAXFILE (NDIRECT + NINDIRECT)
+#define NDIRECT 11
+#define NINDIRECT   (BSIZE / sizeof(uint32_t))    // 第一間接指定のブロック数
+#define NINDIRECT2  (NINDIRECT * NINDIRECT)       // 第二間接指定のブロック数
+#define MAXFILE     (NDIRECT + NINDIRECT + NINDIRECT2)   // 1ファイルの最大ブロック数 - 11 + 1024 + 1,048,576 = 1,049,611 : * 4096 = 4100 MB
 
 /* On-disk inode structure. */
 struct dinode {
@@ -50,7 +52,7 @@ struct dinode {
   uint16_t minor;               // Minor device number (T_DEV only)
   uint16_t nlink;               // Number of links to inode in file system
   uint32_t size;                // Size of file (bytes)
-  uint32_t addrs[NDIRECT+1];    // Data block addresses
+  uint32_t addrs[NDIRECT+2];    // Data block addresses
 };
 
 /* Inodes per block. */

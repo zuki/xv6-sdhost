@@ -6,7 +6,19 @@
 #define USR_INC_FS_H
 
 #include <stdint.h>
-#include "param.h"
+
+#define MAXOPBLOCKS     10  // Max # of blocks any FS op writes
+#define LOGSIZE         (MAXOPBLOCKS*3)     // Max data blocks in on-disk log
+#define ROOTDEV         1                   // Device number of file system root disk
+#define ROOTINO         1                   // Root i-number
+
+#define FSSIZE          1000    // ファイルシステムのブロック単位のサイズ
+#define BSIZE           4096    // ブロックサイズ
+
+#define NDIRECT     11      
+#define NINDIRECT   (BSIZE / sizeof(uint32_t))    // 第一間接指定のブロック数
+#define NINDIRECT2  (NINDIRECT * NINDIRECT)       // 第二間接指定のブロック数
+#define MAXFILE     (NDIRECT + NINDIRECT + NINDIRECT2)   // 1ファイルの最大ブロック数 - 11 + 1024 + 1,048,576 = 1,049,611 : * 4096 = 4100 MB
 
 /* Disk layout:
  * [ boot block | super block | log | inode blocks | free bit map | data blocks ]
@@ -31,14 +43,7 @@ struct dinode {
     uint16_t minor;               // Minor device number (T_DEV only)
     uint16_t nlink;               // Number of links to inode in file system
     uint32_t size;                // Size of file (bytes)
-    mode_t mode;                  // file mode
-    uid_t    uid;                 // owner's user id
-    gid_t    gid;                 // owner's gropu id
-    struct timespec atime;        // last accessed time
-    struct timespec mtime;        // last modified time
-    struct timespec ctime;        // created time
     uint32_t addrs[NDIRECT+2];    // Data block addresses
-    char    _dummy[4];
 };
 
 /* Inodes per block: 4 */
@@ -54,18 +59,15 @@ struct dinode {
 #define BBLOCK(b, sb) (b/BPB + sb.bmapstart)
 
 /* Directory is a file containing a sequence of dirent structures. */
-#define DIRSIZ 58
+#define DIRSIZ 14
 
 struct dirent {
-  uint32_t inum;
-  uint16_t type;
+  uint16_t inum;
   char name[DIRSIZ];
 };
 
 #define T_DIR       1   // Directory
 #define T_FILE      2   // File
 #define T_DEV       3   // Device
-#define T_MOUNT     4   // Mount Point
-#define T_SYMLINK   5   // Sysbolic link
 
 #endif

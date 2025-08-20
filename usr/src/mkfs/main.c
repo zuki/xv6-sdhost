@@ -14,7 +14,7 @@ typedef uint32_t uint;
 
 #define stat xv6_stat           // avoid clash with host struct stat
 #define sleep xv6_sleep
-#include "../../../inc/fs.h"
+#include <usr_fs.h>
 
 #ifndef static_assert
 #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)
@@ -276,7 +276,8 @@ iappend(uint inum, void *xp, int n)
     struct dinode din;
     char buf[BSIZE];
     uint indirect[NINDIRECT];
-    uint x;
+    uint indirect2[NINDIRECT];
+    uint x, idx1, idx2;
 
     rinode(inum, &din);
     off = xint(din.size);
@@ -289,17 +290,39 @@ iappend(uint inum, void *xp, int n)
                 din.addrs[fbn] = xint(freeblock++);
             }
             x = xint(din.addrs[fbn]);
-        } else {
+        } else if (fbn < (NDIRECT + NINDIRECT)) {
             if (xint(din.addrs[NDIRECT]) == 0) {
                 din.addrs[NDIRECT] = xint(freeblock++);
             }
-            rsect(xint(din.addrs[NDIRECT]), (char *)indirect);
-            if (indirect[fbn - NDIRECT] == 0) {
-                indirect[fbn - NDIRECT] = xint(freeblock++);
-                wsect(xint(din.addrs[NDIRECT]), (char *)indirect);
+            rsect(xint(din.addrs[NDIRECT]), (char*)indirect);
+            idx1 = fbn - NDIRECT;
+            if (indirect[idx1] == 0) {
+                indirect[idx1] = xint(freeblock++);
+                wsect(xint(din.addrs[NDIRECT]), (char*)indirect);
             }
-            x = xint(indirect[fbn - NDIRECT]);
+            x = xint(indirect[idx1]);
+        } else if (fbn < (NDIRECT + NINDIRECT + NINDIRECT * NINDIRECT)) {
+            if (xint(din.addrs[NDIRECT + 1]) == 0) {
+                din.addrs[NDIRECT + 1] = xint(freeblock++);
+            }
+            rsect(xint(din.addrs[NDIRECT + 1]), (char *)indirect);
+            idx1 = (fbn - NDIRECT - NINDIRECT) / NINDIRECT;
+            idx2 = (fbn - NDIRECT - NINDIRECT) % NINDIRECT;
+            if (xint(indirect[idx1]) == 0) {
+                indirect[idx1] = xint(freeblock++);
+                wsect(xint(din.addrs[NDIRECT+1]), (char *)indirect);
+            }
+            rsect(xint(indirect[idx1]), (char *)indirect2);
+            if (indirect2[idx2] == 0) {
+                indirect2[idx2] = xint(freeblock++);
+                wsect(xint(indirect[idx1]), (char *)indirect2);
+            }
+            x = xint(indirect2[idx2]);
+        } else {
+            printf("file is too big: fbr=%d\n", fbn);
+            exit(1);
         }
+
         n1 = min(n, (fbn + 1) * BSIZE - off);
         rsect(x, buf);
         bcopy(p, buf + off - (fbn * BSIZE), n1);

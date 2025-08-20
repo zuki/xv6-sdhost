@@ -151,6 +151,7 @@ void buddy_init(void) {
 
     /* FIXME: PAGE_STARTを固定値で与えているので、カーネル機能が増えるにつれて
      * endがPAGE_STARTを超える可能性がある */
+    trace("end: 0x%llx", end);
     if (end > PAGE_START)
         panic("fix PAGE_START");
 
@@ -166,8 +167,8 @@ void buddy_init(void) {
      *     pagesはpage.cで(struct page *)として定義されている */
     pages = (struct page*)(PAGE_START - (sizeof(struct page) * PAGE_NUM));
     memset(pages, 0, sizeof(struct page) * PAGE_NUM);
-    trace("pages: 0x%08x, size: 0x%08x, PAGE_START: 0x%08x", pages, sizeof(struct page) * PAGE_NUM, PAGE_START);
-    trace("sizeof(struct page): 0x%04x\n", sizeof(struct page));
+    trace("pages: 0x%llx, size: 0x%llx, PAGE_START: 0x%llx", (uint64_t)pages, sizeof(struct page) * PAGE_NUM, PAGE_START);
+    trace("sizeof(struct page): 0x%lx\n", sizeof(struct page));
 
     // 3. page->indexの設定
     for (i = 0; i < PAGE_NUM; ++i) {
@@ -190,12 +191,12 @@ void buddy_init(void) {
         page->order = PAGE_MAX_ORDER;
         /* ブロックは未使用 */
         page->flags |= PF_FREE_LIST;
-        trace("pages[%d]: address: %08p, order: %d, flags: 0x%08x", page->index, page, page->order, page->flags);
+        trace("pages[%d]: address: %p, order: %d, flags: 0x%llx", page->index, page, page->order, page->flags);
     }
 
     /* 5. 最大ブロックのフリーリストの先頭をセットする */
     free_lists[PAGE_MAX_ORDER].head = &pages[0];
-    trace("\nfree_lists[10].head: %08p\n", free_lists[10].head);
+    trace("\nfree_lists[10].head: %p\n", free_lists[10].head);
 }
 
 /**

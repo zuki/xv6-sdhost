@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-#include "../../../inc/fs.h"
+#include <usr_fs.h>
 
 char *
 fmtname(char *path)

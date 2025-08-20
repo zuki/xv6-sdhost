@@ -20,6 +20,7 @@ limitations under the License.
 #include <mmu.h>
 #include <buddy.h>
 #include <string.h>
+#include <console.h>
 
 /**
  * @ingroup mm

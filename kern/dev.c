@@ -78,13 +78,14 @@ dev_intr()
 void
 dev_start()
 {
+    uint32_t bno;
     while (!list_empty(&devque)) {
         struct buf *b =
             container_of(list_front(&devque), struct buf, dlink);
         assert(b->blockno < nblocks);
-        uint32_t bno = b->blockno + first_bno;
+        bno = b->blockno * 8 + first_bno;
 
-        emmc_seek(&card, bno * BSIZE);
+        emmc_seek(&card, bno * 512);    // FIXME: 512
         if (b->flags & B_DIRTY) {
             assert(emmc_write(&card, b->data, BSIZE) == BSIZE);
         } else {

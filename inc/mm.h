@@ -28,7 +28,7 @@ limitations under the License.
  * @brief ページ領域の先頭（仮想）アドレス
  *        pages[0:PAGE_NUM] | page0, page1, ...
  */
-#define PAGE_START ((char*)(0xffff000000640000))
+#define PAGE_START ((char*)(0xffff000000660000))
 
 /**
  * @ingroup mm
