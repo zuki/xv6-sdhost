@@ -118,7 +118,7 @@ execve(const char *path, char *const argv[], char *const envp[])
                ph.p_memsz - ph.p_filesz);
 
         // Flush dcache to memory so that icache can retrieve the correct one.
-        dccivac(ph.p_vaddr, ph.p_memsz);
+        dccivac((void *)ph.p_vaddr, ph.p_memsz);
 
         trace("init bss [0x%p, 0x%p)", ph.p_vaddr + ph.p_filesz,
               ph.p_vaddr + ph.p_memsz);
