@@ -4,6 +4,7 @@
   したPageシステムを導入した
 - kalloc()とkrfrre()はbuddy_alloc()とbuddy_free()へのスタブとした
 - kmalloc()とkmfree()も実装した
+- slabにアライメント指定フラグを追加した
 
 ```bash
 [0]main: cpu 0 init finished
