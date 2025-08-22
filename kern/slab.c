@@ -27,57 +27,8 @@ limitations under the License.
 #include <console.h>
 #include <mbox.h>
 
-/**
- * @ingroup slab
- * @def MAX_SLAB_NAME
- * @brief スラブ名の長さ
- */
-#define MAX_SLAB_NAME   32
-/**
- * @ingroup slab
- * @def SLAB_FREE_END
- * @brief フリーオブジェクトリストの終了マーク
- */
-#define SLAB_FREE_END   0xffffffff
-/**
- * @ingroup slab
- * @def SLAB_HEADER_SIZE
- * @brief スラブヘッダー長
- */
-#define SLAB_HEADER_SIZE (sizeof(struct slab_header) + sizeof(uint32_t))
-
 /* slab lock */
 struct spinlock slab_lock;
-
-/**
- * @ingroup slab
- * @struct slab_header
- * @brief スラブヘッダー構造体.
- */
-struct slab_header {
-    struct slab_header *next;   /**< 次のスラブヘッダーへのポインタ */
-    uint32_t *free;             /**< フリーオブジェクト番号リストへのポインタ */
-    uint8_t *object;            /**< オブジェクトリストへのポインタ */
-};
-
-/**
- * @ingroup slab
- * @struct slab_cache
- * @brief スラブキャッシュ構造体.
- */
-struct slab_cache {
-    char name[MAX_SLAB_NAME];   /**< キャッシュ名 */
-
-    struct slab_cache *next;    /**< 次のスラブキャッシュへのポインタ */
-
-    uint32_t slab_size;         /**< スラブのサイズ（page * 2^order） */
-    uint32_t object_size;       /**< オブジェクトのサイズ（4バイト切り上げ） */
-    uint32_t alignment;         /**< アライメント. 不要な場合は0 */
-
-    struct slab_header *slabs_full;     /**< 全使用済みリスト */
-    struct slab_header *slabs_partial;  /**< 一部使用済みリスト */
-    struct spinlock lock;
-};
 
 /**
  * @ingroup slab
@@ -118,6 +69,7 @@ static struct slab_header *slab_new(const struct slab_cache *cache) {
 
     /* 1. 新規スラブを割り当て、ヘッダーを0クリアする */
     header = (struct slab_header*)page_address((const struct page *)buddy_alloc(cache->slab_size));
+    trace("header: 0x%p", header);
     memset(header, 0, sizeof(struct slab_header));
     /* 2. free, objectメンバーのアドレスをセットする */
     header->free = (void*)(header + 1);     /* ヘッダーの直後 */
@@ -151,7 +103,7 @@ static struct slab_cache *slab_cache_new(void) {
     if (!free_cache_head) {
         /* 1.1 新規リスト用のメモリ（1ページ）を割り当てる */
         cache = memset(page_address(buddy_alloc(PGSIZE)), 0, PGSIZE);
-        trace("cache: %08p", cache);
+        trace("cache: 0x%p", cache);
         /* 1.2. スラブキャッシュ構造体リストとして初期化する（nextフィールドのセット） */
         for (i = 0; i < (PGSIZE / sizeof(struct slab_cache)) - 1; ++i) {
             cache[i].next = &cache[i+1];
@@ -342,7 +294,8 @@ void *slab_cache_alloc(struct slab_cache *cache) {
     release(&cache->lock);
 
     /* 7. 割り当てたオブジェクトを返す */
-    return header->object + (cache->object_size * index);
+    trace("obj: 0x%p, size: 0x%x, index: %d", header->object, cache->object_size, index);
+    return (void *)(PAGE_START + (uint64_t)header->object + (cache->object_size * index));
 }
 
 /**
@@ -354,6 +307,9 @@ void *slab_cache_alloc(struct slab_cache *cache) {
  */
 void slab_cache_free(struct slab_cache *cache, void *obj) {
     uint32_t index, next_index, *free_list;
+
+    // FIXME: 実際に称した場合にこれで問題ないか確認すること
+    obj = obj - (void *)PAGE_START;
 
     struct page *page = page_find_head(page_find_by_address(obj));
     struct slab_header *header = (void*)page_address(page), *h, **hp;

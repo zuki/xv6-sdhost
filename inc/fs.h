@@ -6,9 +6,11 @@
 #define INC_FS_H
 
 #include <stdint.h>
+#include <sd.h>
 
 #define ROOTINO     1       // ルートディレクトリ('/')のinode番号
 #define BSIZE       4096    // ブロックサイズ
+#define BLKSECT     (BSIZE / SECTOR_SIZE)
 
 // Kernel only
 #define NDEV            10                  // Maximum major device number
@@ -30,14 +32,14 @@
  * mkfs computes the super block and builds an initial file system. The
  * super block describes the disk layout:
  */
-struct superblock {
-  uint32_t size;         // Size of file system image (blocks)
-  uint32_t nblocks;      // Number of data blocks
-  uint32_t ninodes;      // Number of inodes.
-  uint32_t nlog;         // Number of log blocks
-  uint32_t logstart;     // Block number of first log block
-  uint32_t inodestart;   // Block number of first inode block
-  uint32_t bmapstart;    // Block number of first free map block
+struct superblock {                                              
+  uint32_t size;         // Size of file system image (blocks)    0x03e8
+  uint32_t nblocks;      // Number of data blocks                 0x03c3
+  uint32_t ninodes;      // Number of inodes.                     0x00c8
+  uint32_t nlog;         // Number of log blocks                  0x001e
+  uint32_t logstart;     // Block number of first log block       0x0002
+  uint32_t inodestart;   // Block number of first inode block     0x0020
+  uint32_t bmapstart;    // Block number of first free map block  0x0024
 };
 
 #define NDIRECT 11

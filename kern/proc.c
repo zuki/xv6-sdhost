@@ -9,7 +9,7 @@
 #include "vm.h"
 #include "spinlock.h"
 
-#include "dev.h"
+#include "sd.h"
 #include "debug.h"
 #include "file.h"
 #include "log.h"
@@ -187,13 +187,13 @@ forkret()
         first = 0;
         release(&ptable.lock);
 
-        dev_init();
+        sd_init();
         iinit(ROOTDEV);
         initlog(ROOTDEV);
     } else {
         release(&ptable.lock);
     }
-    trace("proc '%s'(%d)", thisproc()->name, thisproc()->pid);
+    trace("forkret: proc '%s'(%d)", thisproc()->name, thisproc()->pid);
 }
 
 /* Give up CPU. */

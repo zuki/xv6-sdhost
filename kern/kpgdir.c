@@ -530,3 +530,5 @@ uint64_t kpud[512] = {
 
 __attribute__((__aligned__(PGSIZE)))
 uint64_t kpgdir[512] = { V2P(kpud) + PTE_TABLE };
+
+// kpgdir: 0xffff000000091000, kpud: 0xffff000000092000, kpte: 0xffff000000093000

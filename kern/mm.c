@@ -122,7 +122,7 @@ void *kalloc(void)
     struct page *page = buddy_alloc(PGSIZE);
     // return page_address(page);
     void *addr = page_address(page);
-    //debug("addr: 0x%08x\n", addr);
+    trace("addr: 0x%p", addr);
     return addr;
 }
 

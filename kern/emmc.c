@@ -529,6 +529,7 @@ emmc_init(struct emmc *self, void (*sleep_fn)(void *), void *sleep_arg)
 size_t
 emmc_read(struct emmc *self, void *buf, size_t cnt)
 {
+    trace("offset: 0x%llx", self->ull_offset);
     if (self->ull_offset % SD_BLOCK_SIZE != 0) {
         return -1;
     }

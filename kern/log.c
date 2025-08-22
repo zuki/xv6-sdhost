@@ -34,6 +34,7 @@
  * Contents of the header block, used for both the on-disk header block
  * and to keep track in memory of logged block# before commit.
  */
+#if 0
 struct logheader {
     int n;
     int block[LOGSIZE];
@@ -54,10 +55,15 @@ extern void readsb(int dev, struct superblock *sb);
 
 static void recover_from_log();
 static void commit();
+#endif
 
 void
 initlog(int dev)
 {
+    info("not use log");
+    return;
+ 
+#if 0
     if (sizeof(struct logheader) >= BSIZE)
         panic("initlog: too big logheader");
 
@@ -68,8 +74,10 @@ initlog(int dev)
     log.size = sb.nlog;
     log.dev = dev;
     recover_from_log();
+#endif
 }
 
+#if 0
 /* Copy committed blocks from log to their home location. */
 static void
 install_trans()
@@ -125,11 +133,14 @@ recover_from_log()
     log.lh.n = 0;
     write_head();               // clear the log
 }
+#endif
 
 /* Called at the start of each FS system call. */
 void
 begin_op()
 {
+    return;
+#if 0
     acquire(&log.lock);
     while (1) {
         if (log.committing) {
@@ -144,6 +155,7 @@ begin_op()
             break;
         }
     }
+#endif
 }
 
 /*
@@ -153,6 +165,8 @@ begin_op()
 void
 end_op()
 {
+    return;
+#if 0
     int do_commit = 0;
 
     acquire(&log.lock);
@@ -179,8 +193,10 @@ end_op()
         wakeup(&log);
         release(&log.lock);
     }
+#endif
 }
 
+#if 0
 /* Copy modified blocks from cache to log. */
 static void
 write_log()
@@ -208,6 +224,7 @@ commit()
         write_head();           // Erase the transaction from the log
     }
 }
+#endif
 
 /* Caller has modified b->data and is done with the buffer.
  * Record the block number and pin in the cache with B_DIRTY.
@@ -222,6 +239,8 @@ commit()
 void
 log_write(struct buf *b)
 {
+    bwrite(b);
+#if 0
     int i;
 
     if (log.lh.n >= LOGSIZE || log.lh.n >= log.size - 1)
@@ -239,4 +258,5 @@ log_write(struct buf *b)
         log.lh.n++;
     b->flags |= B_DIRTY;        // prevent eviction
     release(&log.lock);
+#endif
 }

@@ -14,7 +14,8 @@ struct buf {
     uint32_t dev;
     uint32_t blockno;
     uint32_t refcnt;
-    uint8_t data[BSIZE];
+    uint8_t *data;
+    //uint8_t data[BSIZE];
 
     struct sleeplock lock;
     struct list_head clink; /* LRU cache list. */

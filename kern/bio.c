@@ -19,12 +19,17 @@
  *     and needs to be written to disk.
  */
 
-#include "spinlock.h"
-#include "sleeplock.h"
-#include "buf.h"
-#include "console.h"
-#include "fs.h"
-#include "dev.h"
+#include <spinlock.h>
+#include <sleeplock.h>
+#include <buf.h>
+#include <console.h>
+#include <fs.h>
+#include <sd.h>
+#include <slab.h>
+
+#define DMA_MINALIGN   64
+
+static struct slab_cache *BUFDATA;
 
 struct {
     struct spinlock lock;
@@ -40,6 +45,7 @@ binit()
 {
     struct buf *b;
 
+    BUFDATA = slab_cache_create("buf.data", BSIZE, DMA_MINALIGN);
     // initlock(&bcache.lock, "bcache");
 
     // Create linked list of buffers
@@ -55,9 +61,11 @@ binit()
  * In either case, return locked buffer.
  */
 static struct buf *
-bget(uint32_t dev, uint32_t blockno)
+bget(uint32_t dev, uint32_t bno)
 {
     struct buf *b;
+
+    uint32_t blockno = fs_lba(dev) + bno * BLKSECT;
 
     acquire(&bcache.lock);
 
@@ -65,6 +73,7 @@ bget(uint32_t dev, uint32_t blockno)
     LIST_FOREACH_ENTRY(b, &bcache.head, clink) {
         if (b->dev == dev && b->blockno == blockno) {
             b->refcnt++;
+            trace("buf cached: dev: 0x%x, blockno: 0x%x, data: %p", dev, blockno, b->data);
             release(&bcache.lock);
             acquiresleep(&b->lock);
             return b;
@@ -82,6 +91,10 @@ bget(uint32_t dev, uint32_t blockno)
             b->blockno = blockno;
             b->flags = 0;
             b->refcnt = 1;
+            if (b->data == NULL) {
+                b->data = (uint8_t *)slab_cache_alloc(BUFDATA);
+                trace("b->data: 0x%p", b->data);
+            }
             release(&bcache.lock);
             acquiresleep(&b->lock);
             return b;
@@ -97,7 +110,7 @@ bread(uint32_t dev, uint32_t blockno)
 {
     struct buf *b = bget(dev, blockno);
     if ((b->flags & B_VALID) == 0) {
-        devrw(b);
+        sd_rw(b);
     }
     return b;
 }
@@ -109,7 +122,7 @@ bwrite(struct buf *b)
     if (!holdingsleep(&b->lock))
         panic("bwrite");
     b->flags |= B_DIRTY;
-    devrw(b);
+    sd_rw(b);
 }
 
 /*

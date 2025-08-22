@@ -191,7 +191,7 @@ void buddy_init(void) {
         page->order = PAGE_MAX_ORDER;
         /* ブロックは未使用 */
         page->flags |= PF_FREE_LIST;
-        trace("pages[%d]: address: %p, order: %d, flags: 0x%llx", page->index, page, page->order, page->flags);
+        trace("pages[%d]: address: 0x%p, order: %d, flags: 0x%llx", page->index, page, page->order, page->flags);
     }
 
     /* 5. 最大ブロックのフリーリストの先頭をセットする */
