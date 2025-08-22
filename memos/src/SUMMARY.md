@@ -1,5 +1,8 @@
 # メモ一覧
 
-- [SDHOSTを使う](sdhost.md)
-- [Pageシステム（BudyyとSlab）を導入](mm.md)
-- [ブロックサイズを4096に拡大する](blocksize.md)
+- [機能追加](xv6/README.md)
+    - [SDHOSTを使う](xv6/sdhost.md)
+    - [Pageシステム（BudyyとSlab）を導入](xv6/mm.md)
+    - [ブロックサイズを4096に拡大する](xv6/blocksize.md)
+- [その他のメモ](others/README.md)
+    - [デフォルトで使用されるリンカスクリプト](others/lds.md)
