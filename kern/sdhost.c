@@ -358,7 +358,7 @@ sdhost_init_gpio()
 {
     for (int i = 0; i <= 5; i++) {
         int64_t npin, off, shift, sel, val;
-        // Wifi
+        // pin [34:39]: input => 未使用 (WiFiとして使用する場合はALT3とする)
         npin = 34 + i;
         off = npin / 10 * 4, shift = (npin % 10) * 3;
 
@@ -367,7 +367,7 @@ sdhost_init_gpio()
         val &= ~(7 << shift);
         put32(sel, val);
 
-        // SD card
+        // pin [48:53]: ALT0 => SDHOSTとして使用
         npin = 48 + i;
         off = npin / 10 * 4, shift = (npin % 10) * 3;
 
@@ -378,10 +378,12 @@ sdhost_init_gpio()
         put32(sel, val);
 
         // See: http://www.raspberrypi.org/forums/viewtopic.php?t=163352&p=1059178#p1059178
-        sel = GPPUDCLK0 + off;
-        put32(GPPUD, i == 0 ? 0 : 2);   // Pull mode off/up
+        // BCM2835 ARM Periferals 6.1.13 GPPUDCLKnの概要を参照
+        sel = GPPUDCLK0 + ((npin < 32) ? 0 : 4);
+        shift = (npin < 32) ? (npin % 32) : ((npin - 32) % 32);
+        put32(GPPUD, i == 0 ? 0 : 2);   // 0: Off, 1: Pull UP
         delayus(5);             // Delay 1 us.
-        put32(sel, 1 << (npin % 32));
+        put32(sel, 1 << shift);
         delayus(5);
         put32(GPPUD, 0);
         put32(sel, 0);
