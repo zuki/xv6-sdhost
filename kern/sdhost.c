@@ -379,11 +379,11 @@ sdhost_init_gpio()
 
         // See: http://www.raspberrypi.org/forums/viewtopic.php?t=163352&p=1059178#p1059178
         // BCM2835 ARM Periferals 6.1.13 GPPUDCLKnの概要を参照
-        sel = GPPUDCLK0 + ((npin < 32) ? 0 : 4);
-        shift = (npin < 32) ? (npin % 32) : ((npin - 32) % 32);
+        off = npin / 32 * 4;
+        sel = GPPUDCLK0 + off;
         put32(GPPUD, i == 0 ? 0 : 2);   // 0: Off, 1: Pull UP
         delayus(5);             // Delay 1 us.
-        put32(sel, 1 << shift);
+        put32(sel, 1 << (npin % 32));
         delayus(5);
         put32(GPPUD, 0);
         put32(sel, 0);
