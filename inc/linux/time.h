@@ -5,9 +5,8 @@
 #include <list.h>
 
 #define HZ 100
-//#define INITIAL_JIFFIES ((uint64_t)-300 * HZ)                // itimerが動かず
-//#define INITIAL_JIFFIES ((uint64_t)(uint32_t)(-300 * HZ))    // clock割り込みしない
-#define INITIAL_JIFFIES 0UL
+#define TICK_USEC (10000UL)
+#define TICK_NSEC (10000000UL)
 
 struct timeval {
     time_t      tv_sec;     /* 秒 */
@@ -28,7 +27,7 @@ struct timer_list {
     struct list_head list;
     uint64_t expires;
     uint64_t data;
-    void (*function)(uint64_t);
+    void (*fn)(uint64_t);
 };
 
 extern uint64_t jiffies;

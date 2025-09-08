@@ -10,6 +10,7 @@ barrier()
     asm volatile("" ::: "memory");
 }
 
+/* cntfrq_el0 = 19200000 : armstub8.Sで設定 */
 static inline uint64_t
 timerfreq()
 {
@@ -173,6 +174,24 @@ cpuid()
     int64_t id;
     asm volatile("mrs %[x], mpidr_el1" : [x]"=r"(id));
     return id & 0xFF;
+}
+
+static inline void
+nop()
+{
+    asm volatile ("nop");
+}
+ 
+static inline void
+wfe()
+{
+    asm volatile ("wfe");
+}
+ 
+static inline void
+sev()
+{
+    asm volatile ("sev");
 }
 
 #endif

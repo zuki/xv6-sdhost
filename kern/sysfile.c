@@ -16,6 +16,7 @@
 #include <log.h>
 #include <fs.h>
 #include <file.h>
+#include <linux/errno.h>
 
 extern int execve(const char *, char *const, char *const);
 
@@ -63,8 +64,7 @@ fdalloc(struct file *f)
     return -1;
 }
 
-int
-sys_dup()
+long sys_dup(void)
 {
     struct file *f;
     int fd;
@@ -78,8 +78,7 @@ sys_dup()
     return fd;
 }
 
-ssize_t
-sys_read()
+ssize_t sys_read(void)
 {
     struct file *f;
     ssize_t n;
@@ -90,8 +89,7 @@ sys_read()
     return fileread(f, p, n);
 }
 
-ssize_t
-sys_write()
+ssize_t sys_write(void)
 {
     struct file *f;
     ssize_t n;
@@ -103,8 +101,7 @@ sys_write()
 }
 
 
-ssize_t
-sys_writev()
+ssize_t sys_writev(void)
 {
     struct file *f;
     int fd, iovcnt;
@@ -125,8 +122,7 @@ sys_writev()
     return tot;
 }
 
-int
-sys_close()
+long sys_close(void)
 {
     int fd;
     struct file *f;
@@ -138,8 +134,7 @@ sys_close()
     return 0;
 }
 
-int
-sys_fstat()
+long sys_fstat(void)
 {
     int fd;
     struct file *f;
@@ -151,8 +146,7 @@ sys_fstat()
     return filestat(f, st);
 }
 
-int
-sys_fstatat()
+long sys_fstatat(void)
 {
     int dirfd, flags;
     char *path;
@@ -187,8 +181,7 @@ sys_fstatat()
 }
 
 /* Create the path new as a link to the same inode as old. */
-int
-sys_link()
+long sys_link(void)
 {
     char name[DIRSIZ], *new, *old;
     struct inode *dp, *ip;
@@ -251,8 +244,7 @@ isdirempty(struct inode *dp)
     return 1;
 }
 
-int
-sys_unlink()
+long sys_unlink(void)
 {
     struct inode *ip, *dp;
     struct dirent de;
@@ -353,8 +345,7 @@ create(char *path, short type, short major, short minor)
     return ip;
 }
 
-int
-sys_openat()
+long sys_openat(void)
 {
     char *path;
     int dirfd, fd, omode;
@@ -414,8 +405,7 @@ sys_openat()
     return fd;
 }
 
-int
-sys_mkdirat()
+long sys_mkdirat(void)
 {
     int dirfd, mode;
     char *path;
@@ -444,8 +434,7 @@ sys_mkdirat()
     return 0;
 }
 
-int
-sys_mknodat()
+long sys_mknodat(void)
 {
     struct inode *ip;
     char *path;
@@ -471,8 +460,7 @@ sys_mknodat()
     return 0;
 }
 
-int
-sys_chdir()
+long sys_chdir(void)
 {
     char *path;
     struct inode *ip;
@@ -496,8 +484,7 @@ sys_chdir()
     return 0;
 }
 
-int
-sys_execve()
+long sys_execve(void)
 {
     char *p;
     void *argv, *envp;
@@ -507,8 +494,7 @@ sys_execve()
     return execve(p, argv, envp);
 }
 
-int
-sys_pipe2()
+long sys_pipe2(void)
 {
     int *fd, flag;
     struct file *rf, *wf;
@@ -535,4 +521,20 @@ sys_pipe2()
     fd[0] = fd0;
     fd[1] = fd1;
     return 0;
+}
+
+// TODO: 
+long sys_ioctl(void)
+{
+    uint64_t req;
+
+    if (argu64(1, &req) < 0)
+        return -EINVAL;
+
+    if (req == 0x5413)
+        return 0;
+    else {
+        warn("ioctl unimplemented. ");
+        return -EINVAL;
+    }
 }

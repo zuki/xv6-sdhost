@@ -1,4 +1,4 @@
-#include <syscall.h>
+#include <linux/syscall.h>
 
 .global icode
 .global ispin

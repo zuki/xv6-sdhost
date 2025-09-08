@@ -2,18 +2,17 @@
 #include <trap.h>
 #include <console.h>
 #include <vm.h>
+#include <syscall.h>
+#include <linux/mman.h>
+#include <linux/errno.h>
 
-#include <sys/mman.h>
-
-int
-sys_yield()
+long sys_yield(void)
 {
     yield();
     return 0;
 }
 
-size_t
-sys_brk()
+size_t sys_brk(void)
 {
     struct proc *p = thisproc();
     size_t sz, newsz, oldsz = p->sz;
@@ -39,8 +38,7 @@ sys_brk()
     return p->sz;
 }
 
-size_t
-sys_mmap()
+long sys_mmap(void)
 {
     void *addr;
     size_t len, off;
@@ -75,8 +73,7 @@ sys_mmap()
     }
 }
 
-int
-sys_clone()
+long sys_clone(void)
 {
     void *childstk;
     uint64_t flag;
@@ -91,8 +88,7 @@ sys_clone()
 }
 
 
-int
-sys_wait4()
+long sys_wait4(void)
 {
     int pid, opt;
     int *wstatus;
@@ -110,4 +106,39 @@ sys_wait4()
     }
 
     return wait();
+}
+
+
+// FIXME: use pid instead of tid since we don't have threads :)
+long sys_set_tid_address(void) {
+    trace("set_tid_address: name '%s'", thisproc()->name);
+    return thisproc()->pid;
+}
+
+long sys_getpid(void) {
+    return thisproc()->pid;
+}
+
+long sys_gettid(void) {
+    trace("gettid: name '%s'", thisproc()->name);
+    return thisproc()->pid;
+}
+
+
+long sys_rt_sigprocmask(void)
+{
+    return -EINVAL;
+}
+
+// FIXME: exit_group should kill every thread in the current thread group.
+long sys_exit_group(void) {
+    trace("sys_exit_group: '%s' exit with code %d", thisproc()->name, thisproc()->tf->x[0]);
+    exit(thisproc()->tf->x[0]);
+    return 0;
+}
+
+long sys_exit(void) {
+    trace("sys_exit: '%s' exit with code %d", thisproc()->name, thisproc()->tf->x[0]);
+    exit(thisproc()->tf->x[0]);
+    return 0;
 }
