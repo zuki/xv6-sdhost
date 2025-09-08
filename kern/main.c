@@ -1,19 +1,19 @@
-#include <stdint.h>
+#include <types.h>
 
-#include "string.h"
+#include <string.h>
 
-#include "arm.h"
-#include "console.h"
-#include "vm.h"
-#include "mm.h"
-#include "clock.h"
-#include "timer.h"
-#include "trap.h"
-#include "proc.h"
-#include "emmc.h"
-#include "buf.h"
-#include "mbox.h"
-#include "irq.h"
+#include <arm.h>
+#include <console.h>
+#include <vm.h>
+#include <mm.h>
+#include <clock.h>
+#include <timer.h>
+#include <trap.h>
+#include <proc.h>
+#include <emmc.h>
+#include <buf.h>
+#include <mbox.h>
+#include <irq.h>
 
 /*
  * Keep it in data segment by explicitly initializing by zero,

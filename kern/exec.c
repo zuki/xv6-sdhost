@@ -1,16 +1,17 @@
-#include <elf.h>
+#include <types.h>
+#include <linux/elf.h>
+#include <linux/auxvec.h>
+#include <trap.h>
 
-#include "trap.h"
+#include <file.h>
+#include <log.h>
+#include <string.h>
 
-#include "file.h"
-#include "log.h"
-#include "string.h"
-
-#include "console.h"
-#include "vm.h"
-#include "proc.h"
-#include "mm.h"
-#include "memlayout.h"
+#include <console.h>
+#include <vm.h>
+#include <proc.h>
+#include <mm.h>
+#include <memlayout.h>
 
 static uint64_t auxv[][2] = { { AT_PAGESZ, PGSIZE } };
 

@@ -3,12 +3,12 @@
  * For Pi 4, we can use either GIC-400 or legacy interrupt controller, see BCM2711.
  */
 
-#include "irq.h"
-#include "base.h"
-#include "arm.h"
-#include "timer.h"
-#include "clock.h"
-#include "console.h"
+#include <irq.h>
+#include <base.h>
+#include <arm.h>
+#include <timer.h>
+#include <clock.h>
+#include <console.h>
 
 #define IRQ_BASIC_PENDING       (MMIO_BASE + 0xB200)
 #define IRQ_PENDING_1           (MMIO_BASE + 0xB204)

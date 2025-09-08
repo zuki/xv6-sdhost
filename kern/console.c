@@ -1,14 +1,14 @@
-#include "console.h"
+#include <console.h>
 
 #include <stdarg.h>
-#include <stdint.h>
+#include <types.h>
 
-#include "arm.h"
-#include "uart.h"
-#include "irq.h"
-#include "spinlock.h"
-#include "file.h"
-#include "mm.h"
+#include <arm.h>
+#include <uart.h>
+#include <irq.h>
+#include <spinlock.h>
+#include <file.h>
+#include <mm.h>
 
 #define CONSOLE 1
 

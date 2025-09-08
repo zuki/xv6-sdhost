@@ -1,12 +1,12 @@
 #ifndef INC_PROC_H
 #define INC_PROC_H
 
-#include <stdint.h>
-#include "arm.h"
-#include "mmu.h"
-#include "trap.h"
-#include "spinlock.h"
-#include "list.h"
+#include <types.h>
+#include <arm.h>
+#include <mmu.h>
+#include <trap.h>
+#include <spinlock.h>
+#include <list.h>
 
 #define NPROC           100
 #define NCPU            4

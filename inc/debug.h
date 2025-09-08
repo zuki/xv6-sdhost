@@ -1,9 +1,9 @@
 #ifndef INC_DEBUG_H
 #define INC_DEBUG_H
 
-#include <stddef.h>
-#include "arm.h"
-#include "console.h"
+#include <types.h>
+#include <arm.h>
+#include <console.h>
 
 static inline void
 debug_mem(void *start, size_t sz)

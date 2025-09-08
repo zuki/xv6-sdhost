@@ -1,12 +1,12 @@
 #include <syscall.h>
 // #include <unistd.h>
 
-#include <stdint.h>
-#include "memlayout.h"
-#include "trap.h"
-#include "console.h"
-#include "proc.h"
-#include "debug.h"
+#include <types.h>
+#include <memlayout.h>
+#include <trap.h>
+#include <console.h>
+#include <proc.h>
+#include <debug.h>
 
 extern int sys_brk();
 extern int sys_mmap();

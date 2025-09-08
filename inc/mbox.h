@@ -1,7 +1,7 @@
 #ifndef INC_MBOX_H
 #define INC_MBOX_H
 
-#include "types.h"
+#include <types.h>
 
 #define MBOX_CLOCK_EMMC     0x1
 #define MBOX_CLOCK_UART     0x2

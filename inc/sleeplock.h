@@ -1,8 +1,8 @@
 #ifndef INC_SLEEPLOCK_H
 #define INC_SLEEPLOCK_H
 
-#include "spinlock.h"
-#include "proc.h"
+#include <spinlock.h>
+#include <proc.h>
 
 /* Long-term locks for processes */
 struct sleeplock {

@@ -11,18 +11,18 @@
  * are in sysfile.c.
  */
 
-#include "types.h"
-#include "mmu.h"
-#include "proc.h"
-#include "string.h"
-#include "console.h"
+#include <types.h>
+#include <mmu.h>
+#include <proc.h>
+#include <string.h>
+#include <console.h>
 
-#include "spinlock.h"
-#include "sleeplock.h"
+#include <spinlock.h>
+#include <sleeplock.h>
 
-#include "buf.h"
-#include "log.h"
-#include "file.h"
+#include <buf.h>
+#include <log.h>
+#include <file.h>
 
 
 #define min(a, b) ((a) < (b) ? (a) : (b))

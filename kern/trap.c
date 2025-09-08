@@ -1,15 +1,15 @@
-#include "trap.h"
+#include <trap.h>
 
-#include "arm.h"
-#include "sysregs.h"
-#include "mmu.h"
-#include "irq.h"
+#include <arm.h>
+#include <sysregs.h>
+#include <mmu.h>
+#include <irq.h>
 
-#include "memlayout.h"
-#include "console.h"
-#include "proc.h"
+#include <memlayout.h>
+#include <console.h>
+#include <proc.h>
 
-#include "debug.h"
+#include <debug.h>
 
 void
 trap_init()

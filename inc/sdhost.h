@@ -1,7 +1,7 @@
 #ifndef INC_SDHOST_H
 #define INC_SDHOST_H
 
-#include "types.h"
+#include <types.h>
 
 #if RASPI == 3
 // FIXME: Use sdhost and reserve sdhci for wifi.

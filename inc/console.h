@@ -1,7 +1,7 @@
 #ifndef INC_CONSOLE_H
 #define INC_CONSOLE_H
 
-#include <stdarg.h>
+#include <types.h>
 #include <spinlock.h>
 
 extern struct spinlock dbglock;

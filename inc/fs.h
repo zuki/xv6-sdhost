@@ -5,7 +5,7 @@
 #ifndef INC_FS_H
 #define INC_FS_H
 
-#include <stdint.h>
+#include <types.h>
 #include <sd.h>
 
 #define ROOTINO     1       // ルートディレクトリ('/')のinode番号

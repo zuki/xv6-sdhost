@@ -1,9 +1,9 @@
 /* See https://github.com/raspberrypi/firmware/wiki. */
-#include "mbox.h"
-#include "base.h"
+#include <mbox.h>
+#include <base.h>
 
-#include "arm.h"
-#include "console.h"
+#include <arm.h>
+#include <console.h>
 
 #define MBOX_BASE       (MMIO_BASE + 0x0000B880)
 #define MBOX_READ       (MBOX_BASE + 0x00)

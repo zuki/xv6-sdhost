@@ -1,8 +1,8 @@
-#include "base.h"
-#include "gpio.h"
-#include "uart.h"
+#include <base.h>
+#include <gpio.h>
+#include <uart.h>
 
-#include "arm.h"
+#include <arm.h>
 
 #define AUX_BASE            (MMIO_BASE + 0x215000)
 

@@ -1,10 +1,10 @@
-#include "clock.h"
+#include <clock.h>
 
-#include "arm.h"
-#include "base.h"
-#include "irq.h"
+#include <arm.h>
+#include <base.h>
+#include <irq.h>
 
-#include "console.h"
+#include <console.h>
 
 /* Local timer */
 #define TIMER_ROUTE             (LOCAL_BASE + 0x24)

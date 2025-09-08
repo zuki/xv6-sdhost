@@ -2,9 +2,9 @@
 #define INC_FILE_H
 
 #include <sys/stat.h>
-#include "types.h"
-#include "sleeplock.h"
-#include "fs.h"
+#include <types.h>
+#include <sleeplock.h>
+#include <fs.h>
 
 #define NFILE 100  // Open files per system
 

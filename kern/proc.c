@@ -1,18 +1,18 @@
-#include "proc.h"
+#include <proc.h>
 
-#include "string.h"
-#include "types.h"
-#include "memlayout.h"
-#include "list.h"
-#include "console.h"
-#include "mm.h"
-#include "vm.h"
-#include "spinlock.h"
+#include <string.h>
+#include <types.h>
+#include <memlayout.h>
+#include <list.h>
+#include <console.h>
+#include <mm.h>
+#include <vm.h>
+#include <spinlock.h>
 
-#include "sd.h"
-#include "debug.h"
-#include "file.h"
-#include "log.h"
+#include <sd.h>
+#include <debug.h>
+#include <file.h>
+#include <log.h>
 
 extern void trapret();
 extern void swtch(struct context **old, struct context *new);

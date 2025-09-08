@@ -1,7 +1,7 @@
 #ifndef INC_EMMC_H
 #define INC_EMMC_H
 
-#include "sdhost.h"
+#include <sdhost.h>
 
 struct tscr // SD configuration register
 {

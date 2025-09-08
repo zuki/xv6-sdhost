@@ -34,12 +34,12 @@
 // Broadcom BCM2835 ARM Peripherals Guide
 //
 
-#include "mbox.h"
-#include "base.h"
-#include "sdhost.h"
-#include "emmc.h"
-#include "string.h"
-#include "console.h"
+#include <mbox.h>
+#include <base.h>
+#include <sdhost.h>
+#include <emmc.h>
+#include <string.h>
+#include <console.h>
 
 /* External Mass Media Controller. */
 #define ARM_EMMC_BASE   (MMIO_BASE + 0x300000)

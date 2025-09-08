@@ -6,16 +6,16 @@
 
 #include <fcntl.h>
 
-#include "types.h"
-#include "mmu.h"
-#include "proc.h"
-#include "spinlock.h"
-#include "sleeplock.h"
-#include "string.h"
-#include "console.h"
-#include "log.h"
-#include "fs.h"
-#include "file.h"
+#include <types.h>
+#include <mmu.h>
+#include <proc.h>
+#include <spinlock.h>
+#include <sleeplock.h>
+#include <string.h>
+#include <console.h>
+#include <log.h>
+#include <fs.h>
+#include <file.h>
 
 extern int execve(const char *, char *const, char *const);
 

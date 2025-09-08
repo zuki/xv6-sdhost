@@ -1,7 +1,7 @@
-#include "proc.h"
-#include "trap.h"
-#include "console.h"
-#include "vm.h"
+#include <proc.h>
+#include <trap.h>
+#include <console.h>
+#include <vm.h>
 
 #include <sys/mman.h>
 

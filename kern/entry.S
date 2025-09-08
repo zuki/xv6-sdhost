@@ -1,6 +1,6 @@
-#include "mmu.h"
-#include "memlayout.h"
-#include "sysregs.h"
+#include <mmu.h>
+#include <memlayout.h>
+#include <sysregs.h>
 
 .section ".text.boot"
 .global _start

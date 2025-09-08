@@ -1,10 +1,65 @@
 #ifndef INC_TYPES_H
 #define INC_TYPES_H
 
-#include <stdint.h>
-#include <stddef.h>
+#define NULL    ((void *)0)
 
-typedef uint64_t ssize_t;
+#define CHAR_BIT    8
+#define SCHAR_MIN   (-128)
+#define SCHAR_MAX   127
+#define UCHAR_MAX   255
+#define SHRT_MIN    (-1-0x7fff)
+#define SHRT_MAX    0x7fff
+#define USHRT_MAX   0xffff
+#define INT_MIN     (-1-0x7fffffff)
+#define INT_MAX     0x7fffffff
+#define UINT_MAX    0xffffffffU
+#define LONG_MIN    (-LONG_MAX-1)
+#define LONG_MAX    0x7fffffffffffffffL
+#define ULONG_MAX   (2UL*LONG_MAX+1)
+#define LLONG_MIN   (-LLONG_MAX-1)
+#define LLONG_MAX   0x7fffffffffffffffLL
+#define ULLONG_MAX  (2ULL*LLONG_MAX+1)
+
+typedef char            int8_t;
+typedef unsigned char   uint8_t;
+typedef short           int16_t;
+typedef unsigned short  uint16_t;
+typedef int             int32_t;
+typedef unsigned int    uint32_t;
+typedef long            int64_t;
+typedef unsigned long   uint64_t;
+
+typedef int64_t         ssize_t;
+typedef uint64_t        size_t;
+typedef uint64_t        dev_t;
+typedef uint64_t        ino_t;
+typedef uint32_t        mode_t;
+typedef uint32_t        nlink_t;
+typedef int32_t         pid_t;
+typedef uint32_t        uid_t;
+typedef uint32_t        gid_t;
+typedef int64_t         off_t;
+typedef int32_t         blksize_t;
+typedef int64_t         blkcnt_t;
+typedef int64_t         time_t;
+typedef int64_t         suseconds_t;
+typedef uint32_t        tcflag_t;
+typedef uint32_t        speed_t;
+typedef uint8_t         cc_t;
+typedef int32_t         clockid_t;
+typedef uint64_t        ino64_t;
+typedef off_t           off64_t;
+typedef uint32_t        kernel_cap_t;
+typedef uint64_t        uintptr_t;
+typedef int64_t         intptr_t;
+typedef unsigned        wint_t;
+typedef uint16_t        kdev_t;
+typedef uint16_t        wchar_t;        // muslでは4バイトだが、fatでは2バイト
+typedef uint64_t        handler_t;
+
+typedef int             boolean;
+#define true            1
+#define false           0
 
 /* Efficient min and max operations */
 #define MIN(_a, _b)                 \
@@ -34,13 +89,31 @@ typedef uint64_t ssize_t;
 })
 
 #define ARRAY_SIZE(a)  (sizeof(a) / sizeof((a)[0]))
-
+#define ALIGN(p, n) (((p) + ((1 << (n)) - 1)) & ~((1 << (n)) - 1))
+#define ARRAY_SIZE(a)  (sizeof(a) / sizeof((a)[0]))
 #define IS_POWER_OF_2(n)    (!((n) & ((n)-1)))
+
+#define offsetof(type, member) __builtin_offsetof(type, member)
 
 #define container_of(ptr, type, member)                 \
 ({                                                      \
     const typeof(((type *)0)->member) *__mptr = (ptr);  \
     (type *)((char *)__mptr - offsetof(type,member));   \
 })
+
+typedef __builtin_va_list va_list;
+
+#define va_start(v,l)   __builtin_va_start(v,l)
+#define va_end(v)       __builtin_va_end(v)
+#define va_arg(v,l)     __builtin_va_arg(v,l)
+#define va_copy(d,s)    __builtin_va_copy(d,s)
+
+#define PACKED		__attribute__ ((packed))
+#define	GALIGN(n)	__attribute__ ((aligned (n)))
+#define NORETURN	__attribute__ ((noreturn))
+#define NOOPT		__attribute__ ((optimize (0)))
+#define STDOPT		__attribute__ ((optimize (2)))
+#define MAXOPT		__attribute__ ((optimize (3)))
+#define WEAK		__attribute__ ((weak))
 
 #endif

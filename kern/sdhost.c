@@ -24,13 +24,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "gpio.h"
-#include "mbox.h"
-#include "sdhost.h"
+#include <gpio.h>
+#include <mbox.h>
+#include <sdhost.h>
 
-#include "arm.h"
-#include "string.h"
-#include "console.h"
+#include <arm.h>
+#include <string.h>
+#include <console.h>
 
 /* SDHOST Controller (SD Card) */
 #define ARM_SDHOST_BASE            (MMIO_BASE + 0x202000)

@@ -1,6 +1,6 @@
-#include "arm.h"
-#include "spinlock.h"
-#include "console.h"
+#include <arm.h>
+#include <spinlock.h>
+#include <console.h>
 
 void
 initlock(struct spinlock *lk)

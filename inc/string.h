@@ -1,10 +1,8 @@
 #ifndef INC_STRING_H
 #define INC_STRING_H
 
-#include <stdint.h>
-#include <stddef.h>
-
-#include "arm.h"
+#include <types.h>
+#include <arm.h>
 
 static inline void *
 memset(void *str, int c, size_t n)
