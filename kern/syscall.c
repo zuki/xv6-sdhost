@@ -11,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <clock.h>
+#include <rtc.h>
 
 /* Check if a block of memory lies within the process user space. */
 int in_user(void *s, size_t n)
@@ -135,6 +136,10 @@ long sys_clock_settime(void)
         return -EINVAL;
 
     trace("clk_id: %d, tp: 0x%p\n", clk_id, tp);
+
+#ifdef USING_RASPI
+    rtc_settime(tp);
+#endif
 
     return clock_settime(clk_id, tp);
 }
