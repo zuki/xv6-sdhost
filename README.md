@@ -9,3 +9,4 @@
 - (2025/08/20) buddyとslab, kmallocを追加 (commit: 24a6584, 9ae687f, c4ba874)
 - (2025/08/20) ブロックサイズを4096に拡大 (commit: f8be6d4)
 - (2025/08/22) ログシステムを廃棄 (commit: c4ba874)
+- (2025/09/09) 時計機能を追加 (commit: 8fade0c, 9bdb4b5)

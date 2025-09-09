@@ -8,3 +8,4 @@ boot/*
 
 memos/book/*
 work/*
+memos/src/xv6/*.txt
