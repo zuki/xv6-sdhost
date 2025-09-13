@@ -72,7 +72,7 @@ void clock_init()
     put32(TIMER_CLR, TIMER_RELOAD | TIMER_CLR_INT);
 #ifdef USE_GIC
     irq_enable(IRQ_LOCAL_TIMER);
-    irq_register(IRQ_LOCAL_TIMER, clock_intr);
+    irq_register(IRQ_LOCAL_TIMER, clock_intr, 0);
 #endif
 
     initlock(&clocklock);

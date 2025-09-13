@@ -9,3 +9,4 @@ boot/*
 memos/book/*
 work/*
 memos/src/xv6/*.txt
+kmalloc_uniq.txt 

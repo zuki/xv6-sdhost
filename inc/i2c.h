@@ -1,8 +1,8 @@
 #ifndef INC_I2C_H
 #define INC_I2C_H
 
-#include "base.h"
-#include "types.h"
+#include <base.h>
+#include <types.h>
 
 #define I2C_BASE        (MMIO_BASE + 0x00804000)
 

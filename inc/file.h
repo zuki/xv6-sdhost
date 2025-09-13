@@ -1,7 +1,7 @@
 #ifndef INC_FILE_H
 #define INC_FILE_H
 
-#include <sys/stat.h>
+#include <linux/stat.h>
 #include <types.h>
 #include <sleeplock.h>
 #include <fs.h>

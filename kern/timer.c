@@ -36,7 +36,7 @@ void timer_init()
     put32(CORE_TIMER_CTRL(cpuid()), CORE_TIMER_ENABLE);
 #ifdef USE_GIC
     irq_enable(IRQ_LOCAL_CNTPNS);
-    irq_register(IRQ_LOCAL_CNTPNS, timer_intr);
+    irq_register(IRQ_LOCAL_CNTPNS, timer_intr, 0);
 #endif
 
     initlock(&timerlock);

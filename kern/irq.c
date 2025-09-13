@@ -122,7 +122,8 @@
 
 #endif
 
-static void (*handler[IRQ_LINES])();
+static void (*handler[IRQ_LINES])(void *);
+static void *params[IRQ_LINES];
 
 static void
 irq_debug()
@@ -147,10 +148,12 @@ irq_debug()
 
 /* Route all global interrupt to cpu 0. */
 void
-irq_init()
+irq_init(void)
 {
-    for (int i = 0; i < IRQ_LINES; i++)
+    for (int i = 0; i < IRQ_LINES; i++) {
         handler[i] = 0;
+        params[i] = 0;
+    }
 
 #ifndef USE_GIC
     put32(GPU_INT_ROUTE, GPU_IRQ2CORE(0));
@@ -206,7 +209,7 @@ void
 irq_disable(int i)
 {
 #ifndef USE_GIC
-    panic("todo");
+    put32(DISABLE_IRQS_1 + 4 * (i / 32), 1 << (i % 32));
 #else
     put32(GICD_ICENABLER0 + 4 * (i / 32), 1 << (i % 32));
 #endif
@@ -217,16 +220,17 @@ irq_disable(int i)
  * When interrupt i happens, it will call function f.
  */
 void
-irq_register(int i, void (*f)())
+irq_register(int i, void (*f)(void *), void *param)
 {
     handler[i] = f;
+    params[i] = param;
 }
 
 static int
 handle1(int i)
 {
     if (handler[i]) {
-        handler[i] ();
+        handler[i](params[i]);
         return 1;
     } else {
         debug("no handler for irq %d", i);
@@ -235,16 +239,18 @@ handle1(int i)
 }
 
 void
-irq_handler()
+irq_handler(void)
 {
     int nack = 0;
 #ifndef USE_GIC
     int src = get32(IRQ_SRC_CORE(cpuid()));
     assert(!(src & ~(IRQ_SRC_CNTPNSIRQ | IRQ_SRC_GPU | IRQ_SRC_TIMER)));
+    // 1. 物理カウンター割り込み（コアタイマー割り込み: タイマーで使用）
     if (src & IRQ_SRC_CNTPNSIRQ) {
         timer_intr();
         nack++;
     }
+    // 2. ローカルタイマー割り込み（clockで使用）
     if (src & IRQ_SRC_TIMER) {
         clock_intr();
         nack++;
@@ -253,9 +259,11 @@ irq_handler()
     uint64_t irq =
         get32(IRQ0_PENDING0) | (((uint64_t) get32(IRQ0_PENDING1)) << 32);
 #else
+    // 3. GPU割り込み（割り込み保留ビットを取得）
     uint64_t irq =
         get32(IRQ_PENDING_1) | (((uint64_t) get32(IRQ_PENDING_2)) << 32);
 #endif
+    // 保留されている登録済みの割り込みハンドラを降順に実行する
     for (int i = 0; i < IRQ_LINES && irq; i++) {
         if (irq & 1) {
             nack += handle1(i);

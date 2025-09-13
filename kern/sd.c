@@ -41,7 +41,7 @@ sd_init(void)
 
 #if RASPI == 3
     irq_enable(IRQ_SDIO);
-    irq_register(IRQ_SDIO, sd_intr);
+    irq_register(IRQ_SDIO, sd_intr, 0);
 #elif RASPI == 4
 #endif
 
@@ -74,7 +74,7 @@ sd_init(void)
 }
 
 void
-sd_intr(void)
+sd_intr(void *params)
 {
     acquire(&cardlock);
     emmc_intr(&card);

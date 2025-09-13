@@ -17,6 +17,7 @@
 #include <ds3231.h>
 #include <rtc.h>
 #include <random.h>
+#include <i2c.h>
 
 /*
  * Keep it in data segment by explicitly initializing by zero,

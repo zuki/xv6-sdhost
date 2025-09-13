@@ -1,6 +1,5 @@
 #include <console.h>
 
-#include <stdarg.h>
 #include <types.h>
 
 #include <arm.h>
@@ -148,7 +147,7 @@ console_init()
     uart_init();
 
     irq_enable(IRQ_AUX);
-    irq_register(IRQ_AUX, console_intr);
+    irq_register(IRQ_AUX, console_intr, 0);
 
     devsw[CONSOLE].read = console_read;
     devsw[CONSOLE].write = console_write;

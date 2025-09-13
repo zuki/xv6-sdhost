@@ -17,6 +17,7 @@
 #include <fs.h>
 #include <file.h>
 #include <linux/errno.h>
+#include <syscall.h>
 
 extern int execve(const char *, char *const, char *const);
 
@@ -249,7 +250,7 @@ long sys_unlink(void)
     struct inode *ip, *dp;
     struct dirent de;
     char name[DIRSIZ], *path;
-    ssize_t off;
+    size_t off;
 
     if (argstr(0, &path) < 0)
         return -1;

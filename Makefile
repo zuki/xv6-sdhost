@@ -8,7 +8,7 @@ CFLAGS := -Wall -g -O2 \
           -static -fno-builtin -nostdlib -nostdinc -ffreestanding -nostartfiles \
           -mgeneral-regs-only \
           -MMD -MP \
-		  -Iinc -I$(MUSL_INC) -I$(MUSL_INC)/sys  -I$(MUSL_INC)/bits 
+		  -Iinc -Iinc/linux -Inc/usb #-I$(MUSL_INC) -I$(MUSL_INC)/sys  -I$(MUSL_INC)/bits 
 
 CFLAGS += -DNOT_DEBUG -DLOG_DEBUG -DRASPI=$(RASPI)
 

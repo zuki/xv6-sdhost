@@ -1,0 +1,132 @@
+//
+// dwhcirootport.cpp
+//
+// USPi - An USB driver for Raspberry Pi written in C
+// Copyright (C) 2014-2018  R. Stange <rsta2@o2online.de>
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. pThis If not, see <http://www.gnu.org/licenses/>.
+//
+#include <usb/dwhc_root_port.h>
+#include <usb/dwhc_device.h>
+#include <usb/usb_device.h>
+#include <types.h>
+#include <mm.h>
+#include <console.h>
+
+
+void dwhc_root_port(dwhc_root_port_t *self, dwhc_device_t *host)
+{
+    self->host  = host;
+    self->dev   = 0;
+}
+
+void _dwhc_root_port(dwhc_root_port_t *self)
+{
+    if (self->dev != 0) {
+        _usb_device(self->dev);
+        kmfree(self->dev);
+        self->dev = 0;
+    }
+    self->host = 0;
+}
+
+boolean dwhc_root_port_init(dwhc_root_port_t *self)
+{
+    // 1. speedをチェック
+    usb_speed_t speed = dwhc_get_port_speed(self->host);
+    if (speed == usb_speed_unknown) {
+        error("cannot detect port speed");
+        return false;
+    }
+
+    // 2. デフォルトデバイスを作成
+    self->dev = (usb_dev_t *)kmalloc(sizeof(usb_dev_t));
+    usb_device(self->dev, self->host, speed, self);
+
+    // 3. デフォルトデバイスの初期化
+    if (!usb_dev_init(self->dev)) {
+        _usb_device(self->dev);
+        kmfree(self->dev);
+        self->dev = 0;
+        return false;
+    }
+    trace("3");
+    // 4. デフォルトデバイスのコンフィグレーション
+    if (!usb_dev_config(self->dev)) {
+        error("cannot configure device");
+        _usb_device(self->dev);
+        kmfree(self->dev);
+        self->dev = 0;
+        return false;
+    }
+    trace("4");
+    // 5. 過電流を検知したらルートポートは無効としてFALSEを返す
+    if (dwhc_overcurrent_detected(self->host)) {
+        error("Over-current condition");
+        dwhc_disable_rport(self->host, true);
+        _usb_device(self->dev);
+        kmfree(self->dev);
+        self->dev = 0;
+        return false;
+    }
+    info("Device configured");
+    return true;
+}
+
+boolean dwhc_root_port_rescan_dev(dwhc_root_port_t *self)
+{
+    if (self->dev == 0) {
+        warn("Previous attempt to initialize device failed");
+        return false;
+    }
+
+    return usb_dev_rescan_dev(self->dev);
+}
+
+boolean dwhc_root_port_remove_dev(dwhc_root_port_t *self)
+{
+    dwhc_disable_rport(self->host, false);
+    kmfree(self->dev);
+    self->dev = 0;
+    return true;
+}
+
+void dwhc_root_port_handle_port_status_change(dwhc_root_port_t *self)
+{
+    if (dwhc_device_connected(self->host)) {
+        if (self->dev == 0)
+            dwhc_rescan_dev(self->host);
+    } else {
+        if (self->dev != 0)
+            dwhc_disable_rport(self->host, true);
+    }
+}
+
+void dwhc_root_port_port_status_changed(dwhc_root_port_t *self)
+{
+/*
+    if (dwhc_is_pap(self->host))
+    {
+        port_status_event_t *event = (port_status_event_t*)kmalloc(sizeof(port_status_event_t));
+        assert (event != 0);
+        event->fromrp = true;
+        event->rport  = self;
+        list_init(&event->list);
+
+        acquire(&self->host->hublock);
+        list_push_back(&self->host->hublist, &event->list);
+        release(&self->host->hublock);
+    }
+*/
+}

@@ -7,6 +7,7 @@
 
 #ifndef USE_GIC
 
+#define IRQ_USB              9
 #define IRQ_AUX             29
 #define IRQ_SDIO            56
 #define IRQ_ARASANSDIO      62
@@ -28,10 +29,10 @@
 #define IRQ_LINES           256
 #endif
 
-void irq_init();
+void irq_init(void);
 void irq_enable(int);
 void irq_disable(int);
-void irq_register(int, void (*)());
-void irq_handler();
+void irq_register(int, void (*)(void *), void *);
+void irq_handler(void);
 
 #endif

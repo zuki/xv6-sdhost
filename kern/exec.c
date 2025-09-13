@@ -12,6 +12,7 @@
 #include <proc.h>
 #include <mm.h>
 #include <memlayout.h>
+#include <syscall.h>
 
 static uint64_t auxv[][2] = { { AT_PAGESZ, PGSIZE } };
 

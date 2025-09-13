@@ -2,6 +2,7 @@
 #define INC_CONSOLE_H
 
 #include <types.h>
+#include <arm.h>
 #include <spinlock.h>
 
 extern struct spinlock dbglock;

@@ -28,6 +28,12 @@ memmove(void *dst, const void *src, size_t n)
     return dst;
 }
 
+static inline void *
+memcpy(void *dst, const void *src, ssize_t n)
+{
+    return memmove(dst, src, n);
+}
+
 static inline int
 memcmp(const void *v1, const void *v2, size_t n)
 {
@@ -80,5 +86,46 @@ strlen(const char *s)
         ;
     return n;
 }
+
+static inline char *
+strrchr(const char *s, char c)
+{
+    char *p = (char *)((uint64_t)s + strlen(s) - 1);
+    for (; *p && p >= s; p--) {
+        if (*p == c)
+            return (char *)p;
+    }
+    return 0;
+}
+
+static inline int
+strcmp(const char *p, const char *q)
+{
+    while (*p && *p == *q)
+        p++, q++;
+    return (int) ((uint8_t)*p - (uint8_t)*q);
+}
+
+static inline void *
+memscan(void *addr, int c, size_t size)
+{
+    unsigned char *a = addr;
+
+    while (size) {
+        if (*a == c)
+            return (void *)a;
+        a++;
+        size--;
+    }
+    return (void *)a;
+}
+
+static inline void format(uint8_t c, char *sc) {
+    const char digit[] = "0123456789abcdef";
+    sc[0] = digit[c >> 4];
+    sc[1] = digit[c & 0xf];
+}
+
+int sprintf(char *str, const char *fmt, ...);
 
 #endif

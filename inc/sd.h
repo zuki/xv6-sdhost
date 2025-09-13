@@ -59,8 +59,10 @@ static inline uint32_t fs_lba(int  dev)
     return ptinfo[dev].lba;
 }
 
+struct buf;
+
 void sd_init(void);
-void sd_intr(void);
+void sd_intr(void *params);
 void sd_rw(struct buf *);
 void sd_flush(void);
 

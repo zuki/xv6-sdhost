@@ -4,6 +4,7 @@
 
 #include <arm.h>
 #include <console.h>
+#include <string.h>
 
 #define MBOX_BASE       (MMIO_BASE + 0x0000B880)
 #define MBOX_READ       (MBOX_BASE + 0x00)
@@ -19,6 +20,7 @@
 #define MBOX_RESP_OK    0x80000000
 #define MBOX_RESP_ERR   0x80000001
 
+#define MBOX_TAG_GET_MAC_ADDRESS    0x00010003
 #define MBOX_TAG_GET_ARM_MEMORY     0x00010005
 #define MBOX_TAG_SET_POWER_STATE    0x00028001
 #define MBOX_TAG_GET_CLOCK_RATE     0x00030002
@@ -220,4 +222,31 @@ mbox_test()
     assert(x != 0);
     info("pass");
 #endif
+}
+
+boolean
+mbox_get_macaddr(char *address)
+{
+    __attribute__((aligned(16)))
+    volatile uint32_t buf[] =
+        { 0, 0, MBOX_TAG_GET_MAC_ADDRESS, 8, MBOX_TAG_REQUEST, 0, 0,
+        MBOX_TAG_END};
+    buf[0] = sizeof(buf);
+    asserts((V2P(buf) & 0xF) == 0, "Buffer should align to 16 bytes. ");
+ 
+    if (mbox_send(buf, sizeof(buf)) < 0)
+        return false;
+ 
+    if ((buf[4] >> 31) == 0) {              // 成功の場合はbit31=1
+        debug("unexpected tag resp %d", buf[4]);
+        return false;
+    }
+#if 0
+    for (int i=0; i < 8; i++) {
+        info("buf: %08x", buf[i]);
+    };
+#endif
+    assert((buf[4] & 0x7FFFFFFF) == 6);     // MACアドレスは6バイト
+    memmove(address, ((char *)buf)+20, 6);
+    return true;
 }

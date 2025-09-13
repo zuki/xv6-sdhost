@@ -1,10 +1,10 @@
-#include "gpio.h"
-#include "i2c.h"
-#include "arm.h"
-#include "console.h"
-#include "i2c.h"
-#include "rtc.h"
-#include "types.h"
+#include <gpio.h>
+#include <i2c.h>
+#include <arm.h>
+#include <console.h>
+#include <i2c.h>
+#include <rtc.h>
+#include <types.h>
 
 void
 i2c_init(int div)
