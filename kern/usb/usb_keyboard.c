@@ -44,11 +44,11 @@ static uint8_t usb_keyboard_get_kcode(usb_keyboard_t *self);
 static void usb_keyboard_timer_hdl(unsigned hTimer, void *param, void *ctx);
 #endif
 
-void usb_keyboard(usb_keyboard_t *self, usb_functon_t *func)
+void usb_keyboard(usb_keyboard_t *self, usb_function_t *func)
 {
     assert (self != 0);
 
-    usb_functon_copy(&self->func, func);
+    usb_function_copy(&self->func, func);
     self->func.configure = usb_keyboard_config;
 
     self->ep = 0;
@@ -86,20 +86,20 @@ void _usb_keyboard(usb_keyboard_t *self)
     _usb_function(&self->func);
 }
 
-boolean usb_keyboard_config(usb_functon_t *func)
+boolean usb_keyboard_config(usb_function_t *func)
 {
     // 1. usb_standardhubオブジェクトを取り出し
     usb_keyboard_t *self = (usb_keyboard_t *)func;
     assert (self != 0);
     // 2. EPの数は1以上であること
-    if (usb_functon_get_num_eps(&self->func) < 1) {
+    if (usb_function_get_num_eps(&self->func) < 1) {
         warn("failed getting nums of endpoints");
         return false;
     }
     // 3. エンドポイントディスクリプタを取得とエンドポイントの作成
     usb_ep_desc_t *ep_desc;
     while ((ep_desc = (usb_ep_desc_t *)
-            usb_functon_get_desc(&self->func, DESCRIPTOR_ENDPOINT)) != 0) {
+            usb_function_get_desc(&self->func, DESCRIPTOR_ENDPOINT)) != 0) {
         if ((ep_desc->addr & 0x80) != 0x80       // Input EP
          || (ep_desc->attr & 0x3F) != 0x03) {    // Interrupt EP
             continue;
@@ -108,7 +108,7 @@ boolean usb_keyboard_config(usb_functon_t *func)
         assert (self->ep == 0);
         self->ep = kmalloc(sizeof(usb_endpoint_t));
         assert (self->ep != 0);
-        usb_endpoint2(self->ep, usb_functon_get_dev(&self->func), ep_desc);
+        usb_endpoint2(self->ep, usb_function_get_dev(&self->func), ep_desc);
         break;
     }
     if (self->ep == 0) {
@@ -116,16 +116,16 @@ boolean usb_keyboard_config(usb_functon_t *func)
         return false;
     }
     // 4. ファンクションクラスとしてConfigure
-    if (!usb_functon_config(&self->func)) {
+    if (!usb_function_config(&self->func)) {
         warn("cannot set interface");
         return false;
     }
     // 5.
-    dwhc_device_t *host = usb_functon_get_host(&self->func);
-    if (dwhc_control_message(host, usb_functon_get_ep0(&self->func),
+    dwhc_device_t *host = usb_function_get_host(&self->func);
+    if (dwhc_control_message(host, usb_function_get_ep0(&self->func),
             REQUEST_OUT | REQUEST_CLASS | REQUEST_TO_INTERFACE,
             SET_PROTOCOL, BOOT_PROTOCOL,
-            usb_functon_get_if_num(&self->func), 0, 0) < 0) {
+            usb_function_get_if_num(&self->func), 0, 0) < 0) {
         warn("Cannot set boot protocol");
         return false;
     }
@@ -134,7 +134,7 @@ boolean usb_keyboard_config(usb_functon_t *func)
     usb_keyboard_set_led(self, self->ledstatus);
     // 7. デバイス番号を取得してデバイスを登録
     char *name = (char *)kmalloc(16);
-    sprintf(name, "ukbd%x", devno++);
+    sprintf(name, "kbd%x", devno++);
     usb_device_ns_add_dev(usb_device_ns_get(), name, self, false);
     kmfree(name);
 
@@ -184,11 +184,11 @@ void usb_keyboard_set_led(usb_keyboard_t *self, uint8_t mask)
     assert (self != 0);
     uint8_t leds[1] GALIGN(4) = {mask};    // DMA buffer
 
-    dwhc_device_t *host = usb_functon_get_host(&self->func);
-    if (dwhc_control_message(host, usb_functon_get_ep0(&self->func),
+    dwhc_device_t *host = usb_function_get_host(&self->func);
+    if (dwhc_control_message(host, usb_function_get_ep0(&self->func),
             REQUEST_OUT | REQUEST_CLASS | REQUEST_TO_INTERFACE,
             SET_REPORT, (REPORT_TYPE_OUTPUT << 8) | 0,
-            usb_functon_get_if_num(&self->func), leds, sizeof leds) < 0) {
+            usb_function_get_if_num(&self->func), leds, sizeof leds) < 0) {
         warn("Cannot set led");
     }
 }
@@ -253,7 +253,7 @@ boolean usb_keyboard_start_request(usb_keyboard_t *self)
 
     usb_request(&self->urb, self->ep, self->buffer, BOOT_REPORT_SIZE, 0);
     usb_request_set_comp_cb(&self->urb, usb_keyboard_comp_cb, 0, self);
-    return dwhc_submit_async_request(usb_functon_get_host(&self->func), &self->urb, 0);
+    return dwhc_submit_async_request(usb_function_get_host(&self->func), &self->urb, 0);
 }
 
 void usb_keyboard_comp_cb(usb_request_t *urb, void *param, void *ctx)

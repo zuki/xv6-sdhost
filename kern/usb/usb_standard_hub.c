@@ -48,9 +48,9 @@ static uint32_t alloc_devno(void)
     return i;
 }
 
-void usb_standardhub(usb_standard_hub_t *self, usb_functon_t *func)
+void usb_standardhub(usb_standard_hub_t *self, usb_function_t *func)
 {
-    usb_functon_copy(&self->func, func);
+    usb_function_copy(&self->func, func);
     self->func.configure = usb_standard_hub_config;
     self->intr_ep = 0;
     self->hub_desc = 0;
@@ -102,21 +102,21 @@ void _usb_standardhub(usb_standard_hub_t *self)
     _usb_function(&self->func);
 }
 
-boolean usb_standard_hub_config(usb_functon_t *func)
+boolean usb_standard_hub_config(usb_function_t *func)
 {
     // 1. usb_standardhubオブジェクトを取り出し
     usb_standard_hub_t *self = (usb_standard_hub_t *)func;
     assert (self != 0);
 
     // 2. EPの数は1であること
-    if (usb_functon_get_num_eps(&self->func) != 1) {
+    if (usb_function_get_num_eps(&self->func) != 1) {
         warn("failed getting nums of endpoints");
         return false;
     }
 
     // 3. エンドポイントディスクリプタを取得
     const usb_ep_desc_t *ep_desc =
-        (usb_ep_desc_t *) usb_functon_get_desc(&self->func, DESCRIPTOR_ENDPOINT);
+        (usb_ep_desc_t *) usb_function_get_desc(&self->func, DESCRIPTOR_ENDPOINT);
     // 入力EPかつ割り込みEPであること
     if (ep_desc == 0 || (ep_desc->addr & 0x80) != 0x80       // input EP
                      || (ep_desc->attr & 0x3F) != 0x03) {    // interrupt EP
@@ -126,21 +126,21 @@ boolean usb_standard_hub_config(usb_functon_t *func)
 
     // 4. 割り込みエンドポイントの作成
     self->intr_ep = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
-    usb_endpoint2(self->intr_ep, usb_functon_get_dev(&self->func), ep_desc);
+    usb_endpoint2(self->intr_ep, usb_function_get_dev(&self->func), ep_desc);
 
     // 5. ファンクションクラスとしてConfigure
-    if (!usb_functon_config(&self->func)) {
+    if (!usb_function_config(&self->func)) {
         warn("cannot set interface");
         return false;
     }
 
     // 6. ハブディスクリプタを取得して設定
-    dwhc_device_t *host = usb_functon_get_host(&self->func);
+    dwhc_device_t *host = usb_function_get_host(&self->func);
     // FIXME
     //self->hub_desc = (hub_desc_t *)kmalloc(sizeof(hub_desc_t));
     self->hub_desc = (hub_desc_t *)kalloc();
     assert(self->hub_desc != 0);
-    if (dwhc_get_desc(host, usb_functon_get_ep0(&self->func),
+    if (dwhc_get_desc(host, usb_function_get_ep0(&self->func),
                     DESCRIPTOR_HUB, DESCRIPTOR_INDEX_DEFAULT,
                     self->hub_desc, sizeof(hub_desc_t),
                     REQUEST_IN | REQUEST_CLASS, 0) != (int) sizeof(hub_desc_t)) {
@@ -169,7 +169,7 @@ boolean usb_standard_hub_config(usb_functon_t *func)
 
     // 10. プラグアンドプレイの場合は処理の変更リクエスを発行
 /*
-    dwhc_device_t *host = usb_functon_get_host(&self->func);
+    dwhc_device_t *host = usb_function_get_host(&self->func);
     if (host->pap %% !usb_standard_hub_start_status_change_req(self)) {
         warn("Cannot start request");
         goto bad;
@@ -188,8 +188,8 @@ bad:
 static boolean
 usb_standard_hub_enumerate_ports(usb_standard_hub_t *self)
 {
-    dwhc_device_t *host = usb_functon_get_host(&self->func);
-    usb_endpoint_t *ep0 = usb_functon_get_ep0(&self->func);
+    dwhc_device_t *host = usb_function_get_host(&self->func);
+    usb_endpoint_t *ep0 = usb_function_get_ep0(&self->func);
     usb_speed_t speed;
 
     // 1. すべてのポートの電源をオン
@@ -375,8 +375,8 @@ boolean usb_standard_hub_remove_dev(usb_standard_hub_t *self, uint32_t index)
 
 boolean usb_standard_hub_disable_port(usb_standard_hub_t *self, uint32_t index)
 {
-    dwhc_device_t *host = usb_functon_get_host(&self->func);
-    usb_endpoint_t *ep0 = usb_functon_get_ep0(&self->func);
+    dwhc_device_t *host = usb_function_get_host(&self->func);
+    usb_endpoint_t *ep0 = usb_function_get_ep0(&self->func);
 
     if (dwhc_control_message(host, ep0,
             REQUEST_OUT | REQUEST_CLASS | REQUEST_TO_OTHER,
@@ -392,7 +392,7 @@ boolean usb_standard_hub_disable_port(usb_standard_hub_t *self, uint32_t index)
 boolean usb_standard_hub_start_status_change_req(usb_standard_hub_t *self)
 {
     size_t buflen = (self->nports + 8) / 8;
-    dwhc_device_t *host = usb_functon_get_host(&self->func);
+    dwhc_device_t *host = usb_function_get_host(&self->func);
 
     if (self->buffer == 0) {
         self->buffer = (uint8_t *)kmalloc(buflen);
@@ -425,8 +425,8 @@ void usb_standard_hub_comp_cbstub(usb_request_t *urb, void *param, void *ctx)
 
 void usb_standard_hub_handle_port_status_change(usb_standard_hub_t *self)
 {
-    dwhc_device_t *host = usb_functon_get_host(&self->func);
-    usb_endpoint_t *ep0 = usb_functon_get_ep0(&self->func);
+    dwhc_device_t *host = usb_function_get_host(&self->func);
+    usb_endpoint_t *ep0 = usb_function_get_ep0(&self->func);
 
     uint16_t statbitmap = self->buffer[0];
     if (self->nports > 8) {
@@ -493,12 +493,12 @@ void usb_standard_hub_handle_port_status_change(usb_standard_hub_t *self)
 void usb_standard_hub_port_status_changed(usb_standard_hub_t *self)
 {
 /*
-    dwhc_device_t *host = usb_functon_get_host(&self->func);
+    dwhc_device_t *host = usb_function_get_host(&self->func);
     if (dwhc_is_pap(host))
     {
         port_status_event_t *event = (port_status_event_t*)kmalloc(sizeof(port_status_event_t));
         assert (event != 0);
-        event->fromrp = false;
+        event->from_root_port = false;
         event->hub    = self;
         list_init(&event->list);
 

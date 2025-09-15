@@ -22,6 +22,7 @@
 #include <usb/dwhc_non_periodic.h>
 #include <usb/dwhc_non_split.h>
 #include <usb/dwhc_regs.h>
+#include <usb/usb_request.h>
 #include <types.h>
 #include <console.h>
 #include <debug.h>
@@ -109,22 +110,22 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
 
     if (self->split) {
         if (dwhc_xfer_data_is_periodic(self)) {
-            dwhc_periodic(&self->fsched.periodic);
-            trace("periodic: 0x%p", &self->fsched.periodic);
+            dwhc_periodic(&self->scheduler.periodic);
+            debug("periodic: 0x%p", &self->scheduler.periodic);
         } else {
-            dwhc_non_periodic(&self->fsched.nonperiodic);
-            trace("nonperiodic: 0x%p", &self->fsched.nonperiodic);
+            dwhc_non_periodic(&self->scheduler.nonperiodic);
+            debug("nonperiodic: 0x%p", &self->scheduler.nonperiodic);
         }
         self->fsused = true;
     } else {
         if (usb_dev_get_hubaddr(self->dev) == 0 && self->speed != usb_speed_high)
         {
-            dwhc_non_split(&self->fsched.nosplit,
+            dwhc_non_split(&self->scheduler.nosplit,
                             dwhc_xfer_data_is_periodic(self));
-            trace("nosplit: 0x%p", &self->fsched.nosplit);
+            debug("nosplit: 0x%p", &self->scheduler.nosplit);
             self->fsused = true;
         } else {
-            trace("no use fsched");
+            debug("no use scheduler");
         }
     }
 
@@ -134,13 +135,13 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
         self->timeout = timeout * HZ / 1000;
         self->start = jiffies;
     }
-    //debug_stdata(self);
+    debug_stdata(self);
 }
 
 void _dwhc_xfer_data(dwhc_xfer_data_t *self)
 {
     if (self->fsused) {
-        self->fsched.base._fscheduler(&self->fsched.base);
+        self->scheduler.base._scheduler(&self->scheduler.base);
     }
 
     self->buffp = 0;
@@ -388,6 +389,11 @@ uint32_t dwhc_xfer_data_get_status_mask(dwhc_xfer_data_t *self)
              | DWHCI_HOST_CHAN_INT_NAK
              | DWHCI_HOST_CHAN_INT_NYET;
     }
+#ifdef USE_NAK_USB_FIX
+    else if (usb_request_is_comp_on_nak(self->urb)) {
+        mask |= DWHCI_HOST_CHAN_INT_NAK;
+    }
+#endif
 
     return mask;
 }
@@ -416,13 +422,13 @@ usb_request_t *dwhc_xfer_data_get_urb(dwhc_xfer_data_t *self)
     return self->urb;
 }
 
-dw2_fsched_t *dwhc_xfer_data_get_fsched(dwhc_xfer_data_t *self)
+dwhc_scheduler_t *dwhc_xfer_data_get_scheduler(dwhc_xfer_data_t *self)
 {
     if (!self->fsused) {
         return 0;
     }
 
-    return &self->fsched.base;
+    return &self->scheduler.base;
 }
 
 boolean dwhc_xfer_data_is_retry_ok(dwhc_xfer_data_t *self)

@@ -4,12 +4,10 @@
 #include <linux/time.h>
 
 // 実機用にコンパイルする場合は以下をコメントアウト
-#define USING_RASPI
-#undef USE_QEMU_USB_FIX
+//#define USING_RASPI
 
 // QEMU用にコンパイルする場合は以下をコメントアウト
-//#undef  USING_RASPI
-//#define USE_QEMU_USB_FIX
+#undef  USING_RASPI
 
 
 struct rtc_time {

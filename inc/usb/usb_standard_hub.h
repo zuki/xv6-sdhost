@@ -33,7 +33,7 @@ struct usb_device;
 struct usb_request;
 
 typedef struct usb_standard_hub {
-	usb_functon_t          func;       ///< usb functionオブジェクト
+	usb_function_t          func;       ///< usb functionオブジェクト
     struct usb_endpoint      *intr_ep;    ///< 割り込みエンドポイント
     hub_desc_t         *hub_desc;   ///< ハブディスクリプタ
     uint8_t            *buffer;     ///< ステータス変更データ用のバッファ
@@ -45,9 +45,9 @@ typedef struct usb_standard_hub {
     boolean             portconf[USB_HUB_MAX_PORTS]; ///< ポート構成済み配列
 } usb_standard_hub_t;
 
-void usb_standardhub(usb_standard_hub_t *self, usb_functon_t *func);
+void usb_standardhub(usb_standard_hub_t *self, usb_function_t *func);
 void _usb_standardhub(usb_standard_hub_t *self);
-boolean usb_standard_hub_config(usb_functon_t *self);
+boolean usb_standard_hub_config(usb_function_t *self);
 boolean usb_standard_hub_rescan_dev(usb_standard_hub_t *self);
 boolean usb_standard_hub_remove_dev(usb_standard_hub_t *self, uint32_t index);
 boolean usb_standard_hub_disable_port(usb_standard_hub_t *self, uint32_t index);

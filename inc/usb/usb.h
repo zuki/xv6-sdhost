@@ -21,9 +21,21 @@
 #define INC_USB_USB_H
 
 #include <types.h>
+#include <rtc.h>
 
-// プラグアンドプレイを無効にするので、当面、これも無効にする
+// プラグアンドプレイとFIQを使用する場合は有国する必要がある
+// 当面、両方とも無効にするのでこれも無効にする
+#undef USE_USB_FIQ
 #undef USE_USB_SOF_INTR
+
+// QEMUのUSB関連のバグを修正する（実機の場合はundefとする）
+#ifdef USING_RASPI
+#undef USE_QEMU_USB_FIX
+#undef USE_NAK_USB_FIX
+#else
+#define USE_QEMU_USB_FIX
+#define USE_NAK_USB_FIX
+#endif
 
 #define MAC_ADDRESS_SIZE    6
 

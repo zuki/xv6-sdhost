@@ -13,6 +13,7 @@
 #include <debug.h>
 #include <file.h>
 #include <log.h>
+#include <usb.h>
 
 extern void trapret();
 extern void swtch(struct context **old, struct context *new);
@@ -190,6 +191,7 @@ forkret()
         sd_init();
         iinit(ROOTDEV);
         initlog(ROOTDEV);
+        usb_init();
     } else {
         release(&ptable.lock);
     }

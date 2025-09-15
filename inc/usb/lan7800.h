@@ -224,7 +224,7 @@
 #define RX_CMD_A_LEN_MASK       0x00003FFF      // 13-0: Frame length
 
 typedef struct lan7800 {
-    usb_functon_t   usb_func;
+    usb_function_t   usb_func;
     net_dev_t   *net_dev;
     usb_endpoint_t    *bulk_in;
     usb_endpoint_t    *bulk_out;
@@ -232,7 +232,7 @@ typedef struct lan7800 {
     uint8_t     *tx_buffer;
 } lan7800_t;
 
-void lan7800(lan7800_t *self, usb_functon_t *func);
+void lan7800(lan7800_t *self, usb_function_t *func);
 void _lan7800(lan7800_t *self);
 
 boolean lan7800_send_frame(lan7800_t *self, const void *buffer, uint32_t len);

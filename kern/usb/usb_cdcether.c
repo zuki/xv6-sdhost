@@ -44,9 +44,9 @@ typedef struct ethernet_functional_descriptor {
     uint8_t      powerfilters;
 } PACKED eth_func_desc_t;
 
-void usb_cdcether(usb_cdcether_t *self, usb_functon_t *func)
+void usb_cdcether(usb_cdcether_t *self, usb_function_t *func)
 {
-    usb_functon_copy(&self->usb_func, func);
+    usb_function_copy(&self->usb_func, func);
     //self->net_dev = net_dev();
     self->usb_func.configure = usb_cdcether_configure;
     self->bulk_in = 0;
@@ -69,13 +69,13 @@ void _usb_cdcether(usb_cdcether_t *self)
 }
 
 
-boolean usb_cdcether_configure(usb_functon_t *func)
+boolean usb_cdcether_configure(usb_function_t *func)
 {
     usb_cdcether_t *self = (usb_cdcether_t *)func;
 
     // Ethernetネットワーキング機能ディスクリプタを見つける
     const eth_func_desc_t *eth_desc;
-    while ((eth_desc = (eth_func_desc_t *)usb_functon_get_desc(&self->usb_func, DESCRIPTOR_CS_INTERFACE)) != 0) {
+    while ((eth_desc = (eth_func_desc_t *)usb_function_get_desc(&self->usb_func, DESCRIPTOR_CS_INTERFACE)) != 0) {
         if (eth_desc->subtype == ETHERNET_NETWORKING_FUNCTIONAL_DESCRIPTOR)
             break;
     }
@@ -87,7 +87,7 @@ boolean usb_cdcether_configure(usb_functon_t *func)
 
     // データクラスインタフェースディスクリプタを見つける
     const usb_if_desc_t *if_decs;
-    while ((if_decs = (usb_if_desc_t *)usb_functon_get_desc(&self->usb_func, DESCRIPTOR_INTERFACE)) != 0) {
+    while ((if_decs = (usb_if_desc_t *)usb_function_get_desc(&self->usb_func, DESCRIPTOR_INTERFACE)) != 0) {
         if (if_decs->class    == 0x0A
          && if_decs->subclass == 0x00
          && if_decs->proto    == 0x00
@@ -111,7 +111,7 @@ boolean usb_cdcether_configure(usb_functon_t *func)
 
     // エンドポイントを取得
     const usb_ep_desc_t *ep_desc;
-    while ((ep_desc = (usb_ep_desc_t *)usb_functon_get_desc(&self->usb_func, DESCRIPTOR_ENDPOINT)) != 0) {
+    while ((ep_desc = (usb_ep_desc_t *)usb_function_get_desc(&self->usb_func, DESCRIPTOR_ENDPOINT)) != 0) {
         if ((ep_desc->attr & 0x3F) == 0x02) {       // バルク転送
             if ((ep_desc->addr & 0x80) == 0x80) {   // 入力パイプ
                 if (self->bulk_in != 0) {
@@ -119,14 +119,14 @@ boolean usb_cdcether_configure(usb_functon_t *func)
                     return false;
                 }
                 self->bulk_in = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
-                usb_endpoint2(self->bulk_in, usb_functon_get_dev(&self->usb_func), ep_desc);
+                usb_endpoint2(self->bulk_in, usb_function_get_dev(&self->usb_func), ep_desc);
             } else {                                // 出力パイプ
                 if (self->bulk_out != 0) {
                     error("bulk_out not null");
                     return false;
                 }
                 self->bulk_out = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
-                usb_endpoint2(self->bulk_out, usb_functon_get_dev(&self->usb_func), ep_desc);
+                usb_endpoint2(self->bulk_out, usb_function_get_dev(&self->usb_func), ep_desc);
             }
         }
     }
@@ -137,7 +137,7 @@ boolean usb_cdcether_configure(usb_functon_t *func)
     }
 
     // コンフィグレーションを行う
-    if (!usb_functon_config(&self->usb_func)) {
+    if (!usb_function_config(&self->usb_func)) {
         error("config usb_func failed");
         return false;
     }
@@ -159,7 +159,7 @@ const char *usb_cdcether_get_macaddr(usb_cdcether_t *self)
 boolean usb_cdcether_send_frame(usb_cdcether_t *self, const void *buffer, uint32_t len)
 {
     // USB転送（バルク）
-    return dwhc_xfer(usb_functon_get_host(&self->usb_func), self->bulk_out, buffer, len) >= 0;
+    return dwhc_xfer(usb_function_get_host(&self->usb_func), self->bulk_out, buffer, len) >= 0;
 }
 
 boolean usb_cdcether_receive_frame(usb_cdcether_t *self, void *buffer, uint32_t *resultlen)
@@ -168,7 +168,7 @@ boolean usb_cdcether_receive_frame(usb_cdcether_t *self, void *buffer, uint32_t 
     usb_request(&urb, self->bulk_in, buffer, FRAME_BUFFER_SIZE, 0);
     urb.onnak = true;
 
-    if (!dwhc_submit_block_request(usb_functon_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {
+    if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {
         debug("failed submit block request");
         return false;
     }
@@ -185,7 +185,7 @@ boolean usb_cdcether_receive_frame(usb_cdcether_t *self, void *buffer, uint32_t 
 boolean usb_cdcether_init_macaddr(usb_cdcether_t *self, uint8_t id)
 {
     usb_string_t usb_str;
-    usb_string(&usb_str, usb_functon_get_dev(&self->usb_func));
+    usb_string(&usb_str, usb_function_get_dev(&self->usb_func));
     if (id == 0 || !usb_string_get_from_desc(&usb_str, id,
             usb_string_get_langid(&usb_str))) {
         debug("failed to get lang id");

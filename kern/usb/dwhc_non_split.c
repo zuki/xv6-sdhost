@@ -30,9 +30,9 @@ void dwhc_non_split(dwhc_non_split_t *self, boolean peiodic)
 {
     assert(self != 0);
 
-    dw2_fsched_t *base = (dw2_fsched_t *) self;
+    dwhc_scheduler_t *base = (dwhc_scheduler_t *) self;
 
-    base->_fscheduler = _dwhc_non_split;
+    base->_scheduler = _dwhc_non_split;
     base->start_split = dwhc_non_split_start_split;
     base->complete_split = dwhc_non_split_complete_split;
     base->transaction_complete = dwhc_non_split_transaction_complete;
@@ -40,7 +40,7 @@ void dwhc_non_split(dwhc_non_split_t *self, boolean peiodic)
     base->wait_for_frame = dwhc_non_split_wait_for_frame;
 #else
     base->get_frame_number = dwhc_non_split_get_frame_number;
-    base->periodic_delay = w2_fsched_nsplit_periodic_delay;
+    base->periodic_delay = dwhc_non_split_periodic_delay;
 #endif
     base->is_odd_frame = dwhc_non_split_is_odd_frame;
 
@@ -48,30 +48,30 @@ void dwhc_non_split(dwhc_non_split_t *self, boolean peiodic)
     self->next = FRAME_UNSET_NS;
 }
 
-void _dwhc_non_split(dw2_fsched_t *base)
+void _dwhc_non_split(dwhc_scheduler_t *base)
 {
     // nop
 }
 
-void dwhc_non_split_start_split(dw2_fsched_t *base)
+void dwhc_non_split_start_split(dwhc_scheduler_t *base)
 {
     assert(0);
 }
 
-boolean dwhc_non_split_complete_split(dw2_fsched_t *base)
+boolean dwhc_non_split_complete_split(dwhc_scheduler_t *base)
 {
     assert(0);
     return false;
 }
 
-void dwhc_non_split_transaction_complete(dw2_fsched_t *base, uint32_t status)
+void dwhc_non_split_transaction_complete(dwhc_scheduler_t *base, uint32_t status)
 {
     assert(0);
 }
 
 #ifndef USE_USB_SOF_INTR
 
-void dwhc_non_split_wait_for_frame(dw2_fsched_t *base)
+void dwhc_non_split_wait_for_frame(dwhc_scheduler_t *base)
 {
     dwhc_non_split_t *self = (dwhc_non_split_t *) base;
 
@@ -94,7 +94,7 @@ void dwhc_non_split_wait_for_frame(dw2_fsched_t *base)
 
 #else
 
-uint16_t dwhc_non_split_get_frame_number(dw2_fsched_t *base)
+uint16_t dwhc_non_split_get_frame_number(dwhc_scheduler_t *base)
 {
     dwhc_non_split_t *self = (dwhc_non_split_t *) base;
 
@@ -104,14 +104,14 @@ uint16_t dwhc_non_split_get_frame_number(dw2_fsched_t *base)
     return serl->next;
 }
 
-void dwhc_non_split_periodic_delay(dw2_fsched_t *base, uint16_t offset)
+void dwhc_non_split_periodic_delay(dwhc_scheduler_t *base, uint16_t offset)
 {
 	assert (0);
 }
 
 #endif
 
-boolean dwhc_non_split_is_odd_frame(dw2_fsched_t *base)
+boolean dwhc_non_split_is_odd_frame(dwhc_scheduler_t *base)
 {
     dwhc_non_split_t *self = (dwhc_non_split_t *) base;
 

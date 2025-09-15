@@ -65,11 +65,11 @@ typedef struct dwhc_xfer_data {
 
     boolean         fsused;
     union {
-        dw2_fsched_t         base;
+        dwhc_scheduler_t    base;
         dwhc_periodic_t     periodic;
-        dwhc_non_periodic_t    nonperiodic;
-        dwhc_non_split_t  nosplit;
-    } fsched;                           ///< フレームスケジューラ
+        dwhc_non_periodic_t nonperiodic;
+        dwhc_non_split_t    nosplit;
+    } scheduler;                           ///< フレームスケジューラ
 } dwhc_xfer_data_t;
 
 void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb, boolean in, boolean ststatus, unsigned timeout);
@@ -118,7 +118,7 @@ boolean dwhc_xfer_data_is_stage_complete(dwhc_xfer_data_t *self);
 uint32_t dwhc_xfer_data_get_resultlen(dwhc_xfer_data_t *self);
 
 usb_request_t *dwhc_xfer_data_get_urb(dwhc_xfer_data_t *self);
-dw2_fsched_t *dwhc_xfer_data_get_fsched(dwhc_xfer_data_t *self);
+dwhc_scheduler_t *dwhc_xfer_data_get_scheduler(dwhc_xfer_data_t *self);
 
 boolean dwhc_xfer_data_is_retry_ok(dwhc_xfer_data_t *self);
 

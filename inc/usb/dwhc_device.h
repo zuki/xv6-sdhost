@@ -38,15 +38,15 @@
 /// @brief DesignWave USB2 ホストコントローラ構造体
 typedef struct dwhc_device {
     unsigned            channels;               ///< チャネル数
-    volatile unsigned   allocch;                ///< 割り当て済みチャネル数: 1ビット1チャネル
-    struct spinlock     chanlock;               ///< スピンロック: allocchを保護
-    struct spinlock     wblklock;               ///< スピンロック: allocwblkを保護
+    volatile unsigned   allocated_chans;        ///< 割り当て済みチャネル数: 1ビット1チャネル
+    struct spinlock     chanlock;               ///< スピンロック: allocated_chansを保護
+    struct spinlock     wblklock;               ///< スピンロック: allocated_wkblockを保護
     struct spinlock     imasklock;              ///< スピンロック: チャネル割り込みのマスク/アンマスク処理を保護
     dwhc_xfer_data_t *stdata[DWHCI_MAX_CHANNELS]; ///< 転送ステートデータ（配列は各チャネルに対応）
     volatile boolean    waiting[DWHCI_WAIT_BLOCKS];  ///< 待機中フラグ
-    volatile unsigned   allocwblk;              ///< 待機中フラグ配列の割り当て済みウェイトブロック: 1ビット1wait block
-    dwhc_root_port_t         rport;                  ///< ルートポート
-    volatile boolean    rpenabled;              ///< ルートポートが有効か
+    volatile unsigned   allocated_wkblock;      ///< 待機中フラグ配列の割り当て済みウェイトブロック: 1ビット1wait block
+    dwhc_root_port_t    root_port;              ///< ルートポート
+    volatile boolean    root_port_enabled;      ///< ルートポートが有効か
     volatile boolean    shutdown;               ///< USBドライバはshutdownするか
 
 #ifdef USE_USB_SOF_INTR
@@ -60,10 +60,10 @@ typedef struct dwhc_device {
 
 /// @brief ポートステータスイベント構造体
 typedef struct port_status_event {
-    boolean              fromrp;  // ルートハブからか
+    boolean              from_root_port;  // ルートハブからか
     union {
-        dwhc_root_port_t     *rport;
-        usb_standard_hub_t    *hub;
+        dwhc_root_port_t    *root_port;
+        usb_standard_hub_t  *hub;
     };
     struct list_head     list;
 } port_status_event_t;
@@ -113,7 +113,7 @@ boolean dwhc_overcurrent_detected(dwhc_device_t *self);
 
 /// @brief ホストのルートポートを無効化して、電源を切る（bPowerOff = TRUEの場合）
 /// @param poweroff 電源を切るか
-void dwhc_disable_rport(dwhc_device_t *self, boolean poweroff);
+void dwhc_disable_root_port(dwhc_device_t *self, boolean poweroff);
 
 /// @brief コアの初期化
 /// @return 操作の成否
@@ -125,7 +125,7 @@ boolean dwhc_init_host(dwhc_device_t *self);
 
 /// @brief ルートポートの有効化
 /// @return 操作の成否
-boolean dwhc_enable_rport(dwhc_device_t *self);
+boolean dwhc_enable_root_port(dwhc_device_t *self);
 
 /// @brief dwhcホストの電源オン
 /// @return 操作の成否

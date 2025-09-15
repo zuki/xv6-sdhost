@@ -48,29 +48,29 @@ struct usb_device;
 
 /// @brief USBデバイスを表すクラス
 typedef struct usb_device {
-    struct dwhc_device      *host;               ///< ホストコントローラ
-    struct dwhc_root_port   *rport;              ///< このデバイスが接続されているルートポート
+    struct dwhc_device      *host;          ///< ホストコントローラ
+    struct dwhc_root_port   *root_port;         ///< このデバイスが接続されているルートポート
     struct usb_standard_hub *hub;           ///< このデバイスが接続されているハブ
     unsigned            pindex;             ///< このハブの0ベースのインデックス
     uint8_t             addr;               ///< アドレス
     usb_speed_t         speed;              ///< スピード
-    struct usb_endpoint      *ep0;                ///< エンドポイント 0
+    struct usb_endpoint *ep0;               ///< エンドポイント 0
     boolean             split;              ///< スプリット転送か
     uint8_t             hubaddr;            ///< ハブアドレス
     uint8_t             hubport;            ///< ハブポート番号
-    struct usb_device     *tt_hub;             ///< TTハブ(circle)
+    struct usb_device  *tt_hub;             ///< TTハブ(circle)
 
-    usb_dev_desc_t         *dev_desc;           ///< デバイスディスクリプタ
-    usb_cfg_desc_t         *cfg_desc;           ///< コンフィグレーションディスクリプタ
+    usb_dev_desc_t     *dev_desc;           ///< デバイスディスクリプタ
+    usb_cfg_desc_t     *cfg_desc;           ///< コンフィグレーションディスクリプタ
 
     usb_usb_cfg_parser_t       *usb_cfg_parser;         ///< コンフィグレーションパーサ
     usb_string_t          *manufact;           ///< 製造者文字列(uspi)
     usb_string_t          *product;            ///< 製品名文字列(uspi)
-    usb_functon_t         *usb_func[USBDEV_MAX_FUNCTIONS]; ///< デバイスクラス
+    usb_function_t         *usb_func[USBDEV_MAX_FUNCTIONS]; ///< デバイスクラス
 } usb_dev_t;
 
 void usb_device(usb_dev_t *self, struct dwhc_device *host, usb_speed_t speed,
-		struct dwhc_root_port *rport);
+		struct dwhc_root_port *root_port);
 void usb_device2(usb_dev_t *self, struct dwhc_device *host, usb_speed_t speed,
 		struct usb_standard_hub *hub, unsigned pindex);
 void _usb_device(usb_dev_t *self);

@@ -8,7 +8,7 @@
 #include <mm.h>
 #include <string.h>
 
-void usb_function(usb_functon_t *self, usb_dev_t *dev, usb_usb_cfg_parser_t *parser)
+void usb_function(usb_function_t *self, usb_dev_t *dev, usb_usb_cfg_parser_t *parser)
 {
     self->configure = 0;
     self->dev = dev;
@@ -17,7 +17,7 @@ void usb_function(usb_functon_t *self, usb_dev_t *dev, usb_usb_cfg_parser_t *par
     self->if_desc = (usb_if_desc_t *)usb_cfg_parser_get_curr_desc(self->usb_cfg_parser);
 }
 
-void usb_functon_copy(usb_functon_t *self, usb_functon_t *func)
+void usb_function_copy(usb_function_t *self, usb_function_t *func)
 {
     self->configure = func->configure;
     self->dev = func->dev;
@@ -26,7 +26,7 @@ void usb_functon_copy(usb_functon_t *self, usb_functon_t *func)
     self->if_desc = (usb_if_desc_t *)usb_cfg_parser_get_curr_desc(self->usb_cfg_parser);
 }
 
-void _usb_function(usb_functon_t *self)
+void _usb_function(usb_function_t *self)
 {
     self->if_desc = 0;
     _usb_cfg_paser(self->usb_cfg_parser);
@@ -36,12 +36,12 @@ void _usb_function(usb_functon_t *self)
     self->configure = 0;
 }
 
-boolean usb_functon_init(usb_functon_t *self)
+boolean usb_function_init(usb_function_t *self)
 {
     return true;
 }
 
-boolean usb_functon_config(usb_functon_t *self)
+boolean usb_function_config(usb_function_t *self)
 {
     assert(self->if_desc != 0);
     if (self->if_desc->alt != 0) {
@@ -54,17 +54,17 @@ boolean usb_functon_config(usb_functon_t *self)
     return true;
 }
 
-boolean usb_functon_rescan_dev(usb_functon_t *self)
+boolean usb_function_rescan_dev(usb_function_t *self)
 {
     return false;
 }
 
-boolean usb_functon_remove_dev(usb_functon_t *self)
+boolean usb_function_remove_dev(usb_function_t *self)
 {
     return usb_dev_remove_dev(self->dev);
 }
 
-char *usb_functon_get_if_name(usb_functon_t *self)
+char *usb_function_get_if_name(usb_function_t *self)
 {
     usb_if_desc_t *desc = self->if_desc;
     char *name = (char *)kmalloc(64);
@@ -79,12 +79,12 @@ char *usb_functon_get_if_name(usb_functon_t *self)
     return name;
 }
 
-uint8_t usb_functon_get_num_eps(usb_functon_t *self)
+uint8_t usb_function_get_num_eps(usb_function_t *self)
 {
     return self->if_desc->neps;
 }
 
-boolean usb_functon_select_if(usb_functon_t *self, uint8_t class, uint8_t subclass, uint8_t proto)
+boolean usb_function_select_if(usb_function_t *self, uint8_t class, uint8_t subclass, uint8_t proto)
 {
     do {
         if (self->if_desc->class    == class
@@ -94,48 +94,48 @@ boolean usb_functon_select_if(usb_functon_t *self, uint8_t class, uint8_t subcla
         }
         // 次のインタフェースにスキップ
         usb_dev_get_desc(self->dev, DESCRIPTOR_INTERFACE);
-    } while ((self->if_desc = (usb_if_desc_t *)usb_functon_get_desc(self, DESCRIPTOR_INTERFACE)) != 0);
+    } while ((self->if_desc = (usb_if_desc_t *)usb_function_get_desc(self, DESCRIPTOR_INTERFACE)) != 0);
 
     return false;
 }
 
-usb_dev_t *usb_functon_get_dev(usb_functon_t *self)
+usb_dev_t *usb_function_get_dev(usb_function_t *self)
 {
     return self->dev;
 }
 
-usb_endpoint_t *usb_functon_get_ep0(usb_functon_t *self)
+usb_endpoint_t *usb_function_get_ep0(usb_function_t *self)
 {
     return self->dev->ep0;
 }
 
-dwhc_device_t *usb_functon_get_host(usb_functon_t *self)
+dwhc_device_t *usb_function_get_host(usb_function_t *self)
 {
     return self->dev->host;
 }
 
-const usb_desc_t *usb_functon_get_desc(usb_functon_t *self, uint8_t type)
+const usb_desc_t *usb_function_get_desc(usb_function_t *self, uint8_t type)
 {
     return usb_cfg_parser_get_desc(self->usb_cfg_parser, type);
 }
 
 
-uint8_t usb_functon_get_if_num(usb_functon_t *self)
+uint8_t usb_function_get_if_num(usb_function_t *self)
 {
     return self->if_desc->num;
 }
 
-uint8_t usb_functon_get_if_class(usb_functon_t *self)
+uint8_t usb_function_get_if_class(usb_function_t *self)
 {
     return self->if_desc->class;
 }
 
-uint8_t usb_functon_get_if_subclass(usb_functon_t *self)
+uint8_t usb_function_get_if_subclass(usb_function_t *self)
 {
     return self->if_desc->subclass;
 }
 
-uint8_t usb_functon_get_if_proto(usb_functon_t *self)
+uint8_t usb_function_get_if_proto(usb_function_t *self)
 {
     return self->if_desc->proto;
 }

@@ -24,7 +24,7 @@
 #include <types.h>
 
 typedef struct dwhc_periodic {
-    dw2_fsched_t    scheduler;
+    dwhc_scheduler_t    scheduler;
     unsigned        state;
     unsigned        tries;
 #ifdef USE_USB_SOF_INTR
@@ -34,19 +34,19 @@ typedef struct dwhc_periodic {
 } dwhc_periodic_t;
 
 void dwhc_periodic(dwhc_periodic_t *self);
-void _dwhc_periodic(dw2_fsched_t *base);
+void _dwhc_periodic(dwhc_scheduler_t *base);
 
-void dwhc_periodic_start_split(dw2_fsched_t *base);
-boolean dwhc_periodic_complete_split(dw2_fsched_t *base);
-void dwhc_periodic_transaction_complete(dw2_fsched_t *base, uint32_t status);
+void dwhc_periodic_start_split(dwhc_scheduler_t *base);
+boolean dwhc_periodic_complete_split(dwhc_scheduler_t *base);
+void dwhc_periodic_transaction_complete(dwhc_scheduler_t *base, uint32_t status);
 
 #ifndef USE_USB_SOF_INTR
-void dwhc_periodic_wait_for_frame(dw2_fsched_t *base);
+void dwhc_periodic_wait_for_frame(dwhc_scheduler_t *base);
 #else
-uint16_t dwhc_periodic_get_frame_number(dw2_fsched_t *base);
-void dwhc_periodic_periodic_delay(dw2_fsched_t *base, uint16_t offset)
+uint16_t dwhc_periodic_get_frame_number(dwhc_scheduler_t *base);
+void dwhc_periodic_periodic_delay(dwhc_scheduler_t *base, uint16_t offset)
 #endif
 
-boolean dwhc_periodic_is_odd_frame(dw2_fsched_t *base);
+boolean dwhc_periodic_is_odd_frame(dwhc_scheduler_t *base);
 
 #endif

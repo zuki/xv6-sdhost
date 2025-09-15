@@ -1,14 +1,12 @@
 #include <trap.h>
-
 #include <arm.h>
+#include <types.h>
 #include <sysregs.h>
 #include <mmu.h>
 #include <irq.h>
-
 #include <memlayout.h>
 #include <console.h>
 #include <proc.h>
-
 #include <debug.h>
 
 void
@@ -22,14 +20,19 @@ trap_init()
 void
 trap(struct trapframe *tf)
 {
-    int ec = resr() >> EC_SHIFT, iss = resr() & ISS_MASK, il =
-        resr() & IR_MASK;
+    uint64_t esr = resr();
+    uint64_t far = rfar();
+    int ec  = (int)(esr >> EC_SHIFT);
+    int iss = (int)(esr & ISS_MASK);
+    int il  = (int)(esr & IR_MASK);
+    int dfs = (int)(iss & 0x3f);
+
     /* Clear esr. */
     lesr(0);
     switch (ec) {
     case EC_UNKNOWN:
         if (il) {
-            panic("unknown error");
+            debug("IL bit on");
         } else
             irq_handler();
         break;
@@ -43,6 +46,7 @@ trap(struct trapframe *tf)
         break;
 
     default:
+        info("unknown trap code: %d", ec);
         exit(1);
     }
 }

@@ -26,7 +26,7 @@
 #define FRAME_UNSET     8
 
 typedef struct dwhc_scheduler {
-    void (*_fscheduler)(struct dwhc_scheduler *self);
+    void (*_scheduler)(struct dwhc_scheduler *self);
 
     void (*start_split)(struct dwhc_scheduler *self);
     boolean (*complete_split)(struct dwhc_scheduler *self);
@@ -38,6 +38,6 @@ typedef struct dwhc_scheduler {
     void (*periodic_delay)(struct dwhc_scheduler *base, uint16_t offset);
 #endif
     boolean (*is_odd_frame)(struct dwhc_scheduler *self);
-} dw2_fsched_t;
+} dwhc_scheduler_t;
 
 #endif

@@ -61,7 +61,7 @@ boolean dwhc_root_port_init(dwhc_root_port_t *self)
         self->dev = 0;
         return false;
     }
-    trace("3");
+    debug("3");
     // 4. デフォルトデバイスのコンフィグレーション
     if (!usb_dev_config(self->dev)) {
         error("cannot configure device");
@@ -70,11 +70,11 @@ boolean dwhc_root_port_init(dwhc_root_port_t *self)
         self->dev = 0;
         return false;
     }
-    trace("4");
+    debug("4");
     // 5. 過電流を検知したらルートポートは無効としてFALSEを返す
     if (dwhc_overcurrent_detected(self->host)) {
         error("Over-current condition");
-        dwhc_disable_rport(self->host, true);
+        dwhc_disable_root_port(self->host, true);
         _usb_device(self->dev);
         kmfree(self->dev);
         self->dev = 0;
@@ -96,7 +96,7 @@ boolean dwhc_root_port_rescan_dev(dwhc_root_port_t *self)
 
 boolean dwhc_root_port_remove_dev(dwhc_root_port_t *self)
 {
-    dwhc_disable_rport(self->host, false);
+    dwhc_disable_root_port(self->host, false);
     kmfree(self->dev);
     self->dev = 0;
     return true;
@@ -109,7 +109,7 @@ void dwhc_root_port_handle_port_status_change(dwhc_root_port_t *self)
             dwhc_rescan_dev(self->host);
     } else {
         if (self->dev != 0)
-            dwhc_disable_rport(self->host, true);
+            dwhc_disable_root_port(self->host, true);
     }
 }
 
@@ -120,8 +120,8 @@ void dwhc_root_port_port_status_changed(dwhc_root_port_t *self)
     {
         port_status_event_t *event = (port_status_event_t*)kmalloc(sizeof(port_status_event_t));
         assert (event != 0);
-        event->fromrp = true;
-        event->rport  = self;
+        event->from_root_port = true;
+        event->root_port  = self;
         list_init(&event->list);
 
         acquire(&self->host->hublock);

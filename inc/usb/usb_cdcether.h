@@ -29,17 +29,17 @@
 
 /// @brief CDC Ethernetデバイス構造体
 typedef struct usb_usb_cdcethernet {
-    usb_functon_t   usb_func;
+    usb_function_t   usb_func;
     net_dev_t   *net_dev;
     usb_endpoint_t    *bulk_in;       ///< バルク転送入力用パイプ
     usb_endpoint_t    *bulk_out;      ///< バルク転送出力用パイプ
     char         macaddr[MAC_ADDRESS_SIZE]; /// MACアドレス
 } usb_cdcether_t;
 
-void usb_cdcether(usb_cdcether_t *self, usb_functon_t *func);
+void usb_cdcether(usb_cdcether_t *self, usb_function_t *func);
 void _usb_cdcether(usb_cdcether_t *self);
 
-boolean usb_cdcether_configure(usb_functon_t *func);
+boolean usb_cdcether_configure(usb_function_t *func);
 boolean usb_cdcether_send_frame(usb_cdcether_t *self, const void *buffer, uint32_t len);
 boolean usb_cdcether_receive_frame(usb_cdcether_t *self, void *buff, uint32_t *resultlen);
 boolean usb_cdcether_init_macaddr(usb_cdcether_t *self, uint8_t id);

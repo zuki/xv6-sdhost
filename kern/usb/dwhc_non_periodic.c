@@ -25,56 +25,56 @@
 #include <console.h>
 
 typedef enum framescheduler_state{
-    fsched_state_start_split,
-    fsched_state_start_split_comp,
-    fsched_state_comp_split,
-    fsched_state_comp_retry,
-    fsched_state_comp_split_comp,
-    fsched_state_comp_split_failed,
-    fsched_state_unknown
-} fsched_state_t;
+    scheduler_state_start_split,
+    scheduler_state_start_split_comp,
+    scheduler_state_comp_split,
+    scheduler_state_comp_retry,
+    scheduler_state_comp_split_comp,
+    scheduler_state_comp_split_failed,
+    scheduler_state_unknown
+} scheduler_state_t;
 
 void dwhc_non_periodic(dwhc_non_periodic_t *self)
 {
-    dw2_fsched_t *base =(dw2_fsched_t *)self;
+    dwhc_scheduler_t *base =(dwhc_scheduler_t *)self;
 
-    base->_fscheduler = _dwhc_non_periodic;
+    base->_scheduler = _dwhc_non_periodic;
     base->start_split = dwhc_non_periodic_start_split;
     base->complete_split = dwhc_non_periodic_complete_split;
     base->transaction_complete = dwhc_non_periodic_transaction_complete;
 #ifndef USE_USB_SOF_INTR
     base->wait_for_frame = dwhc_non_periodic_wait_for_frame;
 #else
-    base->get_frame_number = dw2_fsched_nperget_frame_number;
+    base->get_frame_number = dw2_scheduler_nperget_frame_number;
     base->periodic_delay = dwhc_non_periodic_delay;
 #endif
     base->is_odd_frame = dwhc_non_periodic_is_odd_frame;
 
-    self->state = fsched_state_unknown;
+    self->state = scheduler_state_unknown;
 #ifdef USE_USB_SOF_INTR
     self->offset = 0;
 #endif
 }
 
-void _dwhc_non_periodic(dw2_fsched_t *base)
+void _dwhc_non_periodic(dwhc_scheduler_t *base)
 {
     dwhc_non_periodic_t *self = (dwhc_non_periodic_t *) base;
-    self->state = fsched_state_unknown;
+    self->state = scheduler_state_unknown;
 }
 
-void dwhc_non_periodic_start_split(dw2_fsched_t *base)
+void dwhc_non_periodic_start_split(dwhc_scheduler_t *base)
 {
     dwhc_non_periodic_t *self = (dwhc_non_periodic_t *) base;
 
 #ifdef USE_USB_SOF_INTR
-    if (self->state != fsched_state_comp_split_failed)
+    if (self->state != scheduler_state_comp_split_failed)
         self->offset = 1;
 #endif
 
-    self->state = fsched_state_start_split;
+    self->state = scheduler_state_start_split;
 }
 
-boolean dwhc_non_periodic_complete_split(dw2_fsched_t *base)
+boolean dwhc_non_periodic_complete_split(dwhc_scheduler_t *base)
 {
     dwhc_non_periodic_t *self =(dwhc_non_periodic_t *) base;
     boolean result = false;
@@ -84,14 +84,14 @@ boolean dwhc_non_periodic_complete_split(dw2_fsched_t *base)
 #endif
 
     switch(self->state) {
-    case fsched_state_start_split_comp:
-        self->state = fsched_state_comp_split;
+    case scheduler_state_start_split_comp:
+        self->state = scheduler_state_comp_split;
         self->tries = 3;
         result = true;
         break;
 
-    case fsched_state_comp_split:
-    case fsched_state_comp_retry:
+    case scheduler_state_comp_split:
+    case scheduler_state_comp_retry:
 #ifndef USE_USB_SOF_INTR
         delayus(5 * FRAME);
 #else
@@ -100,8 +100,8 @@ boolean dwhc_non_periodic_complete_split(dw2_fsched_t *base)
         result = true;
         break;
 
-    case fsched_state_comp_split_comp:
-    case fsched_state_comp_split_failed:
+    case scheduler_state_comp_split_comp:
+    case scheduler_state_comp_split_failed:
         break;
 
     default:
@@ -112,29 +112,29 @@ boolean dwhc_non_periodic_complete_split(dw2_fsched_t *base)
     return result;
 }
 
-void dwhc_non_periodic_transaction_complete(dw2_fsched_t *base, uint32_t status)
+void dwhc_non_periodic_transaction_complete(dwhc_scheduler_t *base, uint32_t status)
 {
     dwhc_non_periodic_t *self =(dwhc_non_periodic_t *) base;
 
     switch(self->state)
     {
-    case fsched_state_start_split:
+    case scheduler_state_start_split:
         assert(status & DWHCI_HOST_CHAN_INT_ACK);
-        self->state = fsched_state_start_split_comp;
+        self->state = scheduler_state_start_split_comp;
         break;
 
-    case fsched_state_comp_split:
-    case fsched_state_comp_retry:
+    case scheduler_state_comp_split:
+    case scheduler_state_comp_retry:
         if(status & DWHCI_HOST_CHAN_INT_XFER_COMPLETE) {
-            self->state = fsched_state_comp_split_comp;
+            self->state = scheduler_state_comp_split_comp;
         } else if(status &(DWHCI_HOST_CHAN_INT_NYET | DWHCI_HOST_CHAN_INT_ACK)) {
             if(self->tries-- == 0) {
 #ifdef USE_USB_SOF_INTR
                 self->offset = 1;
 #endif
-                self->state = fsched_state_comp_split_failed;
+                self->state = scheduler_state_comp_split_failed;
             } else {
-                self->state = fsched_state_comp_retry;
+                self->state = scheduler_state_comp_retry;
             }
         } else if(status & DWHCI_HOST_CHAN_INT_NAK) {
 #ifndef USE_USB_SOF_INTR
@@ -142,7 +142,7 @@ void dwhc_non_periodic_transaction_complete(dw2_fsched_t *base, uint32_t status)
 #else
             self->offset = 5;
 #endif
-            self->state = fsched_state_comp_split_failed;
+            self->state = scheduler_state_comp_split_failed;
 
         } else {
             error("Invalid status 0x%x", status);
@@ -158,14 +158,14 @@ void dwhc_non_periodic_transaction_complete(dw2_fsched_t *base, uint32_t status)
 
 #ifndef USE_USB_SOF_INTR
 
-void dwhc_non_periodic_wait_for_frame(dw2_fsched_t *base)
+void dwhc_non_periodic_wait_for_frame(dwhc_scheduler_t *base)
 {
     // nop
 }
 
 #else
 
-uint16_t dwhc_non_periodic_get_frame_number(dw2_fsched_t *base)
+uint16_t dwhc_non_periodic_get_frame_number(dwhc_scheduler_t *base)
 {
     dwhc_non_periodic_t *self =(dwhc_non_periodic_t *) base;
 
@@ -176,14 +176,14 @@ uint16_t dwhc_non_periodic_get_frame_number(dw2_fsched_t *base)
 	return (fnum + self->ofsser) & DWHCI_MAX_FRAME_NUMBER;
 }
 
-void dwhc_non_periodic_delay(dw2_fsched_t *base, uint16_t offset)
+void dwhc_non_periodic_delay(dwhc_scheduler_t *base, uint16_t offset)
 {
 	assert (0);
 }
 
 #endif
 
-boolean dwhc_non_periodic_is_odd_frame(dw2_fsched_t *base)
+boolean dwhc_non_periodic_is_odd_frame(dwhc_scheduler_t *base)
 {
     return false;
 }

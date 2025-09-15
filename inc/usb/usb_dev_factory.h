@@ -37,6 +37,6 @@ typedef struct usb_device_factory
 /// @param parent 親デバイスオブジェクトへのポインタ
 /// @param name インタフェース名(venxxx-xxx, intx-x-x)
 /// @return デバイスへのポインタ。見つからなかった場合は0
-usb_functon_t *usb_dev_factory_get_device(usb_functon_t *parent, char *name);
+usb_function_t *usb_dev_factory_get_device(usb_function_t *parent, char *name);
 
 #endif

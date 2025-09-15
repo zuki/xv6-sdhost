@@ -21,6 +21,7 @@
 #define INC_USB_DEV_NS_H
 
 #include <types.h>
+#include <usb/usb.h>
 
 typedef struct usb_device_info {
     struct usb_device_info *next;
@@ -34,7 +35,7 @@ typedef struct usb_deviceice_ns {
 } usb_device_ns_t;
 
 void usb_device_ns(usb_device_ns_t *self);
-void _usb_devicee_ns(usb_device_ns_t *self);
+void _usb_device_ns(usb_device_ns_t *self);
 
 void usb_device_ns_add_dev(usb_device_ns_t *self, const char *name, void *dev, boolean blkdev);
 

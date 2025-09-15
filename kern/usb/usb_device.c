@@ -40,10 +40,10 @@ typedef struct configuration_header {
 static uint8_t next_addr = USB_FIRST_DEDICATED_ADDRESS;
 
 void usb_device(usb_dev_t *self, dwhc_device_t *host, usb_speed_t speed,
-        dwhc_root_port_t *rport)
+        dwhc_root_port_t *root_port)
 {
     self->host = host;
-    self->rport = rport;
+    self->root_port = root_port;
     self->hub = 0;
     self->pindex = 0;
     self->addr = USB_DEFAULT_ADDRESS;
@@ -71,7 +71,7 @@ void usb_device2(usb_dev_t *self, dwhc_device_t *host, usb_speed_t speed,
         usb_standard_hub_t *hub, unsigned pindex)
 {
     self->host = host;
-    self->rport = 0;
+    self->root_port = 0;
     self->hub = hub;
     self->pindex = pindex;
     self->addr = USB_DEFAULT_ADDRESS;
@@ -170,7 +170,7 @@ void _usb_device(usb_dev_t *self)
 
 boolean usb_dev_init(usb_dev_t *self)
 {
-    trace("usb_dev_init start");
+    debug("usb_dev_init start");
     assert (self->dev_desc == 0);
     // FIXME: 64 byte alignのメモリアロケータを作成する
     //self->dev_desc = (usb_dev_desc_t *) kmalloc(sizeof (usb_dev_desc_t));
@@ -221,21 +221,21 @@ boolean usb_dev_init(usb_dev_t *self)
         error("Too many devices");
         return false;
     }
-    trace("3: addr=%d", addr);
+    debug("3: addr=%d", addr);
     // 4. デバイスにアドレスをセット
     if (!dwhc_set_addr(self->host, self->ep0, addr)) {
         error("Cannot set address %d", addr);
         return false;
     }
     self->addr = addr;
-    trace("4");
+    debug("4");
     // 5. コンフィグレーションディスクリプタ（先頭のconfig_descのみ）を仮設定
     assert (self->cfg_desc == 0);
     // FIXME
     //self->cfg_desc = (usb_cfg_desc_t *)kmalloc(sizeof (usb_cfg_desc_t));
     self->cfg_desc = (usb_cfg_desc_t *)kalloc();
     assert (self->cfg_desc != 0);
-    trace("cfg_desc[1]=0x%p", self->cfg_desc);
+    debug("cfg_desc[1]=0x%p", self->cfg_desc);
     // 5.1 コンフィグレーションインデックスの設定
     uint8_t cindex = DESCRIPTOR_INDEX_DEFAULT;
     // 5.2 QEMUのEthernetデバイスの場合は、特別なサポート
@@ -243,7 +243,7 @@ boolean usb_dev_init(usb_dev_t *self)
      || self->dev_desc->productid == 0xA4A2) {  // Ethernet/RNDIS Gadget
         cindex++;
     }
-    trace("5.2: cindex=%d", cindex);
+    debug("5.2: cindex=%d", cindex);
     // 5.3 コンフィグレーションディスクリプタを取得
     if (dwhc_get_desc(self->host, self->ep0,
                     DESCRIPTOR_CONFIGURATION, cindex,
@@ -255,7 +255,7 @@ boolean usb_dev_init(usb_dev_t *self)
         self->cfg_desc = 0;
         return false;
     }
-    trace("5.3");;
+    debug("5.3");;
     // 5.4 コンフィグレーションディスクリプタが不正
     if (self->cfg_desc->length != sizeof *self->cfg_desc
      || self->cfg_desc->type   != DESCRIPTOR_CONFIGURATION
@@ -269,7 +269,7 @@ boolean usb_dev_init(usb_dev_t *self)
     DataMemBarrier();
     //debug_struct("config_desc(8)", self->cfg_desc, sizeof(usb_cfg_desc_t));
 
-    trace("5.4");;
+    debug("5.4");;
     // 6. 正式版のコンフィグレーションディスクリプタを取得
     unsigned total = self->cfg_desc->total;
     // 6.1 8バイト版コンフィグレーションディスクリプタを削除
@@ -280,7 +280,7 @@ boolean usb_dev_init(usb_dev_t *self)
     // 6.2 正式なコンフィグレーションディスクリプタ用のスペースを確保
     //self->cfg_desc = (usb_cfg_desc_t *)kmalloc(total);
     assert (self->cfg_desc != 0);
-    trace("cfg_desc[2]=0x%p", self->cfg_desc);
+    debug("cfg_desc[2]=0x%p", self->cfg_desc);
     // 6.3 正式なコンフィグレーションディスクリプタを取得
     if (dwhc_get_desc(self->host, self->ep0,
                     DESCRIPTOR_CONFIGURATION, cindex,
@@ -292,7 +292,7 @@ boolean usb_dev_init(usb_dev_t *self)
         self->cfg_desc = 0;
         return false;
     }
-    trace("6");
+    debug("6");
     //DataMemBarrier();
     debug_struct("config_desc", self->cfg_desc, (uint64_t)total);
 
@@ -305,7 +305,7 @@ boolean usb_dev_init(usb_dev_t *self)
         usb_cfg_parser_error(self->usb_cfg_parser, "usbdevice");
         return false;
     }
-    trace("7");
+    debug("7");
     // 8. デバイス名を表示
     char *names = (char *)kmalloc(128);
     names = usb_dev_get_names(self);
@@ -332,7 +332,7 @@ boolean usb_dev_init(usb_dev_t *self)
         info("Product: %s %s", self->manufact != 0 ? self->manufact->str : "",
                                self->product != 0 ? self->product->str : "");
     }
-    trace("8");
+    debug("8");
     // 9. コンフィグレーションディスクリプタからインタフェースを取得する
     unsigned i = 0;
     uint8_t num = 0;
@@ -349,11 +349,11 @@ boolean usb_dev_init(usb_dev_t *self)
 
         assert (self->usb_cfg_parser != 0);
         assert (self->usb_func[i] == 0);
-        self->usb_func[i] = (usb_functon_t *)kmalloc(sizeof(usb_functon_t));
+        self->usb_func[i] = (usb_function_t *)kmalloc(sizeof(usb_function_t));
         assert (self->usb_func[i] != 0);
         usb_function(self->usb_func[i], self, self->usb_cfg_parser);
 
-        usb_functon_t *child = 0;
+        usb_function_t *child = 0;
 
         if (i == 0) {
             child = usb_dev_factory_get_device(self->usb_func[i], usb_dev_get_name(self, dev_name_vendor));
@@ -363,8 +363,8 @@ boolean usb_dev_init(usb_dev_t *self)
         }
 
         if (child == 0) {
-            // nameはusb_functon_get_if_nameでkmalloc、usb_dev_factory_get_deviceでkmfree
-            char *name = usb_functon_get_if_name(self->usb_func[i]);
+            // nameはusb_function_get_if_nameでkmalloc、usb_dev_factory_get_deviceでkmfree
+            char *name = usb_function_get_if_name(self->usb_func[i]);
             if (strncmp(name, "unknown", strlen(name)) != 0) {
                 info("Interface %s found", name);
                 child = usb_dev_factory_get_device(self->usb_func[i], name);
@@ -395,7 +395,7 @@ boolean usb_dev_init(usb_dev_t *self)
         warn("Device has no supported function");
         return false;
     }
-    trace("9");
+    debug("9");
     return true;
 }
 
@@ -421,7 +421,7 @@ boolean usb_dev_config(usb_dev_t *self)
                 kmfree(self->usb_func[i]);
                 self->usb_func[i] = 0;
             } else {
-                trace("%d is ok", i);
+                debug("%d is ok", i);
                 result = true;
             }
         }
@@ -564,7 +564,7 @@ boolean usb_dev_rescan_dev(usb_dev_t *self)
 
     for (unsigned i = 0; i < USBDEV_MAX_FUNCTIONS; i++) {
         if (self->usb_func[i] != 0) {
-            if (usb_functon_rescan_dev(self->usb_func[i])) {
+            if (usb_function_rescan_dev(self->usb_func[i])) {
                 result = true;
             }
         }

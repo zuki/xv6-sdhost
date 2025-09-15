@@ -38,7 +38,7 @@ typedef void key_status_hdl (
     const unsigned char  rawkeys[6]);   // key code or 0 in each byte
 
 typedef struct usb_keyborad {
-    usb_functon_t          func;
+    usb_function_t          func;
     usb_endpoint_t           *ep;
     key_pressed_hdl    *pressed_handler;
     sel_console_hdl    *sel_handler;
@@ -52,10 +52,10 @@ typedef struct usb_keyborad {
     uint8_t             ledstatus;
 } usb_keyboard_t;
 
-void usb_keyboard(usb_keyboard_t *self, usb_functon_t *func);
+void usb_keyboard(usb_keyboard_t *self, usb_function_t *func);
 void _usb_keyboard(usb_keyboard_t *self);
 
-boolean usb_keyboard_config(usb_functon_t *func);
+boolean usb_keyboard_config(usb_function_t *func);
 
 // cooked mode
 void usb_keyboard_register_key_pressed_hdl(usb_keyboard_t *self, key_pressed_hdl *handler);

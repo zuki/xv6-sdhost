@@ -18,6 +18,7 @@
 #include <rtc.h>
 #include <random.h>
 #include <i2c.h>
+//#include <usb.h>
 
 /*
  * Keep it in data segment by explicitly initializing by zero,
@@ -54,6 +55,7 @@ main()
 
     timer_init();
     trap_init();
+    //usb_init();
     info("cpu %d init finished", cpuid());
 
     scheduler();

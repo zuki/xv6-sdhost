@@ -12,7 +12,7 @@
 #include <string.h>
 
 // 前方参照
-boolean lan7800_configure(usb_functon_t *super);
+boolean lan7800_configure(usb_function_t *super);
 static boolean lan7800_init_macaddr(lan7800_t *self);
 static boolean lan7800_init_phy(lan7800_t *self);
 static boolean lan7800_phy_write(lan7800_t *self, uint8_t index, uint16_t value);
@@ -22,9 +22,9 @@ static boolean lan7800_readwrite_reg(lan7800_t *self, uint32_t index, uint32_t o
 static boolean lan7800_write_reg(lan7800_t *self, uint32_t index, uint32_t value);
 static boolean lan7800_read_reg(lan7800_t *self, uint32_t index, uint32_t *value);
 
-void lan7800(lan7800_t *self, usb_functon_t *func)
+void lan7800(lan7800_t *self, usb_function_t *func)
 {
-    usb_functon_copy(&self->usb_func, func);
+    usb_function_copy(&self->usb_func, func);
     self->usb_func.configure = lan7800_configure;
     self->bulk_in = 0;
     self->bulk_out = 0;
@@ -52,23 +52,23 @@ void _lan7800(lan7800_t *self)
     _usb_function(&self->usb_func);
 }
 
-boolean lan7800_configure(usb_functon_t *super)
+boolean lan7800_configure(usb_function_t *super)
 {
     lan7800_t *self = (lan7800_t *)super;
     // USBコンフィグレーションをチェック
-    if (usb_functon_get_num_eps(&self->usb_func) != 3) {
+    if (usb_function_get_num_eps(&self->usb_func) != 3) {
         error("number of ep is not 3: %d", self->usb_func.if_desc->neps);
         return false;
     }
 
-    if (usb_functon_get_num_eps(&self->usb_func) != 3) {
+    if (usb_function_get_num_eps(&self->usb_func) != 3) {
         error("num of eps is not 3");
         return false;
     }
 
     const usb_ep_desc_t *ep_desc;
 
-    while ((ep_desc = (usb_ep_desc_t *) usb_functon_get_desc(&self->usb_func, DESCRIPTOR_ENDPOINT)) != 0) {
+    while ((ep_desc = (usb_ep_desc_t *) usb_function_get_desc(&self->usb_func, DESCRIPTOR_ENDPOINT)) != 0) {
         if ((ep_desc->attr & 0x3F) == 0x02) {       // バルク転送
             if ((ep_desc->addr & 0x80) == 0x80) {   // 入力
                 if (self->bulk_in != 0) {
@@ -76,14 +76,14 @@ boolean lan7800_configure(usb_functon_t *super)
                     return false;
                 }
                 self->bulk_in = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
-                usb_endpoint2(self->bulk_in, usb_functon_get_dev(&self->usb_func), ep_desc);
+                usb_endpoint2(self->bulk_in, usb_function_get_dev(&self->usb_func), ep_desc);
             } else {                                    // 出力
                 if (self->bulk_out != 0) {
                     error("bulk_out not null");
                     return false;
                 }
                 self->bulk_out = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
-                usb_endpoint2(self->bulk_out, usb_functon_get_dev(&self->usb_func), ep_desc);
+                usb_endpoint2(self->bulk_out, usb_function_get_dev(&self->usb_func), ep_desc);
             }
         }
     }
@@ -93,7 +93,7 @@ boolean lan7800_configure(usb_functon_t *super)
         return false;
     }
 
-    if (!usb_functon_config(&self->usb_func)) {
+    if (!usb_function_config(&self->usb_func)) {
         error("config usb_func failed");
         return false;
     }
@@ -220,7 +220,7 @@ boolean lan7800_send_frame(lan7800_t *self, const void *buffer, uint32_t len)
     *(uint32_t *)&self->tx_buffer[4] = 0;
 
     // USB転送（バルク）
-    return dwhc_xfer(usb_functon_get_host(&self->usb_func), self->bulk_out, self->tx_buffer, len+TX_HEADER_SIZE) >= 0;
+    return dwhc_xfer(usb_function_get_host(&self->usb_func), self->bulk_out, self->tx_buffer, len+TX_HEADER_SIZE) >= 0;
 }
 
 boolean lan7800_receive_frame(lan7800_t *self, void *buffer, uint32_t *resultlen)
@@ -228,7 +228,7 @@ boolean lan7800_receive_frame(lan7800_t *self, void *buffer, uint32_t *resultlen
     usb_request_t urb;
     usb_request(&urb, self->bulk_in, buffer, FRAME_BUFFER_SIZE, 0);
 
-    if (!dwhc_submit_block_request(usb_functon_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {
+    if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {
         _usb_request(&urb);
         return false;
     }
@@ -443,8 +443,8 @@ static boolean lan7800_readwrite_reg (lan7800_t *self, uint32_t index, uint32_t 
 static boolean lan7800_write_reg(lan7800_t *self, uint32_t index, uint32_t value)
 {
     if (dwhc_control_message(
-            usb_functon_get_host(&self->usb_func),
-            usb_functon_get_ep0(&self->usb_func),
+            usb_function_get_host(&self->usb_func),
+            usb_function_get_ep0(&self->usb_func),
             REQUEST_OUT | REQUEST_VENDOR, WRITE_REGISTER,
             0, index, &value, sizeof value) < 0) {
         warn("Cannot write register 0x%x", index);
@@ -457,8 +457,8 @@ static boolean lan7800_write_reg(lan7800_t *self, uint32_t index, uint32_t value
 static boolean lan7800_read_reg(lan7800_t *self, uint32_t index, uint32_t *value)
 {
     if (dwhc_control_message(
-            usb_functon_get_host(&self->usb_func),
-            usb_functon_get_ep0(&self->usb_func),
+            usb_function_get_host(&self->usb_func),
+            usb_function_get_ep0(&self->usb_func),
             REQUEST_IN | REQUEST_VENDOR, READ_REGISTER,
             0, index, value, sizeof *value) != (int) sizeof *value) {
         warn("Cannot read register 0x%x", index);
