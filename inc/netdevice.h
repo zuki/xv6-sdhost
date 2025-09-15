@@ -42,14 +42,20 @@ typedef enum net_device_speed {
     net_dev_speed_1000half,
     net_dev_speed_1000full,
     net_dev_speed_unknown
-} net_speed_t;
+} net_dev_speed_t;
 
 struct net_device;
+
+struct net_device {
+    net_dev_type_t  type;
+    net_dev_speed_t speed;
+};
+
 typedef struct net_device net_dev_t;
 
-void netdev_add_net_dev(net_dev_t *dev);
-const char *netdev_get_speedstr(net_speed_t speed);
-net_dev_t *netdev_get_dev(unsigned num);
-net_dev_t *netdev_get_dev_type(net_dev_type_t type);
+void netdev_add_dev(net_dev_t *self);
+const char *netdev_get_speedstr(net_dev_t *self, net_dev_speed_t speed);
+net_dev_t *netdev_get_dev(net_dev_t *self, unsigned num);
+net_dev_t *netdev_get_dev_type(net_dev_t *self, net_dev_type_t type);
 
 #endif

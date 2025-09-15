@@ -10,9 +10,11 @@
 #include <clock.h>
 #include <arm.h>
 #include <string.h>
+#include <netdevice.h>
 
 // 前方参照
 boolean lan7800_configure(usb_function_t *super);
+static void lan7800_set_addr_filter(lan7800_t *self, int index, const uint8_t addr[MAC_ADDRESS_SIZE]);
 static boolean lan7800_init_macaddr(lan7800_t *self);
 static boolean lan7800_init_phy(lan7800_t *self);
 static boolean lan7800_phy_write(lan7800_t *self, uint8_t index, uint16_t value);
@@ -25,6 +27,8 @@ static boolean lan7800_read_reg(lan7800_t *self, uint32_t index, uint32_t *value
 void lan7800(lan7800_t *self, usb_function_t *func)
 {
     usb_function_copy(&self->usb_func, func);
+    self->net_dev = (net_dev_t *)kmalloc(sizeof(net_dev_t));
+    assert(self->net_dev != 0);
     self->usb_func.configure = lan7800_configure;
     self->bulk_in = 0;
     self->bulk_out = 0;
@@ -204,7 +208,7 @@ boolean lan7800_configure(usb_function_t *super)
     usb_device_ns_add_dev(usb_device_ns_get(), "eth01", self, false);
 
     // FIXME: ネットデバイスとして登録
-    //netdev_add_dev(self);
+    netdev_add_dev(self->net_dev);
 
     return true;
 
@@ -279,7 +283,7 @@ const char *lan7800_get_macaddr(lan7800_t *self)
     return self->macaddr;
 }
 
-net_speed_t lan7800_get_linkspeed(lan7800_t *self)
+net_dev_speed_t lan7800_get_linkspeed(lan7800_t *self)
 {
     // メインページレジスタを選択 (0-30): index 31に0を書き込む
     if (!lan7800_phy_write(self, 0x1F, 0))
@@ -303,6 +307,53 @@ net_speed_t lan7800_get_linkspeed(lan7800_t *self)
         case 0b110:     return net_dev_speed_1000full;
         default:        return net_dev_speed_unknown;
     }
+}
+
+boolean lan7800_set_multicast_filter(lan7800_t *self, const uint8_t groups[][MAC_ADDRESS_SIZE])
+{
+    uint32_t rfe_ctl;
+    if (!lan7800_read_reg(self, RFE_CTL, &rfe_ctl)) {
+        error("failed to read RFE_CTL");
+        return false;
+    }
+
+    rfe_ctl &= ~(RFE_CTL_UCAST_EN | RFE_CTL_MCAST_EN | RFE_CTL_DA_PERFECT | RFE_CTL_MCAST_HASH);
+    rfe_ctl |= RFE_CTL_BCAST_EN;
+
+    memset(self->filters, 0, sizeof(self->filters));
+
+    for (int i = 0; groups[i][0]; i++) {
+        if (i == 32)
+            return false;
+        lan7800_set_addr_filter(self, i+1, groups[i]);
+        rfe_ctl |= RFE_CTL_DA_PERFECT;
+    }
+
+    for (int i = 1; i < NUM_OF_MAF; i++) {
+        if (!lan7800_write_reg(self, MAF_HI(i), 0)
+         || !lan7800_write_reg(self, MAF_LO(i), self->filters[i][1])
+         || !lan7800_write_reg(self, MAF_HI(i), self->filters[i][0])) {
+            return false;
+        }
+    }
+
+    return lan7800_write_reg(self, RFE_CTL, rfe_ctl);
+}
+
+static void lan7800_set_addr_filter(lan7800_t *self, int index, const uint8_t addr[MAC_ADDRESS_SIZE])
+{
+    assert(0 < index && index < NUM_OF_MAF);
+
+    uint32_t temp = addr[3];
+    temp = addr[2] | (temp << 8);
+    temp = addr[1] | (temp << 8);
+    temp = addr[0] | (temp << 8);
+    self->filters[index][1] = temp;
+
+    temp = addr[5];
+    temp = addr[4] | (temp << 8);
+    temp |= MAF_HI_VALID | MAF_HI_TYPE_DST;
+    self->filters[index][0] = temp;
 }
 
 static boolean lan7800_init_macaddr(lan7800_t *self)

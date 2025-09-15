@@ -29,7 +29,7 @@
 #include <mbox.h>
 #include <clock.h>
 #include <arm.h>
-//#include <netdevice.h>
+#include <netdevice.h>
 #include <string.h>
 
 typedef struct ethernet_functional_descriptor {
@@ -47,7 +47,8 @@ typedef struct ethernet_functional_descriptor {
 void usb_cdcether(usb_cdcether_t *self, usb_function_t *func)
 {
     usb_function_copy(&self->usb_func, func);
-    //self->net_dev = net_dev();
+    self->net_dev = (net_dev_t *)kmalloc(sizeof(net_dev_t));
+    assert(self->net_dev != 0);
     self->usb_func.configure = usb_cdcether_configure;
     self->bulk_in = 0;
     self->bulk_out = 0;
@@ -146,7 +147,7 @@ boolean usb_cdcether_configure(usb_function_t *func)
     usb_device_ns_add_dev(usb_device_ns_get(), "eth10", self, false);
 
     // FIXME: ネットデバイスとして登録
-    //netdev_add_dev(self);
+    netdev_add_dev(self->net_dev);
 
     return true;
 }

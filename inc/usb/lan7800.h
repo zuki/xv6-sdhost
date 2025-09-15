@@ -225,11 +225,12 @@
 
 typedef struct lan7800 {
     usb_function_t   usb_func;
-    net_dev_t   *net_dev;
-    usb_endpoint_t    *bulk_in;
-    usb_endpoint_t    *bulk_out;
-    char         macaddr[MAC_ADDRESS_SIZE];
-    uint8_t     *tx_buffer;
+    net_dev_t       *net_dev;
+    usb_endpoint_t  *bulk_in;
+    usb_endpoint_t  *bulk_out;
+    char             macaddr[MAC_ADDRESS_SIZE];
+    uint32_t         filters[33][2];
+    uint8_t         *tx_buffer;
 } lan7800_t;
 
 void lan7800(lan7800_t *self, usb_function_t *func);
@@ -240,6 +241,7 @@ boolean lan7800_receive_frame(lan7800_t *self, void *buff, uint32_t *resultlen);
 int lan7800_is_linkup(lan7800_t *self);
 
 const char *lan7800_get_macaddr(lan7800_t *self);
-net_speed_t lan7800_get_linkspeed(lan7800_t *self);
+net_dev_speed_t lan7800_get_linkspeed(lan7800_t *self);
+boolean lan7800_set_multicast_filter(lan7800_t *self, const uint8_t groups[][MAC_ADDRESS_SIZE]);
 
 #endif
