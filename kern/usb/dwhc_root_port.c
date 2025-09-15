@@ -61,7 +61,7 @@ boolean dwhc_root_port_init(dwhc_root_port_t *self)
         self->dev = 0;
         return false;
     }
-    debug("3");
+    trace("3");
     // 4. デフォルトデバイスのコンフィグレーション
     if (!usb_dev_config(self->dev)) {
         error("cannot configure device");
@@ -70,7 +70,7 @@ boolean dwhc_root_port_init(dwhc_root_port_t *self)
         self->dev = 0;
         return false;
     }
-    debug("4");
+    trace("4");
     // 5. 過電流を検知したらルートポートは無効としてFALSEを返す
     if (dwhc_overcurrent_detected(self->host)) {
         error("Over-current condition");

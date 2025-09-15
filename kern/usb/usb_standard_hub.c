@@ -249,7 +249,7 @@ usb_standard_hub_enumerate_ports(usb_standard_hub_t *self)
             GET_STATUS, 0, i+1, self->status[i], 4) != 4) {
             return false;
         }
-        debug("Port %d status is 0x%04x", i+1, (unsigned) self->status[i]->status);
+        trace("Port %d status is 0x%04x", i+1, (unsigned) self->status[i]->status);
 
         // 2.8 ポートが利用可能になっていること
         if (!(self->status[i]->status & PORT_ENABLE__MASK)) {

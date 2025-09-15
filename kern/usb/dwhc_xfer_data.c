@@ -111,10 +111,10 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
     if (self->split) {
         if (dwhc_xfer_data_is_periodic(self)) {
             dwhc_periodic(&self->scheduler.periodic);
-            debug("periodic: 0x%p", &self->scheduler.periodic);
+            trace("periodic: 0x%p", &self->scheduler.periodic);
         } else {
             dwhc_non_periodic(&self->scheduler.nonperiodic);
-            debug("nonperiodic: 0x%p", &self->scheduler.nonperiodic);
+            trace("nonperiodic: 0x%p", &self->scheduler.nonperiodic);
         }
         self->fsused = true;
     } else {
@@ -122,10 +122,10 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
         {
             dwhc_non_split(&self->scheduler.nosplit,
                             dwhc_xfer_data_is_periodic(self));
-            debug("nosplit: 0x%p", &self->scheduler.nosplit);
+            trace("nosplit: 0x%p", &self->scheduler.nosplit);
             self->fsused = true;
         } else {
-            debug("no use scheduler");
+            trace("no use scheduler");
         }
     }
 
@@ -135,7 +135,7 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
         self->timeout = timeout * HZ / 1000;
         self->start = jiffies;
     }
-    debug_stdata(self);
+    //debug_stdata(self);
 }
 
 void _dwhc_xfer_data(dwhc_xfer_data_t *self)

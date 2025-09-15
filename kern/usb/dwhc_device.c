@@ -128,7 +128,7 @@ void dwhc_device(dwhc_device_t *self)
     for (unsigned blk = 0; blk < DWHCI_WAIT_BLOCKS; blk++) {
         self->waiting[blk] = false;
     }
-    debug("dw2_hc created");
+    trace("dw2_hc created");
 }
 
 void _dwhc_device(dwhc_device_t *self)
@@ -231,7 +231,7 @@ void dwhc_rescan_dev(dwhc_device_t *self)
 // ok
 boolean dwhc_submit_block_request(dwhc_device_t *self, usb_request_t *urb, unsigned timeout)
 {
-    debug("host=0x%p, urb=0x%p, timeout=%d", self, urb, timeout);
+    trace("host=0x%p, urb=0x%p, timeout=%d", self, urb, timeout);
     DataMemBarrier();
 
     // 1. リクエストステータスを初期セット
@@ -244,7 +244,7 @@ boolean dwhc_submit_block_request(dwhc_device_t *self, usb_request_t *urb, unsig
         // 2-1. INリクエストの場合
         if (setup->reqtype & REQUEST_IN) {
             // 2-1-1. セットアップステージ: INコマンドの送信
-            debug("Control xfer: IN request");
+            trace("Control xfer: IN request");
             if (!dwhc_xfer_stage(self, urb, false, false, USB_TIMEOUT_NONE)
             // 2-1-2. データステージ: デバイスからデータの受信
              || !dwhc_xfer_stage(self, urb, true,  false, USB_TIMEOUT_NONE)
@@ -257,7 +257,7 @@ boolean dwhc_submit_block_request(dwhc_device_t *self, usb_request_t *urb, unsig
         } else {
             // 2-2-1. データを受け取らない場合
             if (usb_request_get_buflen(urb) == 0) {
-                debug("Control xfer: OUT request no data");
+                trace("Control xfer: OUT request no data");
                 // 2-2-1-1. セットアップステージ: OUTコマンドの送信
                 if (!dwhc_xfer_stage(self, urb, false, false, USB_TIMEOUT_NONE)
                 // 2-2-1-2. ステータスステージ: IN ACK
@@ -267,7 +267,7 @@ boolean dwhc_submit_block_request(dwhc_device_t *self, usb_request_t *urb, unsig
                 }
             // 2-2-1. データを受け取る場合
             } else {
-                debug("Control xfer: OUT request with data");
+                trace("Control xfer: OUT request with data");
                 // 2-2-2-1. セットアップステージ: OUTコマンドの送信
                 if (!dwhc_xfer_stage(self, urb, false, false, USB_TIMEOUT_NONE)
                 // 2-2-2-2. データステージ: デバイスへのデータの送信
@@ -281,7 +281,7 @@ boolean dwhc_submit_block_request(dwhc_device_t *self, usb_request_t *urb, unsig
         }
     // 3. バルク/インタラプト転送（アイソクロナス転送は未サポート）
     } else {
-        debug("Bulk/Interrupt xfer");
+        trace("Bulk/Interrupt xfer");
         if (!dwhc_xfer_stage(self, urb, urb->ep->in, false, timeout)) {
             warn("failed bulk or interrupt xter");
             return false;
@@ -504,7 +504,7 @@ boolean dwhc_enable_root_port(dwhc_device_t *self)
     // 通常は10msだが、それでは短すぎるデバイスがあるようだ
     delayus(20*1000);       // see USB 2.0 spec(tRSTRCY)
 
-    debug("enabled rootport");
+    trace("enabled rootport");
     return true;
 }
 
@@ -531,7 +531,7 @@ boolean dwhc_reset(dwhc_device_t *self)
     uint32_t reset = 0;
     // 1. AHBマスタがIDLE状態になるのを待つ: GRSTCTL: [31] = 1 （reset時のデフォルト）
     if (!dwhc_wait_for_bit(self, DWHCI_CORE_RESET, DWHCI_CORE_RESET_AHB_IDLE, true, 100)) {
-        debug("core reset busy");
+        trace("core reset busy");
         return false;
     }
 
@@ -542,7 +542,7 @@ boolean dwhc_reset(dwhc_device_t *self)
 
     // 3. ソフトリセットされるのを待つ（ GRSTCTL: [0]のbitが立つのを待つ）
     if (!dwhc_wait_for_bit(self, DWHCI_CORE_RESET, DWHCI_CORE_RESET_SOFT_RESET, false, 10)) {
-        debug("failed soft reset");
+        trace("failed soft reset");
         return false;
     }
 
@@ -643,14 +643,14 @@ void dwhc_flush_rx_fifo(dwhc_device_t *self)
 // ok
 boolean dwhc_xfer_stage(dwhc_device_t *self, usb_request_t *urb, boolean in, boolean stage, unsigned timeout)
 {
-    debug("host=0x%p, urb=0x%p, in=%d, stage=%d, timeout=%d",
+    trace("host=0x%p, urb=0x%p, in=%d, stage=%d, timeout=%d",
         self, urb, in, stage, timeout);
     // 1. 未使用のwaiting[]のインデックスを取得
     unsigned wblk = dwhc_alloc_wblock(self);
 
     // 1-1. waiting[]kは全て使用中
     if (wblk >= DWHCI_WAIT_BLOCKS) {
-        debug("no wait block");
+        error("no wait block");
         return false;
     }
 
@@ -660,7 +660,7 @@ boolean dwhc_xfer_stage(dwhc_device_t *self, usb_request_t *urb, boolean in, boo
     // 3. 待機中フラグを立てる(self->waiting[]はvolatile)
     self->waiting[wblk] = true;
     // 4. 非同期に転送を行う
-    debug("3");
+    trace("3");
     if (!dwhc_xfer_stage_async(self, urb, in, stage, timeout)) {
         self->waiting[wblk] = false;
         dwhc_free_wblock(self, wblk);
@@ -688,12 +688,12 @@ void dwhc_comp_cb(usb_request_t *urb, void *param, void *ctx)
 // ok
 boolean dwhc_xfer_stage_async(dwhc_device_t *self, usb_request_t *urb, boolean in, boolean stage, unsigned timeout)
 {
-    debug("host=0x%p, urb=0x%p, in=%d, stage=%d, timeout=%d",
+    trace("host=0x%p, urb=0x%p, in=%d, stage=%d, timeout=%d",
         self, urb, in, stage, timeout);
 #ifndef USE_USB_SOF_INTR
     // 1. 転送用のチャネルを割り当てる
     unsigned channel = dwhc_alloc_channel(self);
-    debug("1: ch=%d", channel);
+    trace("1: ch=%d", channel);
     // 1-1. チャネルは全て使用済み
     if (channel >= self->channels) {
         warn("all channle are used: bad channel %d", channel);
@@ -706,16 +706,16 @@ boolean dwhc_xfer_stage_async(dwhc_device_t *self, usb_request_t *urb, boolean i
     // 2. このチャネル用のステートデータを割り当てる
     dwhc_xfer_data_t *stdata = (dwhc_xfer_data_t *)kmalloc(sizeof(dwhc_xfer_data_t));
     assert(stdata != 0);
-    debug("2: stdata=0x%p", stdata);
+    trace("2: stdata=0x%p", stdata);
     // 3. ステートデータを設定する
     dwhc_xfer_data(stdata, channel, urb, in, stage, timeout);
-    debug("3");
+    trace("3");
 #ifndef USE_USB_SOF_INTR
     // 4. このチャネルの割り込みを有効にする
     self->stdata[channel] = stdata;
-    debug("enable channel interrupt: stdata[%d]=0x%p", channel, self->stdata[channel]);
+    trace("enable channel interrupt: stdata[%d]=0x%p", channel, self->stdata[channel]);
     dwhc_enable_channel_intr(self, channel);
-    debug("4");
+    trace("4");
 #endif
     // 5-1. split転送ではない
     if (!stdata->split) {
@@ -730,7 +730,7 @@ boolean dwhc_xfer_stage_async(dwhc_device_t *self, usb_request_t *urb, boolean i
     }
 #ifndef USE_USB_SOF_INTR
     // 6. トランザクション開始
-    debug("6");
+    trace("6");
     dwhc_start_trans(self, stdata);
 #else
     dwhc_queue_trans(self, stdata);    // 未実装でpanic
@@ -756,7 +756,7 @@ void dwhc_queue_delay_trans(dwhc_device_t *self, dwhc_xfer_data_t *data)
 // ok
 void dwhc_start_trans(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
 {
-    debug("host=0x%p, stdata=0x%p", self, stdata);
+    trace("host=0x%p, stdata=0x%p", self, stdata);
     // 1. 使用するチャネルの特定
     unsigned channel = stdata->channel;
     assert(channel < self->channels);
@@ -780,16 +780,16 @@ void dwhc_start_trans(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
     // 2-2. チャネルは無効
     } else {
         // 2-2-1.
-        debug("2-2 start_channel: %d", channel);;
+        trace("2-2 start_channel: %d", channel);;
         dwhc_start_channel(self, stdata);
     }
-    debug("ok");
+    trace("ok");
 }
 
 // ok
 void dwhc_start_channel(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
 {
-    debug("host=0x%p, channel=%d", self, stdata->channel);
+    trace("host=0x%p, channel=%d", self, stdata->channel);
     // 1. 使用するチャネルを特定
     unsigned channel = stdata->channel;
     assert(channel < self->channels);
@@ -800,7 +800,7 @@ void dwhc_start_channel(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
     // 3. 保留中のチャネル割り込みをすべてクリアする
     uint32_t cintr = (uint32_t)-1;
     put32(DWHCI_HOST_CHAN_INT(channel), cintr);
-    debug("3");
+    trace("3");
     // 4. 転送サイズ、パケット数、pidをセットする
     uint32_t xfersize = 0;
     // 4-1. [18;0] 転送バイト数
@@ -812,24 +812,24 @@ void dwhc_start_channel(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
     xfersize |= (dwhc_xfer_data_get_pid(stdata) << DWHCI_HOST_CHAN_XFER_SIZ_PID__SHIFT);
     // 4-4. レジスタに書き込み
     put32(DWHCI_HOST_CHAN_XFER_SIZ(channel), xfersize);
-    debug("4");
+    trace("4");
     // 5. DMAアドレスをバスアドレスに変換してレジスタにセットする
     uint32_t dmaaddr;
     dmaaddr = BUS_ADDRESS(dwhc_xfer_data_get_dmaaddr(stdata));
     put32(DWHCI_HOST_CHAN_DMA_ADDR(channel), dmaaddr);
-    debug("5");
+    trace("5");
     // 6. DMAアドレスに対応するキャッシュをクリア/無効化
     clean_and_invalidate_data_cache_range((uint64_t)stdata->buffp, (uint64_t)stdata->bpt);
-    debug("6");
+    trace("6");
     // 7. データバリア
     DataMemBarrier();
-    debug("7");
+    trace("7");
     // 8. スプリット転送
     // 8-1. スプリット転送を無効に
     uint32_t split = 0;
     // 8.2 スプリットをする場合はレジスタを設定
     if (stdata->split) {
-        debug("8.2");;
+        trace("8.2");;
         // 8-2-1. [6:0] ポートアドレス
         split |= dwhc_xfer_data_get_hubport(stdata);
         // 8-2-2. [13:7] ハブアドレス
@@ -847,7 +847,7 @@ void dwhc_start_channel(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
     }
     // 9. レジスタに書き込む
     put32(DWHCI_HOST_CHAN_SPLIT_CTRL(channel), split);
-    debug("9");
+    trace("9");
     // 10. チャネルパラメタをセットする
     uint32_t character;
     character = get32(DWHCI_HOST_CHAN_CHARACTER(channel));
@@ -880,16 +880,16 @@ void dwhc_start_channel(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
     // 10-9. [14:11] エンドポイント番号をクリアして設定
     character &= ~DWHCI_HOST_CHAN_CHARACTER_EP_NUMBER__MASK;
     character |= (dwhc_xfer_data_get_ep_number(stdata) << DWHCI_HOST_CHAN_CHARACTER_EP_NUMBER__SHIFT);
-    debug("10-9: char=0x%x", character);
+    trace("10-9: char=0x%x", character);
     // 10-10. フレームスケジューラを取得（使用しない場合は0）
 #ifndef USE_QEMU_USB_FIX
     dwhc_scheduler_t *scheduler = dwhc_xfer_data_get_scheduler(stdata);
-    debug("10-10: scheduler=0x%p", scheduler);
+    trace("10-10: scheduler=0x%p", scheduler);
     if (scheduler != 0) {
 #ifndef USE_USB_SOF_INTR
         // 10-11. フレームが送信されるのを待つ
         scheduler->wait_for_frame(scheduler);
-        debug("10-11");;
+        trace("10-11");;
 #endif
         // 10-12. [29] 奇数フレームか
         if (scheduler->is_odd_frame(scheduler)) {
@@ -913,24 +913,24 @@ void dwhc_start_channel(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
     // 10-13. 割り込みマスクを設定
     uint32_t intrmask;
     intrmask = dwhc_xfer_data_get_status_mask(stdata);
-    debug("ch=0x%x, intrmask=0x%x", channel, intrmask);
+    trace("ch=0x%x, intrmask=0x%x", channel, intrmask);
     put32(DWHCI_HOST_CHAN_INT_MASK(channel), intrmask);
     // 10-14. チャネル割り込みを有効に
     character |= DWHCI_HOST_CHAN_CHARACTER_ENABLE;
     character &= ~DWHCI_HOST_CHAN_CHARACTER_DISABLE;
-    debug("char=0x%x", character);
+    trace("char=0x%x", character);
     put32(DWHCI_HOST_CHAN_CHARACTER(channel), character);
-    debug("ok");
+    trace("ok");
 }
 
 void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
 {
-    debug("called");
+    trace("called");
     dwhc_xfer_data_t *stdata = self->stdata[channel];
     dwhc_scheduler_t *scheduler = dwhc_xfer_data_get_scheduler(stdata);
-    debug("stdata=0x%p, scheduler=0x%p", stdata, scheduler);
+    trace("stdata=0x%p, scheduler=0x%p", stdata, scheduler);
     usb_request_t *urb = stdata->urb;
-    debug("urb=0x%p, root_port_enabled=0x%x", urb, self->root_port_enabled);
+    trace("urb=0x%p, root_port_enabled=0x%x", urb, self->root_port_enabled);
     assert(urb != 0);
 
     if (!self->root_port_enabled) {
@@ -949,14 +949,14 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
 
     switch(stdata->substate) {
     case stage_substate_wait_for_channel_disaable:
-        debug("substate: wait_for_channel_disaable");
+        trace("substate: wait_for_channel_disaable");
         dwhc_start_channel(self, stdata);
-        debug("ok 1");
+        trace("ok 1");
         return;
 
     case stage_substate_wait_for_xfer_complete: {
-        debug("substate: wait_for_xfer_complete");
-        debug_stdata(stdata);
+        trace("substate: wait_for_xfer_complete");
+        //debug_stdata(stdata);
         clean_and_invalidate_data_cache_range((uint64_t)stdata->buffp, (uint64_t)stdata->bpt);
         DataMemBarrier();
 
@@ -973,7 +973,7 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
             dwhc_free_channel(self, channel);
             dwhc_queue_trans(self, stdata);
 #endif
-            debug("ok 2");
+            trace("ok 2");
             return;
         }
 
@@ -1001,7 +1001,7 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
 
     switch(stdata->state) {
     case stage_status_no_split:
-        debug("state: no_split");
+        trace("state: no_split");
         status = stdata->trstatus;
         if ((status & DWHCI_HOST_CHAN_INT_XACT_ERROR)
          && urb->ep->type == ep_type_bulk
@@ -1060,7 +1060,7 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
         break;
 
     case stage_status_start_split:
-        debug("state: start_split");
+        trace("state: start_split");
         status = stdata->trstatus;
         if ((status & DWHCI_HOST_CHAN_INT_ERROR_MASK)
          || (status & DWHCI_HOST_CHAN_INT_NAK)
@@ -1094,7 +1094,7 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
         break;
 
     case stage_status_complete_split:
-        debug("state: complete_split");
+        trace("state: complete_split");
         status = stdata->trstatus;
         if (status & DWHCI_HOST_CHAN_INT_ERROR_MASK) {
             warn("Transaction failed 3 (status 0x%x)", status);
@@ -1303,7 +1303,7 @@ void dwhc_device_timer_hdl(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
 
         return;
     }
-    debug("st=%d", stdata->state);
+    trace("st=%d", stdata->state);
     assert(stdata->state == stage_status_periodic_delay);
 
     if (stdata->split) {
@@ -1425,7 +1425,7 @@ boolean dwhc_wait_for_bit(dwhc_device_t *self, uint64_t reg, uint32_t mask, bool
 void dwhc_dumreg(dwhc_device_t *self, const char *name, uint64_t addr)
 {
     DataMemBarrier();
-    debug("0x%08x: %s", get32(addr), name);
+    trace("0x%08x: %s", get32(addr), name);
 }
 
 // ok
@@ -1465,7 +1465,7 @@ int dwhc_get_desc(dwhc_device_t *self, usb_endpoint_t *ep,
                   unsigned char reqtype, unsigned short idx)
 {
     // コントロール転送を行う
-    debug("call dwhc_control_message");
+    trace("call dwhc_control_message");
     return dwhc_control_message(self, ep,
                     reqtype, GET_DESCRIPTOR,
                    (type << 8) | index, idx,
@@ -1476,7 +1476,7 @@ int dwhc_get_desc(dwhc_device_t *self, usb_endpoint_t *ep,
 boolean dwhc_set_addr(dwhc_device_t *self, usb_endpoint_t *ep, uint8_t devaddr)
 {
     if (dwhc_control_message(self, ep, REQUEST_OUT, SET_ADDRESS, devaddr, 0, 0, 0) < 0) {
-        debug("failed to set dev addr");
+        trace("failed to set dev addr");
         return false;
     }
     // 50 ms待つ
@@ -1488,7 +1488,7 @@ boolean dwhc_set_addr(dwhc_device_t *self, usb_endpoint_t *ep, uint8_t devaddr)
 boolean dwhc_set_config(dwhc_device_t *self, usb_endpoint_t *ep, uint8_t cfgvalue)
 {
     if (dwhc_control_message(self, ep, REQUEST_OUT, SET_CONFIGURATION, cfgvalue, 0, 0, 0) < 0) {
-        debug("failed to set config value");
+        trace("failed to set config value");
         return false;
     }
     delayus(50*1000);
@@ -1513,7 +1513,7 @@ int dwhc_control_message(dwhc_device_t *self, usb_endpoint_t *ep,
 */
     // 1. SetUpパケット用のDMAバッファを用意
     usb_setup_data_t setupdata GALIGN(4);        // DMA buffer
-    debug("setup_data: 0x%p", &setupdata);
+    trace("setup_data: 0x%p", &setupdata);
     // 2. SetUpパケットにデータをセット
     setupdata.reqtype   = reqtype;
     setupdata.req       = req;
@@ -1524,7 +1524,7 @@ int dwhc_control_message(dwhc_device_t *self, usb_endpoint_t *ep,
     // 3. USBリクエストを作成
     usb_request_t urb;
     usb_request(&urb, ep, data, datalen, &setupdata);
-    debug("3");
+    trace("3");
     int result = -1;
     // 4. リクエストを送信
     if (dwhc_submit_block_request(self, &urb, USB_TIMEOUT_NONE)) {
@@ -1532,7 +1532,7 @@ int dwhc_control_message(dwhc_device_t *self, usb_endpoint_t *ep,
     }
     // 4. USBリクエストを破棄
     _usb_request(&urb);
-    debug("result len=%d", result);
+    trace("result len=%d", result);
     return result;
 }
 

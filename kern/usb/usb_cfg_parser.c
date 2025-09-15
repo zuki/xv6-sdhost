@@ -101,7 +101,6 @@ void usb_cfg_parser(usb_usb_cfg_parser_t *self, void *buffer, unsigned buflen)
     }
 
     self->valid = true;
-    debug("3");
 }
 
 void usb_cfg_parser_copy(usb_usb_cfg_parser_t *self, usb_usb_cfg_parser_t *parser)

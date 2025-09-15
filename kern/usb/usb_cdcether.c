@@ -169,13 +169,13 @@ boolean usb_cdcether_receive_frame(usb_cdcether_t *self, void *buffer, uint32_t 
     urb.onnak = true;
 
     if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {
-        debug("failed submit block request");
+        error("failed submit block request");
         return false;
     }
 
     uint32_t rlen = usb_request_get_resultlen(&urb);
     if (rlen == 0) {
-        debug("resultlen is 0");
+        error("resultlen is 0");
         return false;
     }
     *resultlen = rlen;
@@ -188,7 +188,7 @@ boolean usb_cdcether_init_macaddr(usb_cdcether_t *self, uint8_t id)
     usb_string(&usb_str, usb_function_get_dev(&self->usb_func));
     if (id == 0 || !usb_string_get_from_desc(&usb_str, id,
             usb_string_get_langid(&usb_str))) {
-        debug("failed to get lang id");
+        error("failed to get lang id");
         return false;
     }
 

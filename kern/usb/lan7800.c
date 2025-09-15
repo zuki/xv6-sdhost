@@ -123,80 +123,80 @@ boolean lan7800_configure(usb_function_t *super)
     // USB HS用
     if (!lan7800_write_reg(self, BURST_CAP, DEFAULT_BURST_CAP_SIZE / HS_USB_PKT_SIZE)
      || !lan7800_write_reg(self, BULK_IN_DLY, DEFAULT_BULK_IN_DELAY)) {
-        debug("failed for USB high speed")
+        error("failed for USB high speed")
         return false;
     }
 
     // LEDとSEFモードを有効化
     if (!lan7800_readwrite_reg(self, HW_CFG, HW_CFG_LED0_EN | HW_CFG_LED1_EN, ~HW_CFG_MEF)) {
-        debug("failed to enable the LEDs and SEF mode")
+        error("failed to enable the LEDs and SEF mode")
         return false;
     }
 
     // バーストCAPを有効に、RX FIFOがからの場合のNAKを無効に
     if (!lan7800_readwrite_reg(self, USB_CFG0, USB_CFG_BCE, ~USB_CFG_BIR)) {
-        debug("failed to enable burst CAP, disable NAK on RX FIFO empty")
+        error("failed to enable burst CAP, disable NAK on RX FIFO empty")
         return false;
     }
 
     // FIFOサイズをセット
     if (!lan7800_write_reg(self, FCT_RX_FIFO_END, (MAX_RX_FIFO_SIZE - 512) / 512)
      || !lan7800_write_reg(self, FCT_TX_FIFO_END, (MAX_TX_FIFO_SIZE - 512) / 512)) {
-        debug("failed to set FIFO sizes");
+        error("failed to set FIFO sizes");
         return false;
     }
 
     // 割り込みEPは使用しない
     if (!lan7800_write_reg(self, INT_EP_CTL, 0)
      || !lan7800_write_reg(self, INT_STS, INT_STS_CLEAR_ALL)) {
-        debug("failed not not to use interrupt EP");
+        error("failed not not to use interrupt EP");
         return false;
     }
 
     // フロー制御を無効化
     if (!lan7800_write_reg(self, FLOW, 0)
      || !lan7800_write_reg(self, FCT_FLOW, 0)) {
-        debug("failed to disable flow control");
+        error("failed to disable flow control");
         return false;
     }
 
     // 受信フィルタリングエンジンを初期化
     if (!lan7800_readwrite_reg(self, RFE_CTL, RFE_CTL_BCAST_EN | RFE_CTL_DA_PERFECT, ~0U)) {
-        debug("failed to init receive filtering engine");
+        error("failed to init receive filtering engine");
         return false;
     }
 
     // PHYをリセット
     if (!lan7800_readwrite_reg(self, PMT_CTL, PMT_CTL_PHY_RST, ~0U)
      || !lan7800_wait_reg(self, PMT_CTL, PMT_CTL_PHY_RST | PMT_CTL_READY, PMT_CTL_READY)) {
-        debug("failed to reset PHY");
+        error("failed to reset PHY");
         return false;
     }
 
     // AUTOネゴシエーションを有効化
     if (!lan7800_readwrite_reg(self, MAC_CR, MAC_CR_AUTO_DUPLEX | MAC_CR_AUTO_SPEED, ~0U)) {
-        debug("failed to enable AUTO negotiation");
+        error("failed to enable AUTO negotiation");
         return false;
     }
 
     // TXを有効化
     if (!lan7800_readwrite_reg(self, MAC_TX, MAC_TX_TXEN, ~0U)
      || !lan7800_readwrite_reg(self, FCT_TX_CTL, FCT_TX_CTL_EN, ~0U)) {
-        debug("failed to enable TX");
+        error("failed to enable TX");
         return false;
     }
 
     // RXを有効化
     if (!lan7800_readwrite_reg(self, MAC_RX, (MAX_RX_FRAME_SIZE << MAC_RX_MAX_SIZE_SHIFT) | MAC_RX_RXEN, ~MAC_RX_MAX_SIZE_MASK)
      || !lan7800_readwrite_reg(self, FCT_RX_CTL, FCT_RX_CTL_EN, ~0U)) {
-        debug("failed to enable RX");
+        error("failed to enable RX");
         return false;
     }
 
     // PHYを初期化
     if (!lan7800_init_phy(self))
     {
-        debug("failed to init PHY");
+        error("failed to init PHY");
         return false;
     }
 
@@ -255,7 +255,7 @@ boolean lan7800_receive_frame(lan7800_t *self, void *buffer, uint32_t *resultlen
     }
     framelen -= 4;    // FCSは無視する
 
-    debug("Frame received (status 0x%X)", status);
+    trace("Frame received (status 0x%X)", status);
 
     memmove(buffer, (uint8_t *)buffer + RX_HEADER_SIZE, framelen); // RX コマンドA..Cを上書き
 
@@ -309,7 +309,7 @@ static boolean lan7800_init_macaddr(lan7800_t *self)
 {
     // MailBoxから取得
     if (!mbox_get_macaddr(self->macaddr)) {
-        debug("couldn't init MAC ADDRESS");
+        error("couldn't init MAC ADDRESS");
         return false;
     }
 
@@ -322,14 +322,14 @@ static boolean lan7800_init_macaddr(lan7800_t *self)
 
     if (!lan7800_write_reg(self, RX_ADDRL, addr_low)
      || !lan7800_write_reg(self, RX_ADDRH, addr_high)) {
-        debug("failed to write RX?ADDL/H");
+        error("failed to write RX?ADDL/H");
         return false;
     }
 
     // 自身のMACアドレスのための完全フィルターエントリをセット
     if (!lan7800_write_reg(self, MAF_LO (0), addr_low)
      || !lan7800_write_reg(self, MAF_HI (0), addr_high | MAF_HI_VALID)) {
-        debug("failed to write MAF_LO/HI");
+        error("failed to write MAF_LO/HI");
         return false;
     }
 
@@ -344,7 +344,7 @@ static boolean lan7800_init_phy(lan7800_t *self)
 {
     // メインページレジスタを選択 (0-30)
     if (!lan7800_phy_write(self, 0x1F, 0)) {
-        debug("failed to select main page reg");
+        error("failed to select main page reg");
         return false;
     }
 
@@ -358,7 +358,7 @@ static boolean lan7800_init_phy(lan7800_t *self)
     //      6=link10/100/activity    14=off    15=on
     uint16_t modesel;
     if (!lan7800_phy_read(self, 0x1D, &modesel)) {
-        debug("failed to read default LED");
+        error("failed to read default LED");
         return false;
     }
 
@@ -373,7 +373,7 @@ static boolean lan7800_phy_write(lan7800_t *self, uint8_t index, uint16_t value)
 {
     if (!lan7800_wait_reg (self, MII_ACC, MII_ACC_MII_BUSY, 0)
      || !lan7800_write_reg(self, MII_DATA, value)) {
-        debug("failed to write NII_DATA with %d", value);
+        error("failed to write NII_DATA with %d", value);
         return false;
      }
 
@@ -383,7 +383,7 @@ static boolean lan7800_phy_write(lan7800_t *self, uint8_t index, uint16_t value)
         mii_access |= MII_ACC_MII_WRITE | MII_ACC_MII_BUSY;
 
     if (!lan7800_write_reg(self, MII_ACC, mii_access)) {
-        debug("failed to write NII_ACC with %x", mii_access);
+        error("failed to write NII_ACC with %x", mii_access);
         return false;
     }
 
@@ -393,7 +393,7 @@ static boolean lan7800_phy_write(lan7800_t *self, uint8_t index, uint16_t value)
 static boolean lan7800_phy_read(lan7800_t *self, uint8_t index, uint16_t *phyvalue)
 {
     if (!lan7800_wait_reg(self, MII_ACC, MII_ACC_MII_BUSY, 0)) {
-        debug("MII_ACC is busy");
+        error("MII_ACC is busy");
         return false;
     }
 
@@ -406,7 +406,7 @@ static boolean lan7800_phy_read(lan7800_t *self, uint8_t index, uint16_t *phyval
     if (!lan7800_write_reg(self, MII_ACC, mii_access)
      || !lan7800_wait_reg (self, MII_ACC, MII_ACC_MII_BUSY, 0)
      || !lan7800_read_reg(self, MII_DATA, &value)) {
-        debug("failed to read MII_DATA");
+        error("failed to read MII_DATA");
         return false;
     }
     *phyvalue = value & MII_DATA_MASK;

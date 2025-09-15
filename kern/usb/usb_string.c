@@ -78,13 +78,13 @@ boolean usb_string_get_from_desc(usb_string_t *self, uint8_t id, uint16_t langid
             REQUEST_IN, GET_DESCRIPTOR,
             (DESCRIPTOR_STRING << 8) | id, langid,
             self->str_desc, USBSTR_MIN_LENGTH) < 0) {
-        debug("failed to get DESCRIPTOR_STRING");
+        error("failed to get DESCRIPTOR_STRING");
         return false;
     }
 
     uint8_t len = self->str_desc->len;
     if (len < 2 || (len & 1) != 0 || self->str_desc->type != DESCRIPTOR_STRING) {
-        debug("bad DESCRIPTOR_STRING");
+        error("bad DESCRIPTOR_STRING");
         return false;
     }
 
@@ -96,14 +96,14 @@ boolean usb_string_get_from_desc(usb_string_t *self, uint8_t id, uint16_t langid
             REQUEST_IN, GET_DESCRIPTOR,
             (DESCRIPTOR_STRING << 8) | id, langid,
             self->str_desc, len) != (int)len) {
-            debug("failed to get detailed DESCRIPTOR_STRING");
+            error("failed to get detailed DESCRIPTOR_STRING");
             return false;
         }
 
         if (self->str_desc->len != len
         || (self->str_desc->len & 1) != 0
         || self->str_desc->type != DESCRIPTOR_STRING) {
-            debug("bad detailed DESCRIPTOR_STRING");
+            error("bad detailed DESCRIPTOR_STRING");
             return false;
         }
     }
