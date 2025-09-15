@@ -43,7 +43,7 @@ void usb_init(void)
     usb_lib->eth01 = 0;
 
     if (dwhc_init(&usb_lib->dwhc, true)) {
-        info("dw2hc initialized\n");
+        info("dwhc initialized\n");
     } else {
         _dwhc_device(&usb_lib->dwhc);
         _usb_device_ns(&usb_lib->ns);

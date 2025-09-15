@@ -1550,23 +1550,6 @@ int dwhc_xfer(dwhc_device_t *self, usb_endpoint_t *ep, const void *buffer, unsig
     return result;
 }
 
-void usbhc_init(void)
-{
-    if (dw2hc != 0)
-        return;
-
-    usb_device_ns_t *dev_ns = (usb_device_ns_t *)kmalloc(sizeof(usb_device_ns_t));
-    usb_device_ns(dev_ns);
-    dw2hc = (dwhc_device_t *)kmalloc(sizeof(dwhc_device_t));
-    dwhc_device(dw2hc);
-    if (dwhc_init(dw2hc, true)) {
-        info("dw2hc initialized\n");
-    } else {
-        panic("failed to initialize dw2_hc\n");
-    }
-
-}
-
 void usb_test(void)
 {
     info("usb_test start/end\n");
