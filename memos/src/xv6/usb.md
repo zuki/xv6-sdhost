@@ -151,7 +151,37 @@ usb_dwc2_update_irq level=1
 usb_dwc2_work_bh
 ```
 
-### CPUを4つ動かしたら動かした
+### CPUを4つ動かしたら動いた
+
+```bash
+[3]usb_dev_init: Device ven409-55aa, dev9-0-0 found
+[1]usb_dev_init: Product: QEMU QEMU USB Hub
+[1]usb_function_get_if_name: func name=int9-0-0
+[1]usb_dev_init: Interface int9-0-0 found
+[1]usb_dev_factory_get_device: Using device/interface int9-0-0
+[1]usb_dev_init: Device ven525-a4a2, dev2-0-0 found
+[2]usb_dev_init: Product: QEMU RNDIS/QEMU USB Network Device
+[2]usb_function_get_if_name: func name=int2-6-0
+[2]usb_dev_init: Interface int2-6-0 found
+[2]usb_dev_factory_get_device: Using device/interface int2-6-0
+[2]usb_function_get_if_name: func name=inta-0-0
+[2]usb_dev_init: Interface inta-0-0 found
+[2]usb_dev_init: Function is not supported
+[2]usb_function_get_if_name: func name=inta-0-0
+[2]usb_dev_init: Interface inta-0-0 found
+[2]usb_dev_init: Function is not supported
+[2]usb_cdcether_configure: MAC address is 40:54:0:12:34:57
+[2]usb_standard_hub_enumerate_ports: Port 1: Device configured
+[2]dwhc_root_port_init: Device configured
+[2]usb_init: dwhc initialized
+
+[2]usb_init: usb_init ok
+init: starting sh
+sh: argv[0] = 'sh'
+sh: testenv = 'FROM_INIT'
+$ date
+2022年 6日21日 火曜日 10時31分27秒 JST
+```
 
 - 1つしかないCPUで割り込み待ちになったせいか?
 - ただし、次のようなエラーが発生することあり
@@ -203,4 +233,76 @@ stagedata: stagedata: 0xffff000000a40620
 [3]dwhc_xfer_data_get_pid: bad next: 402653182              // エラー発生
 kern/usb/dwhc_xfer_data.c:323: assertion failed.
 kern/console.c:285: kernel panic at cpu 3.
+```
+
+## 実機でも動いた
+
+```bash
+[0]rand_init: rand_init ok
+[0]timer_init: timerfreq = 0x124f800
+[1]timer_init: timerfreq = 0x124f800
+[2]timer_init: timerfreq = 0x124f800
+[3]timer_init: timerfreq = 0x124f800
+[2]main: cpu 2 init finished
+[0]main: cpu 0 init finished
+[1]main: cpu 1 init finished
+[3]main: cpu 3 init finished
+[2]sdhost_probe: firmware sets clock divider
+[2]sdhost_set_ios: ios clock 400000, pwr 0, bus_width 0, timing00, vdd 0, drv_type 0
+[2]sdhost_finish_command: error detected: CMD 0x4205, HSTS 0x40, EDM 0x10800
+[2]sdhost_finish_command: command 5 timeout
+[2]emmc_card_reset: OCR: 0xff80, 1.8v support: 0, SDHC support: 1
+[2]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
+[2]emmc_card_reset: card CID: 0x27504853, 0x44333247, 0x506c5d21, 0xcc017421
+[2]emmc_card_reset: RCA: 0x5048
+[3]emmc_card_reset: SCR: version 3.0x, bus_widths 0x5
+[3]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 1, timing 0, vdd 0, drv_type 0
+[3]emmc_card_reset: found valid version 3.0x SD card
+[2]sd_init: partition[0]: TYPE: 12, LBA = 0x800, #SECS = 0x20000
+[2]sd_init: partition[1]: TYPE: 131, LBA = 0x20800, #SECS = 0x1f800
+[2]sd_init: sd_init ok
+
+[2]iinit: sb: size 1000 nblocks 963 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 36
+[2]initlog: not use log
+[1]usb_dev_init: Device ven424-2514, dev9-0-2 found
+[1]usb_function_get_if_name: func name=int9-0-1
+[1]usb_dev_init: Interface int9-0-1 found
+[1]usb_dev_init: Function is not supported
+[1]usb_function_get_if_name: func name=int9-0-2
+[1]usb_dev_init: Interface int9-0-2 found
+[1]usb_dev_factory_get_device: Using device/interface int9-0-2
+[3]usb_dev_init: Device ven424-2514, dev9-0-2 found
+[3]usb_function_get_if_name: func name=int9-0-1
+[3]usb_dev_init: Interface int9-0-1 found
+[3]usb_dev_init: Function is not supported
+[3]usb_function_get_if_name: func name=int9-0-2
+[3]usb_dev_init: Interface int9-0-2 found
+[3]usb_dev_factory_get_device: Using device/interface int9-0-2
+[1]usb_dev_init: Device ven424-7800 found
+[1]usb_dev_factory_get_device: Using device/interface ven424-7800
+[1]lan7800_init_macaddr: MAC address is b8:27:eb:ab:e8:48
+[2]usb_standard_hub_enumerate_ports: Port 1: Device configured
+[1]usb_standard_hub_enumerate_ports: Port 1: Device configured
+[2]dwhc_root_port_init: Device configured
+[2]usb_init: dwhc initialized
+
+[2]usb_init: usb_init ok
+init: starting sh
+sh: argv[0] = 'sh'
+sh: testenv = 'FROM_INIT'
+$ ls
+.              4000 1 4096
+..             4000 1 4096
+cat            8000 2 38568
+init           8000 3 22400
+echo           8000 4 39480
+mkfs           8000 5 45528
+date           8000 6 49368
+sh             8000 7 54056
+utest          8000 8 17744
+ls             8000 9 41304
+console        0 10 0
+$ date
+2025年 9日15日 月曜日 14時 4分52秒 JST
+$
 ```
