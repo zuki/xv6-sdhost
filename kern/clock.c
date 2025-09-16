@@ -6,6 +6,7 @@
 #include <console.h>
 #include <linux/time.h>
 #include <spinlock.h>
+#include <rtc.h>
 #include <linux/errno.h>
 
 /* ARM 64bit ローカルタイマー : 19.2 MHzのU/Dエッジでカウント */
@@ -25,7 +26,7 @@
 #endif
 /* ローカルタイマー割り込みクリア・リロードレジスタ */
 #define TIMER_CLR               (LOCAL_BASE + 0x38)
-#define TIMER_CLR_INT           (1 << 31)           /* 割り込みフラグクリア */   
+#define TIMER_CLR_INT           (1 << 31)           /* 割り込みフラグクリア */
 #define TIMER_RELOAD            (1 << 30)           /* タイマーリロード */
 
 uint64_t tick_usec = TICK_USEC;        /* USER_HZ period (usec) */
@@ -57,7 +58,7 @@ static void update_wall_time(uint64_t ticks)
 static inline void update_times(void)
 {
     uint64_t ticks;
- 
+
     ticks = jiffies - wall_jiffies;
     if (ticks) {
         wall_jiffies += ticks;

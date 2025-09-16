@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 char * const wdays[] = { "日", "月", "火", "水", "木", "金", "土" };
@@ -17,7 +18,7 @@ int main(int argc, char *argv[])
 {
     int fd;
     char buf[11];
- 
+
     if (argc == 1) {
         print_now();
     } else if (argc == 2) {
@@ -31,6 +32,6 @@ int main(int argc, char *argv[])
             print_now();
         }
     }
- 
+
     return 0;
 }
