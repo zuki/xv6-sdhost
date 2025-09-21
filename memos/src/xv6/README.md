@@ -6,3 +6,6 @@
 - [時計機能(clock, timer, rtc, date)を導入](time.md)
 - [USB機能を導入](usb.md)
 - [Network (Ethernet) 機能を導入](net.md)
+    - [Circleのnetサブシステムを調査](circle_net.md)
+    - [xv6-netのnetサブシステムを調査](xv6_net.md)
+    - [linuxのdw2ドライバを調査](dw2.md)
