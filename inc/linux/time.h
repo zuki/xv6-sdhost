@@ -15,7 +15,7 @@ struct timeval {
 
 struct timespec {
     time_t  tv_sec;         /* 秒 */
-    long    tv_nsec;        /* マイクロ秒 */
+    long    tv_nsec;        /* ナノ秒 */
 };
 
 struct itimerval {

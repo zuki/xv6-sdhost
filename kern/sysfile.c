@@ -85,7 +85,7 @@ ssize_t sys_read(void)
     ssize_t n;
     char *p;
 
-    if (argfd(0, 0, &f) < 0 || argu64(2, &n) < 0 || argptr(1, &p, n) < 0)
+    if (argfd(0, 0, &f) < 0 || argu64(2, (uint64_t *)&n) < 0 || argptr(1, &p, n) < 0)
         return -1;
     return fileread(f, p, n);
 }
@@ -96,7 +96,7 @@ ssize_t sys_write(void)
     ssize_t n;
     char *p;
 
-    if (argfd(0, 0, &f) < 0 || argu64(2, &n) < 0 || argptr(1, &p, n) < 0)
+    if (argfd(0, 0, &f) < 0 || argu64(2, (uint64_t *)&n) < 0 || argptr(1, &p, n) < 0)
         return -1;
     return filewrite(f, p, n);
 }
@@ -524,7 +524,7 @@ long sys_pipe2(void)
     return 0;
 }
 
-// TODO: 
+// TODO:
 long sys_ioctl(void)
 {
     uint64_t req;

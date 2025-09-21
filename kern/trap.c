@@ -9,6 +9,8 @@
 #include <proc.h>
 #include <debug.h>
 
+extern long syscall1(struct trapframe *tf);
+
 void
 trap_init()
 {
@@ -21,11 +23,11 @@ void
 trap(struct trapframe *tf)
 {
     uint64_t esr = resr();
-    uint64_t far = rfar();
+    //uint64_t far = rfar();
     int ec  = (int)(esr >> EC_SHIFT);
     int iss = (int)(esr & ISS_MASK);
     int il  = (int)(esr & IR_MASK);
-    int dfs = (int)(iss & 0x3f);
+    //int dfs = (int)(iss & 0x3f);
 
     /* Clear esr. */
     lesr(0);

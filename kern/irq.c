@@ -125,10 +125,9 @@
 static void (*handler[IRQ_LINES])(void *);
 static void *params[IRQ_LINES];
 
-static void
-irq_debug()
-{
 #if RASPI == 4
+static void irq_debug()
+{
     debug("irq status 0x%x, 0x%x, 0x%x", get32(IRQ_STATUS0),
           get32(IRQ_STATUS1), get32(IRQ_STATUS2));
     debug("irq0 pending 0x%x, 0x%x, 0x%x", get32(IRQ0_PENDING0),
@@ -143,8 +142,8 @@ irq_debug()
     for (int i = 0; i < 4; i++)
         debug("irq/fiq src%d 0x%x, 0x%x", i, get32(IRQ_SRC_CORE(i)),
               get32(FIQ_SRC_CORE(i)));
-#endif
 }
+#endif
 
 /* Route all global interrupt to cpu 0. */
 void

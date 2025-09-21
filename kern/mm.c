@@ -19,6 +19,7 @@ limitations under the License.
 #include <mm.h>
 #include <mmu.h>
 #include <buddy.h>
+#include <slab.h>
 #include <string.h>
 #include <console.h>
 

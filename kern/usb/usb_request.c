@@ -74,7 +74,7 @@ usb_setup_data_t *usb_request_get_setup_data(usb_request_t *self)
     return self->setup_data;
 }
 
-void *usb_request_get_buffer(usb_request_t *self)
+const void *usb_request_get_buffer(usb_request_t *self)
 {
     return self->buffer;
 }

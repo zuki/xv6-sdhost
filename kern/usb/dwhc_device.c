@@ -48,7 +48,7 @@
 #define POWER_STATE_NO_DEVICE   (1 << 1)    // in response
 
 // Dw2＿HCDドライバオブジェクト
-static dwhc_device_t *dw2hc = 0;
+//static dwhc_device_t *dw2hc = 0;
 
 //
 // 構成
@@ -648,7 +648,7 @@ boolean dwhc_xfer_stage(dwhc_device_t *self, usb_request_t *urb, boolean in, boo
     // 1. 未使用のwaiting[]のインデックスを取得
     unsigned wblk = dwhc_alloc_wblock(self);
 
-    // 1-1. waiting[]kは全て使用中
+    // 1-1. waiting[]は全て使用中
     if (wblk >= DWHCI_WAIT_BLOCKS) {
         error("no wait block");
         return false;
@@ -1207,17 +1207,21 @@ void dwhc_intr_hdl(dwhc_device_t *self)
 
     uint32_t intstat;
     intstat = get32(DWHCI_CORE_INT_STAT);
+    trace("[%d](%d) USB int: 0x%x", cpuid(), thisproc()->pid, intstat);
 
 #ifdef USE_USB_SOF_INTR
+    // [3] SOF, マイクロSOF, Keep-AliveがUSBで送信された
     if (intstat & DWHCI_CORE_INT_STAT_SOF_INTR) {
         dwhc_sof_intr_hdl(self);
     }
 #endif
 
+    // [25] いずれかのチャネルに割り込みあり : ホストチャネルのエラーチェック
     if (intstat & DWHCI_CORE_INT_STAT_HC_INTR) {
         uint32_t allchanintr;
         allchanintr = get32(DWHCI_HOST_ALLCHAN_INT);
         put32(DWHCI_HOST_ALLCHAN_INT, allchanintr);
+        trace("[%d](%d)   haint: 0x%x", cpuid(), thisproc()->pid, allchanintr);
 
         uint32_t cmask = 1;
         for (unsigned channel = 0; channel < self->channels; channel++) {
@@ -1231,8 +1235,12 @@ void dwhc_intr_hdl(dwhc_device_t *self)
         }
     }
 
+    // TODO: [4] DWHCI_CORE_INT_STAT_RXFLVL: RxFIFOにパケットが少なくとも1つある
+    // TODO: usb_received_frame(void *buffer, unsigned *resultlen) を実行する
+
 /* plug and play関連
     if (self->pap) {
+        // [24] ポートステータスに変化あり
         if (intstat & DWHCI_CORE_INT_STAT_PORT_INTR) {
             uint32_t hostport;
             hostport = get32(DWHCI_HOST_PORT);
@@ -1243,7 +1251,7 @@ void dwhc_intr_hdl(dwhc_device_t *self)
                     | DWHCI_HOST_PORT_ENABLE_CHANGED
                     | DWHCI_HOST_PORT_OVERCURRENT_CHANGED);
             put32(hostport, DWHCI_HOST_PORT);
-
+            // [29] 切断検知
             if (intstat & DWHCI_CORE_INT_MASK_DISCONNECT) {
                 dwhc_root_port_port_status_changed(&self->root_port);
             }
@@ -1254,7 +1262,7 @@ void dwhc_intr_hdl(dwhc_device_t *self)
                        | DWHCI_HOST_PORT_OVERCURRENT_CHANGED);
             put32(DWHCI_HOST_PORT, hostport);
         }
-
+        // [29] 切断検知
         if (intstat & DWHCI_CORE_INT_MASK_DISCONNECT) {
             dwhc_root_port_port_status_changed(&self->root_port);
         }
@@ -1325,10 +1333,10 @@ void dwhc_device_timer_hdl(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
 void dwhc_device_timer_hdlstub(uint64_t data)
 {
     uint64_t *params = (uint64_t *)data;
-    dwhc_device_t *self = (dwhc_device_t *)params[0];
-    assert(self != 0);
-    dwhc_xfer_data_t *stdata = (dwhc_xfer_data_t *)params[1];
+    dwhc_xfer_data_t *stdata = (dwhc_xfer_data_t *)params[0];
     assert(stdata != 0);
+    dwhc_device_t *self = (dwhc_device_t *)params[1];
+    assert(self != 0);
 
     dwhc_device_timer_hdl(self, stdata);
 

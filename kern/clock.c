@@ -105,7 +105,7 @@ void clock_intr()
 
 long clock_gettime(clockid_t clk_id, struct timespec *tp)
 {
-    uint64_t ptime;
+    //uint64_t ptime;
 
     switch(clk_id) {
         default:

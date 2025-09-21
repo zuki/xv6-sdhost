@@ -428,11 +428,13 @@ sdhost_reset_internal(struct bcm2835_host *host)
     dsb();
 }
 
+#if 0
 static void
 sdhost_reset(struct bcm2835_host *host)
 {
     sdhost_reset_internal(host);
 }
+#endif
 
 static void
 sdhost_init_inner(struct bcm2835_host *host, int soft)

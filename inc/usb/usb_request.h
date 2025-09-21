@@ -53,7 +53,7 @@ int usb_request_get_status(usb_request_t *self);
 uint32_t usb_request_get_resultlen(usb_request_t *self);
 
 usb_setup_data_t *usb_request_get_setup_data(usb_request_t *self);
-void *usb_request_get_buffer(usb_request_t *self);
+const void *usb_request_get_buffer(usb_request_t *self);
 uint32_t usb_request_get_buflen(usb_request_t *self);
 
 void usb_request_set_comp_cb(usb_request_t *self, usb_comp_cb *cb, void *param, void *ctx);

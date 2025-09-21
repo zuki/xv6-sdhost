@@ -308,8 +308,8 @@ void *slab_cache_alloc(struct slab_cache *cache) {
 void slab_cache_free(struct slab_cache *cache, void *obj) {
     uint32_t index, next_index, *free_list;
 
-    // FIXME: 実際に称した場合にこれで問題ないか確認すること
-    obj = obj - (void *)PAGE_START;
+    // FIXME: 実際に使用した場合にこれで問題ないか確認すること
+    obj = (char *)((uint64_t)obj - (uint64_t)PAGE_START);
 
     struct page *page = page_find_head(page_find_by_address(obj));
     struct slab_header *header = (void*)page_address(page), *h, **hp;
