@@ -8,19 +8,38 @@
 #include <console.h>
 #include <proc.h>
 #include <debug.h>
+#include <spinlock.h>
+#include <softirq.h>
+#include <net/net.h>
+
+struct spinlock pendinglock;
+uint64_t pending;
 
 extern long syscall1(struct trapframe *tf);
 
-void
-trap_init()
+static void softintr(void)
+{
+    acquire(&pendinglock);
+    uint64_t irqs = pending;
+    pending = 0;
+    release(&pendinglock);
+
+    if (irqs & SOFT_IRQ_NET_RX) {
+        net_softirq_handler();
+    }
+    if (irqs & SOFT_IRQ_NET_EVENT) {
+        net_event_handler();
+    }
+}
+
+void trap_init()
 {
     extern char vectors[];
     lvbar(vectors);
     lesr(0);
 }
 
-void
-trap(struct trapframe *tf)
+void trap(struct trapframe *tf)
 {
     uint64_t esr = resr();
     //uint64_t far = rfar();
@@ -35,8 +54,9 @@ trap(struct trapframe *tf)
     case EC_UNKNOWN:
         if (il) {
             debug("IL bit on");
-        } else
+        } else {
             irq_handler();
+        }
         break;
 
     case EC_SVC64:
@@ -51,6 +71,7 @@ trap(struct trapframe *tf)
         info("unknown trap code: %d", ec);
         exit(1);
     }
+    softintr();
 }
 
 void

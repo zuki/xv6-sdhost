@@ -24,7 +24,7 @@
 #include <usb/usb_function.h>
 #include <usb/usb_endpoint.h>
 #include <usb/usb_request.h>
-#include <netdevice.h>
+#include <net/net.h>
 
 // サイズ
 #define HS_USB_PKT_SIZE         512
@@ -223,14 +223,25 @@
 #define RX_CMD_A_RED            0x00400000      // 22: Receive Error Detected
 #define RX_CMD_A_LEN_MASK       0x00003FFF      // 13-0: Frame length
 
+/// @brief ネットデバイススピード
+typedef enum link_speed_speed {
+    link_speed_10half,
+    link_speed_10full,
+    link_speed_100half,
+    link_speed_100full,
+    link_speed_1000half,
+    link_speed_1000full,
+    link_speed_unknown
+} link_speed_t;
+
 typedef struct lan7800 {
-    usb_function_t   usb_func;
-    net_dev_t       *net_dev;
-    usb_endpoint_t  *bulk_in;
-    usb_endpoint_t  *bulk_out;
-    char             macaddr[MAC_ADDRESS_SIZE];
-    uint32_t         filters[33][2];
-    uint8_t         *tx_buffer;
+    usb_function_t      usb_func;
+    struct net_device  *net_dev;
+    usb_endpoint_t     *bulk_in;
+    usb_endpoint_t     *bulk_out;
+    char                macaddr[MAC_ADDRESS_SIZE];
+    uint32_t            filters[33][2];
+    uint8_t            *tx_buffer;
 } lan7800_t;
 
 void lan7800(lan7800_t *self, usb_function_t *func);
@@ -241,7 +252,9 @@ boolean lan7800_receive_frame(lan7800_t *self, void *buff, uint32_t *resultlen);
 int lan7800_is_linkup(lan7800_t *self);
 
 const char *lan7800_get_macaddr(lan7800_t *self);
-net_dev_speed_t lan7800_get_linkspeed(lan7800_t *self);
+link_speed_t lan7800_get_linkspeed(lan7800_t *self);
 boolean lan7800_set_multicast_filter(lan7800_t *self, const uint8_t groups[][MAC_ADDRESS_SIZE]);
+
+int lan7800_net_init(lan7800_t *self);
 
 #endif

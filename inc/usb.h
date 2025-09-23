@@ -40,6 +40,8 @@ typedef struct usb_library
 	usb_cdcether_t		*eth01;
 } usb_lib_t;
 
+extern usb_lib_t *usb_lib;
+
 /// USBライブラリ
 
 // usbライブラリを初期化する
@@ -48,15 +50,10 @@ void usb_init(void);
 
 // keyboard
 int usb_keyboard_available(void);
-
 void usb_keyboard_register_key_pressed_handler(key_pressed_hdl *handler);
-
 void usb_keyboard_register_shutdown_handler(shutdown_hdl *handler);
-
 void usb_keyboard_register_key_status_handler(key_status_hdl *handler);
-
 void usb_keyboard_update_leds(void);
-
 void usb_keyboard_set_leds(uint8_t mask);
 
 // Ethernetデバイス
@@ -83,10 +80,9 @@ int usb_ethernet_is_linkup(void);
 int usb_send_frame(const void *buffer, unsigned length);
 
 /* フレームを受信する.
- * bufferのサイズはUSPI_FRAME_BUFFER_SIZEでなければならない
+ * bufferのサイズはFRAME_BUFFER_SIZEでなければならない
  * フレームが利用不可または失敗の場合は0を返す
  */
-#define USPI_FRAME_BUFFER_SIZE	1600
 int usb_receive_frame(void *buffer, unsigned *resultlen);
 
 //

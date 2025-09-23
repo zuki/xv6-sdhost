@@ -5,16 +5,25 @@
 #include <types.h>
 #include <sleeplock.h>
 #include <fs.h>
+#include <net/socket.h>
 
 #define NFILE 100  // Open files per system
 
+enum file_type {
+    FD_NONE = 0,
+    FD_PIPE,
+    FD_INODE,
+    FD_SOCKET
+};
+
 struct file {
-    enum { FD_NONE, FD_PIPE, FD_INODE } type;
+    enum file_type type;
     int ref;
     char readable;
     char writable;
     struct pipe *pipe;
     struct inode *ip;
+    struct socket *socket;
     size_t off;
 };
 

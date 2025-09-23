@@ -128,4 +128,23 @@ static inline void format(uint8_t c, char *sc) {
 
 int sprintf(char *str, const char *fmt, ...);
 
+static __inline int __isspace(int _c)
+{
+    return _c == ' ' || (unsigned)_c-'\t' < 5;
+}
+
+#define isascii(a) ((a >= 0x00) && (a <= 0x7f))
+#define isprint(a) ((a >= 0x20) && (a <= 0x7e))
+
+#define isalpha(a) ((((unsigned)(a)|32)-'a') < 26)
+#define isdigit(a) (((unsigned)(a)-'0') < 10)
+#define islower(a) (((unsigned)(a)-'a') < 26)
+#define isupper(a) (((unsigned)(a)-'A') < 26)
+#define isgraph(a) (((unsigned)(a)-0x21) < 0x5e)
+#define isspace(a) __isspace(a)
+
+long strtol(const char *s, char **endptr, int base);
+int sprintf(char *buf, const char *fmt, ...);
+int snprintf(char *buf, size_t n, const char *fmt, ...);
+
 #endif

@@ -153,3 +153,14 @@ long get_ticks(void)
 {
     return jiffies;
 }
+
+long gettimeofday(struct timeval *tv, void *tz)
+{
+    (void)tz;
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+
+    tv->tv_sec = now.tv_sec;
+    tv->tv_usec = now.tv_nsec / 1000;
+    return 0;
+}

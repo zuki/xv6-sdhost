@@ -14,6 +14,7 @@
 #include <file.h>
 #include <log.h>
 #include <usb.h>
+#include <net/net.h>
 
 extern void trapret();
 extern void swtch(struct context **old, struct context *new);
@@ -192,6 +193,8 @@ forkret()
         iinit(ROOTDEV);
         initlog(ROOTDEV);
         usb_init();
+        //net_init();
+        //net_run();
     } else {
         release(&ptable.lock);
     }

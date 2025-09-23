@@ -29,7 +29,10 @@
 #include <mbox.h>
 #include <clock.h>
 #include <arm.h>
-#include <netdevice.h>
+#include <net/net.h>
+#include <net/ether.h>
+#include <net/platform.h>
+#include <console.h>
 #include <string.h>
 
 typedef struct ethernet_functional_descriptor {
@@ -47,8 +50,6 @@ typedef struct ethernet_functional_descriptor {
 void usb_cdcether(usb_cdcether_t *self, usb_function_t *func)
 {
     usb_function_copy(&self->usb_func, func);
-    self->net_dev = (net_dev_t *)kmalloc(sizeof(net_dev_t));
-    assert(self->net_dev != 0);
     self->usb_func.configure = usb_cdcether_configure;
     self->bulk_in = 0;
     self->bulk_out = 0;
@@ -147,7 +148,7 @@ boolean usb_cdcether_configure(usb_function_t *func)
     usb_device_ns_add_dev(usb_device_ns_get(), "eth10", self, false);
 
     // FIXME: ネットデバイスとして登録
-    netdev_add_dev(self->net_dev);
+    //netdev_add_dev(self->net_dev);
 
     return true;
 }
@@ -221,4 +222,50 @@ boolean usb_cdcether_init_macaddr(usb_cdcether_t *self, uint8_t id)
     memmove(self->macaddr, macaddr, MAC_ADDRESS_SIZE);
 
     return true;
+}
+
+static int usb_cdcether_net_open(struct net_device *dev)
+{
+    return 0;
+}
+
+static int usb_cdcether_net_close(struct net_device *dev)
+{
+    return 0;
+}
+
+static int usb_cdcether_net_transmit(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst)
+{
+    return usb_cdcether_send_frame((usb_cdcether_t *)dev->priv, data, (size_t) len) ? 0 : -1;
+}
+
+struct net_device_ops usb_cdcether_net_ops = {
+    .open = usb_cdcether_net_open,
+    .close = usb_cdcether_net_close,
+    .transmit = usb_cdcether_net_transmit,
+};
+
+int usb_cdcether_net_init(usb_cdcether_t *self)
+{
+    struct net_device *dev;
+
+        // setup device driver structure
+    dev = net_device_alloc();
+    if (!dev) {
+        error("net_device_alloc() failure");
+        return -1;
+    }
+    ether_setup_helper(dev);
+
+    memcpy(dev->addr, self->macaddr, sizeof(self->macaddr));
+    dev->priv = self;
+    dev->ops = &usb_cdcether_net_ops;
+    if (net_device_register(dev) == -1) {
+        error("net_device_register() failure");
+        memory_free(dev);
+        return -1;
+    }
+    self->net_dev = dev;
+
+    return 0;
 }

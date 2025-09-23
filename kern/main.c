@@ -18,7 +18,8 @@
 #include <rtc.h>
 #include <random.h>
 #include <i2c.h>
-//#include <usb.h>
+#include <usb.h>
+#include <net/net.h>
 
 /*
  * Keep it in data segment by explicitly initializing by zero,
@@ -43,6 +44,11 @@ main()
         clock_init();
         rand_init();
         proc_init();
+#if 0
+        usb_init();
+        net_init();
+        net_run();
+#endif
         user_init();
         binit();
 

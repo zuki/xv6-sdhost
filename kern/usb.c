@@ -30,7 +30,7 @@
 #include <usb/usb_cdcether.h>
 #include <usb/usb_keyboard.h>
 
-static usb_lib_t *usb_lib = 0;
+usb_lib_t *usb_lib = 0;
 
 void usb_init(void)
 {

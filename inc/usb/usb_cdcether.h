@@ -25,12 +25,12 @@
 #include <usb/usb_device.h>
 #include <usb/usb_endpoint.h>
 #include <usb/usb_function.h>
-#include <netdevice.h>
+#include <net/net.h>
 
 /// @brief CDC Ethernetデバイス構造体
 typedef struct usb_usb_cdcethernet {
     usb_function_t   usb_func;
-    net_dev_t   *net_dev;
+    struct net_device *net_dev;
     usb_endpoint_t    *bulk_in;       ///< バルク転送入力用パイプ
     usb_endpoint_t    *bulk_out;      ///< バルク転送出力用パイプ
     char         macaddr[MAC_ADDRESS_SIZE]; /// MACアドレス
@@ -45,5 +45,7 @@ boolean usb_cdcether_receive_frame(usb_cdcether_t *self, void *buff, uint32_t *r
 boolean usb_cdcether_init_macaddr(usb_cdcether_t *self, uint8_t id);
 
 const char *usb_cdcether_get_macaddr(usb_cdcether_t *self);
+
+int usb_cdcether_net_init(usb_cdcether_t *self);
 
 #endif

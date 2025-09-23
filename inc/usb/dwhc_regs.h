@@ -52,6 +52,8 @@
     #define DWHCI_CORE_RESET_AHB_IDLE               (1 << 31)
 #define DWHCI_CORE_INT_STAT         (ARM_USB_CORE_BASE + 0x014)
     #define DWHCI_CORE_INT_STAT_SOF_INTR            (1 << 3)
+    #define DWHCI_CORE_INT_STAT_RXFLVL              (1 << 4)
+    #define DWHCI_CORE_INT_STAT_NPTXFEMP            (1 << 5)
     #define DWHCI_CORE_INT_STAT_PORT_INTR           (1 << 24)
     #define DWHCI_CORE_INT_STAT_HC_INTR             (1 << 25)
 #define DWHCI_CORE_INT_MASK         (ARM_USB_CORE_BASE + 0x018)

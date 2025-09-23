@@ -8,6 +8,7 @@
 #include <spinlock.h>
 #include <file.h>
 #include <mm.h>
+#include <string.h>
 
 #define CONSOLE 1
 
@@ -306,4 +307,38 @@ panic(const char *fmt, ...)
     cprintf("%s:%d: kernel panic at cpu %d.\n", __FILE__, __LINE__,
             cpuid());
     while (1) ;
+}
+
+void hexdump(const void *data, size_t size)
+{
+    unsigned char *src;
+    int offset, index;
+
+    src = (unsigned char *)data;
+    cprintf("+------+-------------------------------------------------+------------------+\n");
+    for (offset = 0; offset < (int)size; offset += 16) {
+        cprintf("| %04x | ", offset);
+        for (index = 0; index < 16; index++) {
+            if (offset + index < (int)size) {
+                cprintf("%02x ", 0xff & src[offset + index]);
+            } else {
+                cprintf("   ");
+            }
+        }
+        cprintf("| ");
+        for (index = 0; index < 16; index++) {
+            if (offset + index < (int)size) {
+                if (isascii(src[offset + index]) && isprint(src[offset + index])) {
+                    cprintf("%c", src[offset + index]);
+                } else {
+                    cprintf(".");
+                }
+            } else {
+                cprintf(" ");
+            }
+        }
+        cprintf(" |\n");
+    }
+    cprintf("+------+-------------------------------------------------+------------------+\n");
+
 }

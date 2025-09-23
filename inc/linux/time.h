@@ -89,4 +89,21 @@ long getitimer(int, struct itimerval *);
 void it_real_fn(uint64_t);
 long setitimer(int, struct itimerval *, struct itimerval *);
 
+#define timercmp(a, b, cmp) \
+    ((a)->tv_sec == (b)->tv_sec ? (a)->tv_usec cmp (b)->tv_usec : (a)->tv_sec cmp (b)->tv_sec)
+
+static inline void timerclear(struct timeval *tv) {
+    tv->tv_sec = 0;
+    tv->tv_usec = 0;
+}
+
+static inline void timersub(struct timeval *a, struct timeval *b, struct timeval *res) {
+    res->tv_sec = a->tv_sec - b->tv_sec;
+    res->tv_usec = a->tv_usec - b->tv_usec;
+    if (res->tv_usec < 0) {
+        --res->tv_sec;
+        res->tv_usec += 1000*1000;
+    }
+}
+
 #endif

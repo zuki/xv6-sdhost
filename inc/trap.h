@@ -2,6 +2,7 @@
 #define INC_TRAP_H
 
 #include <types.h>
+#include <spinlock.h>
 
 struct trapframe {
     uint64_t spsr, elr, sp, tpidr;
@@ -12,5 +13,8 @@ struct trapframe {
 
 void trap(struct trapframe *);
 void trap_init();
+
+extern uint64_t         pending;
+extern struct spinlock  pendinglock;
 
 #endif

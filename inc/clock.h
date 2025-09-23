@@ -14,4 +14,6 @@ long get_uptime(void);
 
 long get_ticks(void);
 
+long gettimeofday(struct timeval *tv, void *tz);
+
 #endif

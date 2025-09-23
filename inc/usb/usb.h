@@ -38,6 +38,7 @@
 #endif
 
 #define MAC_ADDRESS_SIZE    6
+#define FRAME_BUFFER_SIZE   1600
 
 typedef enum usb_pid {
     usb_pid_setup,

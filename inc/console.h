@@ -79,6 +79,14 @@ void panic(const char *fmt, ...);
 #define debug(...)
 #define trace(...)
 
+#endif  // #ifdef LOG_ERROR
+
+void hexdump(const void *data, size_t size);
+
+#ifdef LOG_TRACE
+#define debugdump(...) hexdump(__VA_ARGS__);
+#else
+#define debugdump(...)
 #endif
 
-#endif
+#endif  // #ifndef INC_CONSOLE_H

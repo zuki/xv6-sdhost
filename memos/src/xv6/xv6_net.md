@@ -273,3 +273,67 @@ int sys_send(void);
 int sys_recvfrom(void);
 int sys_sendto(void);
 ```
+
+## net_deviceの登録
+
+- net/platform/xv6-riscv/virtio_net.c
+
+```c
+struct net_device_ops virtio_net_ops = {
+    .open = virtio_net_open,
+    .close = virtio_net_close,
+    .transmit = virtio_net_transmit,
+};
+
+void virtio_net_init(void) {
+    struct virtio_net *nic = &_nic0;
+    uint8_t addr[6];                    // このデバイスのMACアドレス
+    struct net_device *dev;
+
+// デバイスドライバ構造体の設定
+    dev = net_device_alloc();
+    ether_setup_helper(dev);
+    memcpy(dev->addr, addr, sizeof(addr));
+    dev->priv = nic;
+    dev->ops = &virtio_net_ops;
+    if (net_device_register(dev) == -1) {
+        errorf("net_device_register() failure");
+        memory_free(dev);
+        return;
+    }
+    nic->dev = dev;
+}
+```
+
+## main.cでの初期化シーケンス
+
+```c
+main() {
+    if (cpuid() == 0) {
+        consoleinit();
+        printfinit();
+        printf("\n");
+        printf("xv6 kernel is booting\n");
+        printf("\n");
+        kinit();         // physical page allocator
+        kvminit();       // create kernel page table
+        kvminithart();   // turn on paging
+        procinit();      // process table
+        trapinit();      // trap vectors
+        trapinithart();  // install kernel trap vector
+        plicinit();      // set up interrupt controller
+        plicinithart();  // ask PLIC for device interrupts
+        binit();         // buffer cache
+        iinit();         // inode table
+        fileinit();      // file table
+        virtio_disk_init(); // emulated hard disk
+        printdate();
+        netinit();       // network stack
+        virtio_net_init(); // emulated network card
+        netrun();        // start networking
+        userinit();      // first user process
+        __sync_synchronize();
+        started = 1;
+    }
+}
+```

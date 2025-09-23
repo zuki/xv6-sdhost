@@ -121,4 +121,15 @@ long sys_pread64(void);
 // kern/exec.c
 //long do_execve(char *, int, int, char **, char **);
 
+// syssocket.c
+long sys_ioctl(void);
+long sys_socket(void);
+long sys_connect(void);
+long sys_bind(void);
+long sys_listen(void);
+long sys_accept(void);
+long sys_recv(void);
+long sys_send(void);
+long sys_recvfrom(void);
+long sys_sendto(void);
 #endif

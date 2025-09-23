@@ -347,3 +347,38 @@ sh: argv[0] = 'sh'
 sh: testenv = 'FROM_INIT'
 $
 ```
+
+## xv6-riscv-netのネットワーク機能を導入
+
+- 何も動かずフリーズ
+
+```bash
+qemu-system-aarch64 -M raspi3b -nographic -serial null -serial mon:stdio -drive file=obj/sd.img,if=sd,format=raw -netdev user,id=net0,hostfwd=tcp::8080-:80 -device usb-net,netdev=net0 -trace events=events,file=trace.log -kernel obj/kernel8.img
+```
+
+- qemuトレース
+
+```bash
+usb_port_claim bus 0, port 1
+usb_hub_reset dev 0
+usb_port_attach bus 0, port 1, devspeed full, portspeed full+high
+usb_dwc2_attach port 0x7fb493a794d0
+usb_dwc2_attach_speed full-speed device attached
+usb_dwc2_bus_start start SOFs
+usb_dwc2_raise_global_irq 0x01000000
+usb_port_claim bus 0, port 1.1
+usb_port_attach bus 0, port 1.1, devspeed full, portspeed full
+usb_hub_attach dev 0, port 1
+usb_dwc2_reset_enter === RESET enter ===
+usb_dwc2_detach port 0x7fb493a794d0
+usb_dwc2_bus_stop stop SOFs
+usb_dwc2_bus_stop stop SOFs
+usb_dwc2_reset_hold === RESET hold ===
+usb_dwc2_reset_exit === RESET exit ===
+usb_dwc2_attach port 0x7fb493a794d0
+usb_dwc2_attach_speed full-speed device attached
+usb_dwc2_bus_start start SOFs
+usb_dwc2_raise_global_irq 0x01000000
+usb_hub_reset dev 0
+usb_dwc2_raise_global_irq 0x00000008        // ここでフリーズ
+```

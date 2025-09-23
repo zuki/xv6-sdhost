@@ -10,7 +10,9 @@
 #include <clock.h>
 #include <arm.h>
 #include <string.h>
-#include <netdevice.h>
+#include <net/net.h>
+#include <net/ether.h>
+#include <net/platform.h>
 
 // 前方参照
 boolean lan7800_configure(usb_function_t *super);
@@ -27,8 +29,8 @@ static boolean lan7800_read_reg(lan7800_t *self, uint32_t index, uint32_t *value
 void lan7800(lan7800_t *self, usb_function_t *func)
 {
     usb_function_copy(&self->usb_func, func);
-    self->net_dev = (net_dev_t *)kmalloc(sizeof(net_dev_t));
-    assert(self->net_dev != 0);
+    //self->net_dev = (net_dev_t *)kmalloc(sizeof(net_dev_t));
+    //assert(self->net_dev != 0);
     self->usb_func.configure = lan7800_configure;
     self->bulk_in = 0;
     self->bulk_out = 0;
@@ -208,7 +210,7 @@ boolean lan7800_configure(usb_function_t *super)
     usb_device_ns_add_dev(usb_device_ns_get(), "eth01", self, false);
 
     // FIXME: ネットデバイスとして登録
-    netdev_add_dev(self->net_dev);
+    //netdev_add_dev(self->net_dev);
 
     return true;
 
@@ -283,29 +285,29 @@ const char *lan7800_get_macaddr(lan7800_t *self)
     return self->macaddr;
 }
 
-net_dev_speed_t lan7800_get_linkspeed(lan7800_t *self)
+link_speed_t lan7800_get_linkspeed(lan7800_t *self)
 {
     // メインページレジスタを選択 (0-30): index 31に0を書き込む
     if (!lan7800_phy_write(self, 0x1F, 0))
-        return net_dev_speed_unknown;
+        return link_speed_unknown;
 
     uint16_t status;
     if (!lan7800_phy_read(self, 0x1C, &status))
-        return net_dev_speed_unknown;
+        return link_speed_unknown;
 
     // 自動ネゴシエーションされているかチェック
     assert (!(status & (1 << 14))); // 自動ネゴシエーションは有効でなければならない
     if (!(status & (1 << 15)))
-        return net_dev_speed_unknown;
+        return link_speed_unknown;
 
     switch ((status >> 3) & 7) {
-        case 0b000:     return net_dev_speed_10half;
-        case 0b001:     return net_dev_speed_100half;
-        case 0b010:     return net_dev_speed_1000half;
-        case 0b100:     return net_dev_speed_10full;
-        case 0b101:     return net_dev_speed_100full;
-        case 0b110:     return net_dev_speed_1000full;
-        default:        return net_dev_speed_unknown;
+        case 0b000:     return link_speed_10half;
+        case 0b001:     return link_speed_100half;
+        case 0b010:     return link_speed_1000half;
+        case 0b100:     return link_speed_10full;
+        case 0b101:     return link_speed_100full;
+        case 0b110:     return link_speed_1000full;
+        default:        return link_speed_unknown;
     }
 }
 
@@ -517,4 +519,50 @@ static boolean lan7800_read_reg(lan7800_t *self, uint32_t index, uint32_t *value
     }
 
     return true;
+}
+
+static int lan7800_net_open(struct net_device *dev)
+{
+    return 0;
+}
+
+static int lan7800_net_close(struct net_device *dev)
+{
+    return 0;
+}
+
+static int lan7800_net_transmit(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst)
+{
+    return lan7800_send_frame((lan7800_t *)dev->priv, data, (size_t) len) ? 0 : -1;
+}
+
+struct net_device_ops lan7800_net_ops = {
+    .open = lan7800_net_open,
+    .close = lan7800_net_close,
+    .transmit = lan7800_net_transmit,
+};
+
+int lan7800_net_init(lan7800_t *self)
+{
+    struct net_device *dev;
+
+        // setup device driver structure
+    dev = net_device_alloc();
+    if (!dev) {
+        error("net_device_alloc() failure");
+        return -1;
+    }
+    ether_setup_helper(dev);
+
+    memcpy(dev->addr, lan7800_get_macaddr(self), sizeof(dev->addr));
+    dev->priv = self;
+    dev->ops = &lan7800_net_ops;
+    if (net_device_register(dev) == -1) {
+        error("net_device_register() failure");
+        memory_free(dev);
+        return -1;
+    }
+    self->net_dev = dev;
+
+    return 0;
 }
