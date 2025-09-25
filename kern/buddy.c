@@ -164,10 +164,10 @@ void buddy_init(void) {
 
     /* 3. pagesをPAGE_STARTの直前に作成して、0クリアする
      *     pagesはPAGE_NUM個ある4KBのページのページ構造体のリスト
-     *     pagesはpage.cで(struct page *)として定義されている */
+     *     pagesはmm.cで(struct page *)として定義されている */
     pages = (struct page*)(PAGE_START - (sizeof(struct page) * PAGE_NUM));
     memset(pages, 0, sizeof(struct page) * PAGE_NUM);
-    trace("pages: 0x%llx, size: 0x%llx, PAGE_START: 0x%llx", (uint64_t)pages, sizeof(struct page) * PAGE_NUM, PAGE_START);
+    trace("pages: %p, size: 0x%llx, PAGE_START: 0x%llx", pages, sizeof(struct page) * PAGE_NUM, PAGE_START);
     trace("sizeof(struct page): 0x%lx\n", sizeof(struct page));
 
     // 3. page->indexの設定
@@ -196,7 +196,7 @@ void buddy_init(void) {
 
     /* 5. 最大ブロックのフリーリストの先頭をセットする */
     free_lists[PAGE_MAX_ORDER].head = &pages[0];
-    trace("\nfree_lists[10].head: %p\n", free_lists[10].head);
+    trace("free_lists[10].head: %p\n", free_lists[10].head);
 }
 
 /**

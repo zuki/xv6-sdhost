@@ -27,23 +27,15 @@
 #define CORES                   4
 
 //
-// Execution levels
+// 実行レベル: どの割り込みが有効になっているかを示す
 //
-#define TASK_LEVEL      0        // IRQs と FIQs が有効
-#define IRQ_LEVEL       1        // IRQsは無効、FIQsは有効
-#define FIQ_LEVEL       2        // IRQs と FIQs が無効
+#define TASK_LEVEL      0        // IRQもFIQも有効
+#define IRQ_LEVEL       1        // FIQは有効だがIRQは無効
+#define FIQ_LEVEL       2        // FIQもIRQも無効
 
 unsigned current_execution_level(void);
 
-//
-// 割り込み制御
-//
-#define    EnableIRQs()         asm volatile("msr DAIFClr, #2")
-#define    DisableIRQs()        asm volatile("msr DAIFSet, #2")
-#define    EnableFIQs()         asm volatile("msr DAIFClr, #1")
-#define    DisableFIQs()        asm volatile("msr DAIFSet, #1")
-
-// EnterCritical()はnTargetLevelが同じか大きいネストは可能
+// EnterCritical()は対象レベルが同じか大きいネストは可能
 void enter_critical(unsigned level);    // Default: IRQ_LEVEL
 void leave_critical(void);
 
@@ -80,26 +72,5 @@ void sync_data_and_instruction_cache(void);
                         &&((size) &(DATA_CACHE_LINE_LENGTH_MAX-1)) == 0)
 
 #define DMA_BUFFER(type, name, num)     type name[CACHE_ALIGN_SIZE(type, num)] CACHE_ALIGN
-
-//
-// バリア
-//
-#define DataSyncBarrier()           asm volatile("dsb sy" ::: "memory")
-#define DataMemBarrier()            asm volatile("dmb sy" ::: "memory")
-
-#define InstructionSyncBarrier()    asm volatile("isb" ::: "memory")
-#define InstructionMemBarrier()     asm volatile("isb" ::: "memory")
-
-#define CompilerBarrier()           asm volatile("" ::: "memory")
-
-#define PeripheralEntry()          ((void) 0)    // ここでは無視
-#define PeripheralExit()           ((void) 0)
-
-//
-// 割り込みとイベントを待つ
-//
-#define WaitForInterrupt()          asm volatile("wfi")
-#define WaitForEvent()              asm volatile("wfe")
-#define SendEvent()                 asm volatile("sev")
 
 #endif

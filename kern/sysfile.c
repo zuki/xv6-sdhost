@@ -4,8 +4,6 @@
 // user code, and calls into file.c and fs.c.
 //
 
-#include <fcntl.h>
-
 #include <types.h>
 #include <mmu.h>
 #include <proc.h>
@@ -16,6 +14,7 @@
 #include <log.h>
 #include <fs.h>
 #include <file.h>
+#include <linux/fcntl.h>
 #include <linux/errno.h>
 #include <syscall.h>
 

@@ -34,9 +34,12 @@ limitations under the License.
  * @ingroup mm
  * @def PAGE_NUM
  * @brief 総ページ数.
- *        ページに使用できるのは 0x3b9c0 (244160) * 0x1000 (4096) = 953MB
+ *        ページに使用できるのは実機で 0x3b9c0 (244160) * 0x1000 (4096) = 953MB
+ *        テスト環境では 64MB = 0x4000 = 16,384 pages
+ *
  */
-#define PAGE_NUM  0x3b9c0
+/* #define PAGE_NUM  0x3b9c0 */
+#define PAGE_NUM    0x4000
 
 /**
  * @ingroup mm

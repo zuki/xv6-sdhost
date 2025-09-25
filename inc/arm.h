@@ -56,11 +56,25 @@ isb()
     asm volatile("isb" ::: "memory");
 }
 
+/* Instruction memory barrier. */
+static inline void
+imb()
+{
+    asm volatile("isb" ::: "memory");
+}
+
 /* Data synchronization barrier. */
 static inline void
 dsb()
 {
     asm volatile("dsb sy" ::: "memory");
+}
+
+/* Data memory barrier. */
+static inline void
+dmb()
+{
+    asm volatile("dmb sy" ::: "memory");
 }
 
 /* Brute-force data and instruction synchronization barrier. */
@@ -194,6 +208,12 @@ nop()
 }
 
 static inline void
+wfi()
+{
+    asm volatile ("wfi");
+}
+
+static inline void
 wfe()
 {
     asm volatile ("wfe");
@@ -205,4 +225,35 @@ sev()
     asm volatile ("sev");
 }
 
+static inline void
+enable_irq(void)
+{
+    asm volatile ("msr DAIFClr, #2");
+}
+
+static inline void
+disable_irq(void)
+{
+    asm volatile ("msr DAIFSet, #2");
+}
+
+static inline void
+enable_fiq(void)
+{
+    asm volatile ("msr DAIFClr, #1");
+}
+
+static inline void
+disable_fiq(void)
+{
+    asm volatile ("msr DAIFSet, #1");
+}
+
+static inline int
+irq_enabled(void)
+{
+    uint64_t r;
+    asm volatile("mrs %[x], daif" : [x]"=r"(r));
+    return (r & 0x80) == 0;
+}
 #endif

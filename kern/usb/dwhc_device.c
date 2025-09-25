@@ -202,7 +202,7 @@ boolean dwhc_init(dwhc_device_t *self, boolean scan)
     }
 #endif
 
-    DataMemBarrier();
+    dmb();
 
     if (scan) {
         dwhc_rescan_dev(self);
@@ -232,7 +232,7 @@ void dwhc_rescan_dev(dwhc_device_t *self)
 boolean dwhc_submit_block_request(dwhc_device_t *self, usb_request_t *urb, unsigned timeout)
 {
     trace("host=0x%p, urb=0x%p, timeout=%d", self, urb, timeout);
-    DataMemBarrier();
+    dmb();
 
     // 1. リクエストステータスを初期セット
     usb_request_set_status(urb, 0);
@@ -287,16 +287,16 @@ boolean dwhc_submit_block_request(dwhc_device_t *self, usb_request_t *urb, unsig
             return false;
         }
     }
-    DataMemBarrier();
+    dmb();
     return true;
 }
 
 boolean dwhc_submit_async_request(dwhc_device_t *self, usb_request_t *urb, unsigned timeout)
 {
-    DataMemBarrier();
+    dmb();
     usb_request_set_status(urb, 0);
     boolean result = dwhc_xfer_stage_async(self, urb, urb->ep->in, false, timeout);
-    DataMemBarrier();
+    dmb();
     return result;
 }
 
@@ -666,10 +666,12 @@ boolean dwhc_xfer_stage(dwhc_device_t *self, usb_request_t *urb, boolean in, boo
         dwhc_free_wblock(self, wblk);
         return false;
     }
+    debug("wait for wblk");
     while (self->waiting[wblk]) {
         // dwhc_comp_cb()で待機中フラグが解除されるのを待つ
         yield();
     }
+    debug("ok, free wblk");
     dwhc_free_wblock(self, wblk);
     return urb->status;
 }
@@ -822,7 +824,7 @@ void dwhc_start_channel(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
     clean_and_invalidate_data_cache_range((uint64_t)stdata->buffp, (uint64_t)stdata->bpt);
     trace("6");
     // 7. データバリア
-    DataMemBarrier();
+    dmb();
     trace("7");
     // 8. スプリット転送
     // 8-1. スプリット転送を無効に
@@ -958,7 +960,7 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
         trace("substate: wait_for_xfer_complete");
         //debug_stdata(stdata);
         clean_and_invalidate_data_cache_range((uint64_t)stdata->buffp, (uint64_t)stdata->bpt);
-        DataMemBarrier();
+        dmb();
 
         uint32_t xfersize;
         xfersize = get32(DWHCI_HOST_CHAN_XFER_SIZ(channel));
@@ -1203,7 +1205,7 @@ void dwhc_sof_intr_hdl(dwhc_device_t * self)
 
 void dwhc_intr_hdl(dwhc_device_t *self)
 {
-    DataMemBarrier();
+    dmb();
 
     uint32_t intstat;
     intstat = get32(DWHCI_CORE_INT_STAT);
@@ -1271,7 +1273,7 @@ void dwhc_intr_hdl(dwhc_device_t *self)
 
     put32(DWHCI_CORE_INT_STAT, intstat);
 
-    DataMemBarrier();
+    dmb();
 }
 
 void dwhc_intr_hdlstub(void *param)
@@ -1285,7 +1287,7 @@ void dwhc_intr_hdlstub(void *param)
 
 void dwhc_device_timer_hdl(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
 {
-    DataMemBarrier();
+    dmb();
 
     assert(stdata != 0);
 
@@ -1305,7 +1307,7 @@ void dwhc_device_timer_hdl(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
         self->stdata[channel] = 0;
         dwhc_free_channel(self, channel);
 
-        DataMemBarrier();
+        dmb();
 
         usb_request_call_comp_cb(urb);
 
@@ -1327,7 +1329,7 @@ void dwhc_device_timer_hdl(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
 
     dwhc_start_trans(self, stdata);
 
-    //DataMemBarrier();
+    //dmb();
 }
 
 void dwhc_device_timer_hdlstub(uint64_t data)
@@ -1432,7 +1434,7 @@ boolean dwhc_wait_for_bit(dwhc_device_t *self, uint64_t reg, uint32_t mask, bool
 // ok
 void dwhc_dumreg(dwhc_device_t *self, const char *name, uint64_t addr)
 {
-    DataMemBarrier();
+    dmb();
     trace("0x%08x: %s", get32(addr), name);
 }
 

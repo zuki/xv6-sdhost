@@ -196,7 +196,7 @@ boolean usb_dev_init(usb_dev_t *self)
         self->dev_desc = 0;
         return false;
     }
-    DataMemBarrier();
+    dmb();
     //debug_struct("dev_desc(8)", self->dev_desc, 8);
 
     // 2. 詳細なデバイスディスクリプタを取得
@@ -212,7 +212,7 @@ boolean usb_dev_init(usb_dev_t *self)
         return false;
     }
 
-    DataMemBarrier();
+    dmb();
     //debug_struct("dev_desc", self->dev_desc, sizeof *self->dev_desc);
 
     // 3. アドレスを採番
@@ -266,7 +266,7 @@ boolean usb_dev_init(usb_dev_t *self)
         self->cfg_desc = 0;
         return false;
     }
-    DataMemBarrier();
+    dmb();
     //debug_struct("config_desc(8)", self->cfg_desc, sizeof(usb_cfg_desc_t));
 
     trace("5.4");;
@@ -275,8 +275,7 @@ boolean usb_dev_init(usb_dev_t *self)
     // 6.1 8バイト版コンフィグレーションディスクリプタを削除
     //kmfree(self->cfg_desc);
     memset(self->cfg_desc, 0, total);
-    DataMemBarrier();
-
+    dmb();
     // 6.2 正式なコンフィグレーションディスクリプタ用のスペースを確保
     //self->cfg_desc = (usb_cfg_desc_t *)kmalloc(total);
     assert (self->cfg_desc != 0);
@@ -293,7 +292,7 @@ boolean usb_dev_init(usb_dev_t *self)
         return false;
     }
     trace("6");
-    //DataMemBarrier();
+    //dmb();
     //debug_struct("config_desc", self->cfg_desc, (uint64_t)total);
 
     // 7. コンフィグレーションパーサを作成

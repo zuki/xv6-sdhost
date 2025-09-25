@@ -7,6 +7,8 @@ FS_IMG := $(BUILD_DIR)/fs.img
 SECTOR_SIZE := 512
 
 # The total sd card image is 128 MB, 64 MB for boot sector and 64 MB for file system.
+# SDカードイメージ: 128MB = ブートセクタ: 64MB + ファイル・システム: 64MB
+# セクタ（512バイト）単位
 SECTORS := 256*1024
 BOOT_OFFSET := 2048
 BOOT_SECTORS= 128*1024

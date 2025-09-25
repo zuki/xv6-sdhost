@@ -19,6 +19,7 @@
 //
 #include <usb/synchronize.h>
 #include <types.h>
+#include <arm.h>
 #include <console.h>
 
 #define MAX_CRITICAL_LEVEL    20        // EnterCritical()の最大ネストレベル
@@ -42,40 +43,37 @@ unsigned current_execution_level(void)
 static volatile unsigned CRITICAL_LEBEL[CORES] = {0};
 static volatile uint32_t FLAGS[CORES][MAX_CRITICAL_LEVEL];
 
+// 各CPU単位でMAX_CRITICAL_LEVEL(20)回までネスト可能
 void enter_critical(unsigned level)
 {
     assert (level == IRQ_LEVEL || level == FIQ_LEVEL);
 
-    uint64_t mpidr;
-    asm volatile ("mrs %0, mpidr_el1" : "=r" (mpidr));
-    unsigned core = mpidr & (CORES-1);
+    unsigned core = cpuid();
 
     uint32_t flags;
     asm volatile ("mrs %0, daif" : "=r" (flags));
 
-    // if we are already on FIQ_LEVEL, we must not go back to IRQ_LEVEL here
+    // 現在、同じか上位レベルにしか移行できない
     assert (level == FIQ_LEVEL || !(flags & 0x40));
 
-    asm volatile("msr DAIFSet, #3");    // disable both IRQ and FIQ
+    asm volatile("msr DAIFSet, #3");    // IRQとFIQを共に無効に
 
     assert (CRITICAL_LEBEL[core] < MAX_CRITICAL_LEVEL);
     FLAGS[core][CRITICAL_LEBEL[core]++] = flags;
 
     if (level == IRQ_LEVEL)
-        EnableFIQs();
+        enable_fiq();
 
-    DataMemBarrier();
+    dmb();
 }
 
 void leave_critical(void)
 {
-    uint64_t mpidr;
-    asm volatile ("mrs %0, mpidr_el1" : "=r" (mpidr));
-    unsigned core = mpidr & (CORES-1);
+    unsigned core = cpuid();
 
-    DataMemBarrier();
+    dmb();
 
-    DisableFIQs();
+    disable_fiq();
 
     assert (CRITICAL_LEBEL[core] > 0);
     uint32_t flags = FLAGS[core][--CRITICAL_LEBEL[core]];
@@ -105,17 +103,17 @@ void enter_critical(unsigned level)
 
     if (level == IRQ_LEVEL)
     {
-        EnableFIQs();
+        enable_fiq();
     }
 
-    DataMemBarrier();
+    dmb();
 }
 
 void leave_critical(void)
 {
-    DataMemBarrier();
+    dmb();
 
-    DisableFIQs();
+    disable_fiq();
 
     assert (CRITICAL_LEBEL > 0);
     uint32_t flags = FLAGS[--CRITICAL_LEBEL];
@@ -174,7 +172,7 @@ void invalidate_data_cache(void)
         }
     }
 
-    DataSyncBarrier ();
+    dsb();
 }
 
 void invalidate_data_cache_l1_only(void)
@@ -190,7 +188,7 @@ void invalidate_data_cache_l1_only(void)
         }
     }
 
-    DataSyncBarrier ();
+    dsb();
 }
 
 void clean_data_cache (void)
@@ -217,7 +215,7 @@ void clean_data_cache (void)
         }
     }
 
-    DataSyncBarrier ();
+    dsb();
 }
 
 void invalidate_data_cache_range(uint64_t addr, uint64_t length)
@@ -233,7 +231,7 @@ void invalidate_data_cache_range(uint64_t addr, uint64_t length)
         length  -= DATA_CACHE_LINE_LENGTH_MIN;
     }
 
-    DataSyncBarrier ();
+    dsb();
 }
 
 void clean_data_cache_range(uint64_t addr, uint64_t length)
@@ -249,7 +247,7 @@ void clean_data_cache_range(uint64_t addr, uint64_t length)
         length  -= DATA_CACHE_LINE_LENGTH_MIN;
     }
 
-    DataSyncBarrier ();
+    dsb();
 }
 
 /// @brief データキャッシュaddr+lengthをクリアして無効化する
@@ -269,16 +267,16 @@ void clean_and_invalidate_data_cache_range(uint64_t addr, uint64_t length)
         trace("1-1: addr=0x%016llx, length=0x%016llx", addr, length);
     }
 
-    DataSyncBarrier ();
+    dsb();
 }
 
 void sync_data_and_instruction_cache(void)
 {
     clean_data_cache();
-    //DataSyncBarrier ();        // included in CleanDataCache()
+    //dsb();        // included in CleanDataCache()
 
     invalidate_instruction_cache();
-    DataSyncBarrier();
+    dsb();
 
-    InstructionSyncBarrier();
+    isb();
 }

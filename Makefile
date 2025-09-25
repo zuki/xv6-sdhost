@@ -7,10 +7,9 @@ CFLAGS := -Wall -g -O2 \
           -fno-zero-initialized-in-bss \
           -static -fno-builtin -nostdlib -nostdinc -ffreestanding -nostartfiles \
           -mgeneral-regs-only \
-          -MMD -MP \
-		  -Iinc -Iinc/linux -Inc/usb #-I$(MUSL_INC) -I$(MUSL_INC)/sys  -I$(MUSL_INC)/bits 
+          -MMD -MP -Iinc
 
-CFLAGS += -DNOT_DEBUG -DLOG_DEBUG -DRASPI=$(RASPI)
+CFLAGS += -DLOG_DEBUG -DRASPI=$(RASPI)
 
 CFLAGS += -mlittle-endian -mcmodel=small -mno-outline-atomics
 
@@ -63,7 +62,7 @@ qemu: all
 	$(QEMU_CMD) -kernel $(KERN_IMG)
 qemu-gdb: all
 	$(QEMU_CMD) -kernel $(KERN_IMG) -S -gdb tcp::1234
-gdb: 
+gdb:
 	gdb-multiarch -n -x .gdbinit
 
 init:
