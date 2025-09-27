@@ -1,13 +1,28 @@
 # 時計機能を追加
 
+## clock.c
+
 - ローカル64ビットタイマー(19.2MHzで上下エッジでカウント)で計時
-- HZ=100 (10ミリ秒)でタイマー割り込みを発生
+- ローカル64ビットタイマー割り込みをHZ=100 (10ミリ秒)で発生させる(1tick -> jiffiesを増分)
 、タイマー割り込み時にjiffies, xtimeを更新、タイマーを実行
-- jiffies: 電源と宇宙語のticksを保持（HZ毎に++）
+- jiffies: 電源投入後のticksを保持（HZ毎に++）
 - xtime: epoch秒を保持
+
+## timer.c
+
+- タイマー機能を追加（登録されたタイマーを時系列に並べ、発火時刻の差分で管理）
+- タイマーリストは各コア毎に持ち、core_intr()から操作している。すなわち、
+  1 tick毎に先頭の残り時間を更新して、時間が来たら発火）
+- タイマーは各コアが別個に持っているが今のところ、このタイマーは未使用
+  1秒毎に発火しているがリセットしているだけ。使い所は今後考える。
+
+## rtc.c
+
 - DS3231チップを搭載したRTCを外付け。DS3231とRaspiはI2C (0x68)で接続
 - rtc機能を追加し、起動時とdateコマンドで時刻設定時にxtimeに反映
-- タイマー機能を追加（登録されたタイマーを時系列に並べ、発火時刻の差分で管理）
+
+## random.c
+
 - 乱数発生機能を追加
 
 ## 追加変更したファイル
@@ -47,10 +62,10 @@ A	usr/src/date/main.c
 ### 日付設定
 
 ```bash
-Press Meta-Z for help on special keys                                        
-                                                                             
-[0]rand_init: rand_init ok                                                   
-[0]timer_init: timerfreq = 0x124f800                                         
+Press Meta-Z for help on special keys
+
+[0]rand_init: rand_init ok
+[0]timer_init: timerfreq = 0x124f800
 [0]main: cpu 0 init finished
 [0]sdhost_probe: firmware sets clock divider
 [0]sdhost_set_ios: ios clock 400000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
@@ -78,7 +93,7 @@ $ date 1757378950
 2025年 9日 9日 火曜日  9時49分10秒 JST
 $ date
 2025年 9日 9日 火曜日  9時49分12秒 JST
-$ 
+$
 ```
 
 ### 電源再投入
