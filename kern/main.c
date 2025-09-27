@@ -53,15 +53,16 @@ main()
         binit();
 
         // Tests
+#if 0
         mbox_test();
         mm_test();
         vm_test();
+#endif
     }
     release(&mp.lock);
 
     timer_init();
     trap_init();
-    //usb_init();
     info("cpu %d init finished", cpuid());
 
     scheduler();

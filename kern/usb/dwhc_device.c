@@ -666,12 +666,12 @@ boolean dwhc_xfer_stage(dwhc_device_t *self, usb_request_t *urb, boolean in, boo
         dwhc_free_wblock(self, wblk);
         return false;
     }
-    debug("wait for wblk");
+    trace("wait for wblk");
     while (self->waiting[wblk]) {
         // dwhc_comp_cb()で待機中フラグが解除されるのを待つ
         yield();
     }
-    debug("ok, free wblk");
+    trace("ok, free wblk");
     dwhc_free_wblock(self, wblk);
     return urb->status;
 }

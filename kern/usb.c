@@ -30,7 +30,7 @@
 #include <usb/usb_cdcether.h>
 #include <usb/usb_keyboard.h>
 
-usb_lib_t *usb_lib = 0;
+static usb_lib_t *usb_lib = 0;
 
 void usb_init(void)
 {
@@ -54,8 +54,12 @@ void usb_init(void)
     usb_lib->kbd = (usb_keyboard_t *)usb_device_ns_get_dev(usb_device_ns_get(), "kbd1", false);
 
     usb_lib->eth00 = (lan7800_t *)usb_device_ns_get_dev(usb_device_ns_get(), "eth00", false);
+    if (usb_lib->eth00 && lan7800_net_init(usb_lib->eth00) != 0)
+        panic("failed to initialize lan7800");
 
     usb_lib->eth01 = (usb_cdcether_t *)usb_device_ns_get_dev(usb_device_ns_get(), "eth01", false);
+    if (usb_lib->eth01 && usb_cdcether_net_init(usb_lib->eth01) != 0)
+        panic("failed to initialize usb_cdcether");
 
     info("usb_init ok");
 }

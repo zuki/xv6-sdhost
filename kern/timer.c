@@ -17,20 +17,21 @@ static uint64_t dt;
 
 /* timer_listを保護するロック */
 struct spinlock timerlock;
-/* タイマーリスト */
+/* タイマーリスト: コアごとに存在 */
 static struct timer_list timer_list;
 /* 次のタイマー発火までのticks */
 static uint64_t timer_jiffies = 0;
 
 void timer_init()
 {
+    // 1秒で発火
 #ifdef USING_RASPI
-    dt = timerfreq() / HZ;       // 10 ms = 19.2 * 10^6 / 100
+    dt = timerfreq();       // 10 ms = 19.2 * 10^6 / 100
 #else
-    dt = 62500000UL / HZ;       // QEMUはtimerfreq()で得られる値が実機と違う
+    dt = 62500000UL;        // QEMUはtimerfreq()で得られる値が実機と違う
 #endif
     info("timerfreq = 0x%llx", timerfreq());
-    dt = timerfreq();     /* dt = 19_200_000 */
+    //dt = timerfreq();     /* dt = 19_200_000 */
     asm volatile ("msr cntp_ctl_el0, %[x]"::[x] "r"(1));    /* タイマーenable */
     asm volatile ("msr cntp_tval_el0, %[x]"::[x] "r"(dt));
     put32(CORE_TIMER_CTRL(cpuid()), CORE_TIMER_ENABLE);
@@ -49,13 +50,12 @@ static void timer_reset()
 }
 
 /*
- * This is a per-cpu non-stable version of clock, frequency of 
- * which is determined by cpu clock (may be tuned for power saving).
+ * 現在はタイマーをリロードするだけで特に何もしていない。
  */
 void timer_intr()
 {
     timer_reset();
-    yield();
+    //yield();
 }
 
 /* タイマーリストに追加し、発火時間を再計算する */

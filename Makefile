@@ -58,6 +58,8 @@ $(KERN_IMG): $(KERN_ELF)
 
 QEMU_CMD ?= $(QEMU) -M raspi3b -nographic -serial null -serial mon:stdio -drive file=$(SD_IMG),if=sd,format=raw -netdev user,id=net0,hostfwd=tcp::8080-:80 -device usb-net,netdev=net0 -trace events=events,file=trace.log
 
+#QEMU_CMD ?= $(QEMU) -M raspi3b -nographic -serial null -serial mon:stdio -drive file=$(SD_IMG),if=sd,format=raw
+
 qemu: all
 	$(QEMU_CMD) -kernel $(KERN_IMG)
 qemu-gdb: all

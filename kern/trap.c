@@ -53,7 +53,7 @@ void trap(struct trapframe *tf)
     switch (ec) {
     case EC_UNKNOWN:
         if (il) {
-            debug("IL bit on");
+            trace("IL bit on");
         } else {
             irq_handler();
         }

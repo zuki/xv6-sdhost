@@ -40,8 +40,6 @@ typedef struct usb_library
 	usb_cdcether_t		*eth01;
 } usb_lib_t;
 
-extern usb_lib_t *usb_lib;
-
 /// USBライブラリ
 
 // usbライブラリを初期化する

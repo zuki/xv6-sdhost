@@ -350,15 +350,6 @@ void net_shutdown(void)
 
 static int netinit(void)
 {
-    if (usb_lib->eth00 && lan7800_net_init(usb_lib->eth00) == -1) {
-        error("lan7800_net_init failure");
-    } else if (usb_lib->eth01 && usb_cdcether_net_init(usb_lib->eth01) == -1) {
-        error("usb_cdcether_net_init");
-    } else {
-        error("no network driver exist");
-        return -1;
-    }
-
     if (intr_init() == -1) {
         error("intr_init() failure");
         return -1;
