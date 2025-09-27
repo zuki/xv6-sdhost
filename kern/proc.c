@@ -193,8 +193,8 @@ forkret()
         iinit(ROOTDEV);
         initlog(ROOTDEV);
         usb_init();
-        //net_init();
-        //net_run();
+        net_init();
+        net_run();
     } else {
         release(&ptable.lock);
     }
