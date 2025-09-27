@@ -25,20 +25,20 @@
 #include <types.h>
 
 struct usb_request;
-typedef void usb_comp_cb(struct usb_request *pURB, void *param, void *ctx);
+typedef void usb_comp_cb(struct usb_request *urb, void *param, void *ctx);
 
 typedef struct usb_request {
-    struct usb_endpoint  *ep;                 ///< エンドポイント
-    usb_setup_data_t   *setup_data;         ///< セットアップデータ
-    const void         *buffer;             ///< バッファ
-    uint32_t        buflen;             ///< バッファ長
-    int             status;             ///< ステータス
-    uint32_t        resultlen;          ///< 実際の長さ
-    usb_comp_cb    *cb;                 ///< 完了時cbルーチン
-    void           *param;              ///< cbルーチン引数
-    void           *ctx;                ///< 完了時コンテキスト
-    boolean         onnak;              ///< NAK受診時に完了とするか
-    usb_error_t       error;              ///< error
+    struct usb_endpoint *ep;                 ///< エンドポイント
+    usb_setup_data_t *  setup_data;         ///< セットアップデータ
+    const void *        buffer;             ///< バッファ
+    uint32_t            buflen;             ///< バッファ長
+    int                 status;             ///< ステータス
+    uint32_t            resultlen;          ///< 実際の長さ
+    usb_comp_cb *       cb;                 ///< 完了時cbルーチン
+    void *              param;              ///< cbルーチン引数
+    void *              ctx;                ///< 完了時コンテキスト
+    boolean             onnak;              ///< NAK受診時に完了とするか
+    usb_error_t         error;              ///< error
 } usb_request_t;
 
 void usb_request(usb_request_t *self, struct usb_endpoint *ep, const void *buffer, uint32_t buflen, usb_setup_data_t *setup_data);

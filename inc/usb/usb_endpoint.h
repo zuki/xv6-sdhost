@@ -20,9 +20,9 @@
 #ifndef INC_USB_ENDPOINT_H
 #define INC_USB_ENDPOINT_H
 
+#include <types.h>
 #include <usb/usb.h>
 #include <usb/usb_device.h>
-#include <types.h>
 
 /// @brief エンドポイント転送種別
 typedef enum {
@@ -35,13 +35,13 @@ typedef enum {
 /// @brief USBエンドポイント構造体
 
 typedef struct usb_endpoint {
-    struct usb_device *dev;                ///< デバイス
-    uint8_t         num;                ///< エンドポイント番号
-    usb_endpoint_type_t       type;               ///< 種別
-    boolean         in;                 ///< 転送方向
-    uint32_t        xsize;              ///< 最大パケットサイズ
-    unsigned        interval;           ///< 間隔（ミリ秒）
-    usb_pid_t       nextpid;            ///< 次のPID
+    struct usb_device * dev;                ///< デバイス
+    uint8_t             num;                ///< エンドポイント番号
+    usb_endpoint_type_t type;               ///< 種別
+    boolean             in;                 ///< 転送方向
+    uint32_t            xsize;              ///< 最大パケットサイズ
+    unsigned            interval;           ///< 間隔（ミリ秒）
+    usb_pid_t           nextpid;            ///< 次のPID
 } usb_endpoint_t;
 
 void usb_endpoint(usb_endpoint_t *self, struct usb_device *dev);  // for ep0
