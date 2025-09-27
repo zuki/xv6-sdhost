@@ -17,6 +17,8 @@
 #include <linux/fcntl.h>
 #include <linux/errno.h>
 #include <syscall.h>
+#include <net/sockio.h>
+#include <linux/ioctl.h>
 
 extern int execve(const char *, char *const, char *const);
 
@@ -24,45 +26,6 @@ struct iovec {
     void *iov_base;             /* Starting address. */
     size_t iov_len;             /* Number of bytes to transfer. */
 };
-
-/*
- * Fetch the nth word-sized system call argument as a file descriptor
- * and return both the descriptor and the corresponding struct file.
- */
-static int
-argfd(int n, int *pfd, struct file **pf)
-{
-    int fd;
-    struct file *f;
-
-    if (argint(n, &fd) < 0)
-        return -1;
-    if (fd < 0 || fd >= NOFILE || (f = thisproc()->ofile[fd]) == 0)
-        return -1;
-    if (pfd)
-        *pfd = fd;
-    if (pf)
-        *pf = f;
-    return 0;
-}
-
-/*
- * Allocate a file descriptor for the given file.
- * Takes over file reference from caller on success.
- */
-static int
-fdalloc(struct file *f)
-{
-    struct proc *curproc = thisproc();
-
-    for (int fd = 0; fd < NOFILE; fd++) {
-        if (curproc->ofile[fd] == 0) {
-            curproc->ofile[fd] = f;
-            return fd;
-        }
-    }
-    return -1;
-}
 
 long sys_dup(void)
 {
@@ -84,7 +47,7 @@ ssize_t sys_read(void)
     ssize_t n;
     char *p;
 
-    if (argfd(0, 0, &f) < 0 || argu64(2, (uint64_t *)&n) < 0 || argptr(1, &p, n) < 0)
+    if (argfd(0, 0, &f) < 0 || argu64(2, (uint64_t *)&n) < 0 || argptr(1, (void **)&p, n) < 0)
         return -1;
     return fileread(f, p, n);
 }
@@ -95,7 +58,7 @@ ssize_t sys_write(void)
     ssize_t n;
     char *p;
 
-    if (argfd(0, 0, &f) < 0 || argu64(2, (uint64_t *)&n) < 0 || argptr(1, &p, n) < 0)
+    if (argfd(0, 0, &f) < 0 || argu64(2, (uint64_t *)&n) < 0 || argptr(1, (void **)&p, n) < 0)
         return -1;
     return filewrite(f, p, n);
 }
@@ -108,7 +71,7 @@ ssize_t sys_writev(void)
     struct iovec *iov, *p;
     if (argfd(0, &fd, &f) < 0 ||
         argint(2, &iovcnt) < 0 ||
-        argptr(1, (char **)&iov, iovcnt * sizeof(struct iovec)) < 0) {
+        argptr(1, (void **)&iov, iovcnt * sizeof(struct iovec)) < 0) {
         return -1;
     }
     trace("fd %d, iovcnt: %d", fd, iovcnt);
@@ -523,15 +486,31 @@ long sys_pipe2(void)
     return 0;
 }
 
-// TODO:
+// int ioctl(int d, unsigned long request, ...);
 long sys_ioctl(void)
 {
+    struct file *f;
     uint64_t req;
+    struct ifreq *ifr;
 
-    if (argu64(1, &req) < 0)
+    if (argfd(0, 0, &f) < 0 || argu64(1, &req) < 0)
         return -EINVAL;
 
-    if (req == 0x5413)
+    if ((f->type == FD_INODE && f->ip->type != T_DEV)
+      && f->type != FD_SOCKET) {
+        debug("bad type: %d, %d", f->type, (f->type == FD_INODE ? f->ip->type : -1));
+        return -ENOTTY;
+    }
+
+    if (f->type == FD_SOCKET) {
+        if (req & IOC_IN) {
+            if (argptr(2, (void **)&ifr, sizeof(struct ifreq)) < 0)
+                return -EINVAL;
+        }
+        return socket_ioctl(f->socket, req, ifr);
+    }
+
+    if (req == TIOCGWINSZ)
         return 0;
     else {
         warn("ioctl unimplemented. ");

@@ -3,6 +3,7 @@
 
 #include <types.h>
 #include <trap.h>
+#include <file.h>
 #include <linux/syscall.h>
 #include <linux/fcntl.h>
 
@@ -16,7 +17,8 @@ int in_user(void *s, size_t n);
 long argstr(int, char **);
 long argint(int, int *);
 long argu64(int n, uint64_t * ip);
-long argptr(int, char **, size_t);
+long argfd(int n, int *pfd, struct file **pf);
+long argptr(int, void **, size_t);
 long fetchstr(uint64_t, char **);
 long sys_clock_gettime(void);
 long sys_sched_getaffinity(void);

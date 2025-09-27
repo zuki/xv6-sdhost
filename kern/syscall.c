@@ -81,11 +81,31 @@ long argu64(int n, uint64_t * ip)
 }
 
 /*
+ * Fetch the nth word-sized system call argument as a file descriptor
+ * and return both the descriptor and the corresponding struct file.
+ */
+long argfd(int n, int *pfd, struct file **pf)
+{
+    int fd;
+    struct file *f;
+
+    if (argint(n, &fd) < 0)
+        return -1;
+    if (fd < 0 || fd >= NOFILE || (f = thisproc()->ofile[fd]) == 0)
+        return -1;
+    if (pfd)
+        *pfd = fd;
+    if (pf)
+        *pf = f;
+    return 0;
+}
+
+/*
  * Fetch the nth word-sized system call argument as a pointer
  * to a block of memory of size bytes. Check that the pointer
  * lies within the process address space.
  */
-long argptr(int n, char **pp, size_t size)
+long argptr(int n, void **pp, size_t size)
 {
     uint64_t i = 0;
     if (argu64(n, &i) < 0) {
@@ -119,7 +139,7 @@ long sys_clock_gettime(void)
     clockid_t clk_id;
     struct timespec *tp;
 
-    if (argint(0, (clockid_t *)&clk_id) < 0 || argptr(1, (char **)&tp, sizeof(struct timespec)) < 0)
+    if (argint(0, (clockid_t *)&clk_id) < 0 || argptr(1, (void **)&tp, sizeof(struct timespec)) < 0)
         return -EINVAL;
 
     trace("clk_id: %d, tp: 0x%p\n", clk_id, tp);
@@ -132,7 +152,7 @@ long sys_clock_settime(void)
     clockid_t clk_id;
     struct timespec *tp;
 
-    if (argint(0, (clockid_t *)&clk_id) < 0 || argptr(1, (char **)&tp, sizeof(struct timespec)) < 0)
+    if (argint(0, (clockid_t *)&clk_id) < 0 || argptr(1, (void **)&tp, sizeof(struct timespec)) < 0)
         return -EINVAL;
 
     trace("clk_id: %d, tp: 0x%p\n", clk_id, tp);

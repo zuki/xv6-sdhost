@@ -9,23 +9,31 @@
 #include <file.h>
 #include <mm.h>
 #include <string.h>
+#include <linux/errno.h>
 
-struct file *socket_alloc(int domain, int type, int protocol)
+int socket_alloc(int domain, int type, int protocol)
 {
+    int fd;
     struct file *f;
     struct socket *s;
 
     if (domain != AF_INET || protocol != 0) {
-        return NULL;
+        return -EINVAL;
     }
     f = filealloc();
     if (!f) {
-        return NULL;
+        return -ENOMEM;
+    }
+    fd = fdalloc(f);
+    if (!fd) {
+        fileclose(f);
+        return -EMFILE;
     }
     s = (struct socket *)kmalloc(sizeof(struct socket));
     if (!s) {
+        thisproc()->ofile[fd] = 0;
         fileclose(f);
-        return NULL;
+        return -ENOMEM;
     }
     s->type = type;
     switch(type) {
@@ -36,15 +44,16 @@ struct file *socket_alloc(int domain, int type, int protocol)
         s->desc = tcp_open();
         break;
     default:
+        thisproc()->ofile[fd] = 0;
         fileclose(f);
         memory_free(s);
-        return NULL;
+        return -EAFNOSUPPORT;
     }
     f->type = FD_SOCKET;
     f->readable = 1;
     f->writable = 1;
     f->socket = s;
-    return f;
+    return fd;
 }
 
 int socket_close(struct socket *s)
@@ -75,7 +84,7 @@ int socket_bind(struct socket *s, struct sockaddr *addr, int addrlen)
     case SOCK_STREAM:
         return tcp_bind(s->desc, &local);
     default:
-        return -1;
+        return -EINVAL;
     }
 }
 
@@ -85,14 +94,17 @@ int socket_recvfrom(struct socket *s, char *buf, int n, struct sockaddr *addr, i
     int ret;
 
     if (s->type != SOCK_DGRAM) {
-        return -1;
+        return -EINVAL;
     }
     ret = udp_recvfrom(s->desc, (uint8_t *)buf, n, &foreign);
     if (addr) {
         ((struct sockaddr_in *)addr)->sin_family = AF_INET;
         ((struct sockaddr_in *)addr)->sin_addr.s_addr = foreign.addr;
         ((struct sockaddr_in *)addr)->sin_port = foreign.port;
+        if (addrlen)
+            *addrlen = sizeof(struct sockaddr_in);
     }
+
     return ret;
 }
 
@@ -101,7 +113,7 @@ int socket_sendto(struct socket *s, char *buf, int n, struct sockaddr *addr, int
     struct ip_endpoint foreign;
 
     if (s->type != SOCK_DGRAM) {
-        return -1;
+        return -EINVAL;
     }
     foreign.addr = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
     foreign.port = ((struct sockaddr_in *)addr)->sin_port;
@@ -113,7 +125,7 @@ int socket_connect(struct socket *s, struct sockaddr *addr, int addrlen)
     struct ip_endpoint foreign;
 
     if (s->type != SOCK_STREAM) {
-      return -1;
+      return -EINVAL;
     }
     foreign.addr = ((struct sockaddr_in *)addr)->sin_addr.s_addr;
     foreign.port = ((struct sockaddr_in *)addr)->sin_port;
@@ -123,35 +135,43 @@ int socket_connect(struct socket *s, struct sockaddr *addr, int addrlen)
 int socket_listen(struct socket *s, int backlog)
 {
     if (s->type != SOCK_STREAM) {
-        return -1;
+        return -EOPNOTSUPP;
     }
     return tcp_listen(s->desc, backlog);
 }
 
-struct file *socket_accept(struct socket *s, struct sockaddr *addr, int *addrlen)
+int socket_accept(struct socket *s, struct sockaddr *addr, int *addrlen)
 {
-    int adesc;
+    int adesc, fd;
     struct file *f;
     struct socket *as;
     struct ip_endpoint foreign;
 
     if (s->type != SOCK_STREAM) {
-        return NULL;
+        return -EOPNOTSUPP;
     }
     f = filealloc();
     if (!f) {
-        return NULL;
+        return -ENOMEM;
     }
+
+    if ((fd = fdalloc(f)) < 0) {
+        fileclose(f);
+        return -EMFILE;
+    }
+
     as = (struct socket *)kmalloc(sizeof(struct socket));
     if (!as) {
+        thisproc()->ofile[fd] = 0;
         fileclose(f);
-        return NULL;
+        return -ENOMEM;
     }
     adesc = tcp_accept(s->desc, &foreign);
     if (adesc == -1) {
+        thisproc()->ofile[fd] = 0;
         fileclose(f);
         kmfree((void*)as);
-        return NULL;
+        return -EPROTO;
     }
     ((struct sockaddr_in *)addr)->sin_family = AF_INET;
     ((struct sockaddr_in *)addr)->sin_addr.s_addr = foreign.addr;
@@ -162,13 +182,15 @@ struct file *socket_accept(struct socket *s, struct sockaddr *addr, int *addrlen
     f->readable = 1;
     f->writable = 1;
     f->socket = as;
-    return f;
+    if (addrlen)
+        *addrlen = sizeof(struct sockaddr_in);
+    return fd;
 }
 
 int socket_read(struct socket *s, char *buf, int n)
 {
     if (s->type != SOCK_STREAM) {
-        return -1;
+        return -EINVAL;
     }
     return tcp_receive(s->desc, (uint8_t *)buf, n);
 }
@@ -176,7 +198,7 @@ int socket_read(struct socket *s, char *buf, int n)
 int socket_write(struct socket *s, char *buf, int n)
 {
     if (s->type != SOCK_STREAM) {
-        return -1;
+        return -EINVAL;
     }
     return tcp_send(s->desc, (uint8_t *)buf, n);
 }

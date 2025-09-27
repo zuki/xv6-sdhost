@@ -58,16 +58,16 @@ struct socket {
     int desc;
 };
 
-struct file *socket_alloc(int domain, int type, int protocol);
-int          socket_close(struct socket *s);
-int          socket_connect(struct socket *s, struct sockaddr *addr, int addrlen);
-int          socket_bind(struct socket *s, struct sockaddr *addr, int addrlen);
-int          socket_listen(struct socket *s, int backlog);
-struct file *socket_accept(struct socket *s, struct sockaddr *addr, int *addrlen);
-int          socket_read(struct socket *s, char *buf, int n);
-int          socket_write(struct socket *s, char *buf, int n);
-int          socket_recvfrom(struct socket *s, char *buf, int n, struct sockaddr *addr, int *addrlen);
-int          socket_sendto(struct socket *s, char *buf, int n, struct sockaddr *addr, int addrlen);
-int          socket_ioctl(struct socket *s, int req, void *arg);
+int         socket_alloc(int domain, int type, int protocol);
+int         socket_close(struct socket *s);
+int         socket_connect(struct socket *s, struct sockaddr *addr, int addrlen);
+int         socket_bind(struct socket *s, struct sockaddr *addr, int addrlen);
+int         socket_listen(struct socket *s, int backlog);
+int         socket_accept(struct socket *s, struct sockaddr *addr, int *addrlen);
+int         socket_read(struct socket *s, char *buf, int n);
+int         socket_write(struct socket *s, char *buf, int n);
+int         socket_recvfrom(struct socket *s, char *buf, int n, struct sockaddr *addr, int *addrlen);
+int         socket_sendto(struct socket *s, char *buf, int n, struct sockaddr *addr, int addrlen);
+int         socket_ioctl(struct socket *s, int req, void *arg);
 
 #endif

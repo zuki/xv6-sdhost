@@ -85,4 +85,5 @@ void            pipeclose(struct pipe *p, int writable);
 ssize_t         pipewrite(struct pipe *p, char *addr, ssize_t n);
 ssize_t         piperead(struct pipe *p, char *addr, ssize_t n);
 
+int             fdalloc(struct file *f);
 #endif

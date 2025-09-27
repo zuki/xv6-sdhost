@@ -156,3 +156,20 @@ filewrite(struct file *f, char *addr, ssize_t n)
     panic("filewrite");
     return -1;
 }
+
+/*
+ * Allocate a file descriptor for the given file.
+ * Takes over file reference from caller on success.
+ */
+int fdalloc(struct file *f)
+{
+    struct proc *curproc = thisproc();
+
+    for (int fd = 0; fd < NOFILE; fd++) {
+        if (curproc->ofile[fd] == 0) {
+            curproc->ofile[fd] = f;
+            return fd;
+        }
+    }
+    return -1;
+}
