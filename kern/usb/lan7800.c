@@ -555,6 +555,7 @@ int lan7800_net_init(lan7800_t *self)
 
     memcpy(dev->addr, self->macaddr, sizeof(dev->addr));
     dev->priv = self;
+    memcpy(dev->name, "eth00", sizeof("eth00"));
     dev->ops = &lan7800_net_ops;
     if (net_device_register(dev) == -1) {
         error("net_device_register() failure");

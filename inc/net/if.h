@@ -75,9 +75,8 @@
 #define	IFF_ALLMULTI	0x0200		/* receive all multicast packets */
 #define	IFF_OACTIVE	0x0400		/* transmission in progress */
 #define	IFF_SIMPLEX	0x0800		/* can't hear own transmissions */
-#define	IFF_LINK0	0x1000		/* per link layer defined bit */
-#define	IFF_LINK1	0x2000		/* per link layer defined bit */
-#define	IFF_LINK2	0x4000		/* per link layer defined bit */
-#define	IFF_MULTICAST	0x8000		/* supports multicast */
+#define	IFF_MULTICAST	0x1000		/* supports multicast */
+#define	IFF_PORTSEL	0x2000		/* per link layer defined bit */
+#define	IFF_AUTOMEDIA	0x4000		/* per link layer defined bit */
 
 #endif

@@ -54,10 +54,12 @@ void usb_init(void)
     usb_lib->kbd = (usb_keyboard_t *)usb_device_ns_get_dev(usb_device_ns_get(), "kbd1", false);
 
     usb_lib->eth00 = (lan7800_t *)usb_device_ns_get_dev(usb_device_ns_get(), "eth00", false);
+    trace("eth00: %p", usb_lib->eth00);
     if (usb_lib->eth00 && lan7800_net_init(usb_lib->eth00) != 0)
         panic("failed to initialize lan7800");
 
     usb_lib->eth01 = (usb_cdcether_t *)usb_device_ns_get_dev(usb_device_ns_get(), "eth01", false);
+    trace("eth01: %p", usb_lib->eth01);
     if (usb_lib->eth01 && usb_cdcether_net_init(usb_lib->eth01) != 0)
         panic("failed to initialize usb_cdcether");
 

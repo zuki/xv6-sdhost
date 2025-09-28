@@ -46,6 +46,7 @@ void _usb_device_ns(usb_device_ns_t *self)
 
 void usb_device_ns_add_dev(usb_device_ns_t *self, const char *name, void *dev, boolean blkdev)
 {
+    trace("called with %s", name);
     usb_dev_info_t *info = (usb_dev_info_t *) kmalloc(sizeof(usb_dev_info_t));
     info->name = (char *) kmalloc(strlen(name)+1);
     safestrcpy(info->name, name, strlen(name)+1);
@@ -53,12 +54,15 @@ void usb_device_ns_add_dev(usb_device_ns_t *self, const char *name, void *dev, b
     info->blkdev = blkdev;
     info->next = self->list;
     self->list = info;
+    trace("self->list: %p", self->list);
 }
 
 void *usb_device_ns_get_dev(usb_device_ns_t *self, const char *name, boolean blkdev)
 {
     usb_dev_info_t *info = self->list;
+    trace("self->list: %p", self->list);
     while (info != 0) {
+        trace("name: %s, info->name: %s, blkdev: %d, info->blk: %d", name, info->name, blkdev, info->blkdev);
         if (strcmp (name, info->name) == 0 && info->blkdev == blkdev) {
             return info->dev;
         }

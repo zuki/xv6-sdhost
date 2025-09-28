@@ -5,15 +5,15 @@
 #include <types.h>
 #include <net/sockio.h>
 
-#define PF_INET     1
+#define PF_INET     2
 
 #define AF_INET     PF_INET
 
-#define SOCK_DGRAM  1
-#define SOCK_STREAM 2
+#define SOCK_DGRAM  2
+#define SOCK_STREAM 1
 
-#define IPPROTO_UDP 0
-#define IPPROTO_TCP 0
+#define IPPROTO_UDP 17
+#define IPPROTO_TCP 6
 
 #define INADDR_ANY  ((uint32_t)0)
 

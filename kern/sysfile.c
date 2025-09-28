@@ -74,7 +74,12 @@ ssize_t sys_writev(void)
         argptr(1, (void **)&iov, iovcnt * sizeof(struct iovec)) < 0) {
         return -1;
     }
-    trace("fd %d, iovcnt: %d", fd, iovcnt);
+#if 0
+    debug("fd %d, iovcnt: %d", fd, iovcnt);
+    for (int i=0; i < iovcnt; i++) {
+        debug("iov[%d]: base=%p, len=%lld", i, iov[i].iov_base, iov[i].iov_len);
+    }
+#endif
 
     size_t tot = 0;
     for (p = iov; p < iov + iovcnt; p++) {
@@ -489,24 +494,23 @@ long sys_pipe2(void)
 // int ioctl(int d, unsigned long request, ...);
 long sys_ioctl(void)
 {
+    int fd;
     struct file *f;
     uint64_t req;
     struct ifreq *ifr;
 
-    if (argfd(0, 0, &f) < 0 || argu64(1, &req) < 0)
+    if (argfd(0, &fd, &f) < 0 || argu64(1, &req) < 0)
         return -EINVAL;
 
     if ((f->type == FD_INODE && f->ip->type != T_DEV)
       && f->type != FD_SOCKET) {
-        debug("bad type: %d, %d", f->type, (f->type == FD_INODE ? f->ip->type : -1));
+        trace("bad type: %d, %d", f->type, (f->type == FD_INODE ? f->ip->type : -1));
         return -ENOTTY;
     }
-
+    trace("fd: %d, type: %d, req: 0x%llx", fd, f->type, req);
     if (f->type == FD_SOCKET) {
-        if (req & IOC_IN) {
-            if (argptr(2, (void **)&ifr, sizeof(struct ifreq)) < 0)
+        if (argptr(2, (void **)&ifr, sizeof(struct ifreq)) < 0)
                 return -EINVAL;
-        }
         return socket_ioctl(f->socket, req, ifr);
     }
 

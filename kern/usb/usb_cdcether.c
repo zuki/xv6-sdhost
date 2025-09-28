@@ -147,7 +147,7 @@ boolean usb_cdcether_configure(usb_function_t *func)
     }
 
     // USBデバイスとして登録
-    usb_device_ns_add_dev(usb_device_ns_get(), "eth10", self, false);
+    usb_device_ns_add_dev(usb_device_ns_get(), "eth01", self, false);
 
     // FIXME: ネットデバイスとして登録
     //netdev_add_dev(self->net_dev);
@@ -270,7 +270,9 @@ int usb_cdcether_net_init(usb_cdcether_t *self)
 
     memcpy(dev->addr, self->macaddr, sizeof(self->macaddr));
     dev->priv = self;
+    memcpy(dev->name, "eth01", sizeof("eth01"));
     dev->ops = &usb_cdcether_net_ops;
+    trace("call net_device_register");
     if (net_device_register(dev) == -1) {
         error("net_device_register() failure");
         memory_free(dev);

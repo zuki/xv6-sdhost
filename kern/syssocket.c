@@ -20,7 +20,7 @@ long sys_socket(void)
     if (argint(0, &domain) < 0 || argint(1, &type) < 0
      || argint(2, &protocol) < 0)
         return -EINVAL;
-
+    trace("domain: %d, type: %d, protocol: %d", domain, type, protocol);
     return socket_alloc(domain, type, protocol);
 }
 

@@ -1,23 +1,67 @@
-// From https://github.com/pandax381/xv6-riscv-net
-#ifndef INC_NET_SOCKIO_H
-#define INC_NET_SOCKIO_H
+#ifndef	INC_NET_SOCKIO_H
+#define	INC_NET_SOCKIO_H
 
-#include <net/ioccom.h>
+#define SIOCADDRT          0x890B
+#define SIOCDELRT          0x890C
+#define SIOCRTMSG          0x890D
 
-#define SIOCGIFINDEX   _IOWR('i',  0, struct ifreq)
-#define SIOCGIFNAME    _IOWR('i',  1, struct ifreq)
-#define SIOCSIFNAME     _IOW('i',  2, struct ifreq)
-#define SIOCGIFHWADDR  _IOWR('i',  3, struct ifreq)
-#define SIOCSIFHWADDR   _IOW('i',  4, struct ifreq)
-#define SIOCGIFFLAGS   _IOWR('i',  5, struct ifreq)
-#define SIOCSIFFLAGS    _IOW('i',  6, struct ifreq)
-#define SIOCGIFADDR    _IOWR('i',  7, struct ifreq)
-#define SIOCSIFADDR     _IOW('i',  8, struct ifreq)
-#define SIOCGIFNETMASK _IOWR('i',  9, struct ifreq)
-#define SIOCSIFNETMASK  _IOW('i', 10, struct ifreq)
-#define SIOCGIFBRDADDR _IOWR('i', 11, struct ifreq)
-#define SIOCSIFBRDADDR  _IOW('i', 12, struct ifreq)
-#define SIOCGIFMTU     _IOWR('i', 13, struct ifreq)
-#define SIOCSIFMTU      _IOW('i', 14, struct ifreq)
+#define SIOCGIFNAME        0x8910
+#define SIOCSIFLINK        0x8911
+#define SIOCGIFCONF        0x8912
+#define SIOCGIFFLAGS       0x8913
+#define SIOCSIFFLAGS       0x8914
+#define SIOCGIFADDR        0x8915
+#define SIOCSIFADDR        0x8916
+#define SIOCGIFDSTADDR     0x8917
+#define SIOCSIFDSTADDR     0x8918
+#define SIOCGIFBRDADDR     0x8919
+#define SIOCSIFBRDADDR     0x891a
+#define SIOCGIFNETMASK     0x891b
+#define SIOCSIFNETMASK     0x891c
+#define SIOCGIFMETRIC      0x891d
+#define SIOCSIFMETRIC      0x891e
+#define SIOCGIFMEM         0x891f
+#define SIOCSIFMEM         0x8920
+#define SIOCGIFMTU         0x8921
+#define SIOCSIFMTU         0x8922
+#define SIOCSIFNAME        0x8923
+#define SIOCSIFHWADDR      0x8924
+#define SIOCGIFENCAP       0x8925
+#define SIOCSIFENCAP       0x8926
+#define SIOCGIFHWADDR      0x8927
+#define SIOCGIFSLAVE       0x8929
+#define SIOCSIFSLAVE       0x8930
+#define SIOCADDMULTI       0x8931
+#define SIOCDELMULTI       0x8932
+#define SIOCGIFINDEX       0x8933
+#define SIOGIFINDEX        SIOCGIFINDEX
+#define SIOCSIFPFLAGS      0x8934
+#define SIOCGIFPFLAGS      0x8935
+#define SIOCDIFADDR        0x8936
+#define SIOCSIFHWBROADCAST 0x8937
+#define SIOCGIFCOUNT       0x8938
+
+#define SIOCGIFBR          0x8940
+#define SIOCSIFBR          0x8941
+
+#define SIOCGIFTXQLEN      0x8942
+#define SIOCSIFTXQLEN      0x8943
+
+#define SIOCDARP           0x8953
+#define SIOCGARP           0x8954
+#define SIOCSARP           0x8955
+
+#define SIOCDRARP          0x8960
+#define SIOCGRARP          0x8961
+#define SIOCSRARP          0x8962
+
+#define SIOCGIFMAP         0x8970
+#define SIOCSIFMAP         0x8971
+
+#define SIOCADDDLCI        0x8980
+#define SIOCDELDLCI        0x8981
+
+#define SIOCDEVPRIVATE     0x89F0
+#define SIOCPROTOPRIVATE   0x89E0
 
 #endif

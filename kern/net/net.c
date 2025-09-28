@@ -116,6 +116,7 @@ struct net_device *net_device_by_name(const char *name)
     struct net_device *entry;
 
     for (entry = devices; entry; entry = entry->next) {
+        trace("name: %s, dev->name: %d", name, entry->name);
         if (strcmp(entry->name, name) == 0) {
             break;
         }
@@ -321,11 +322,11 @@ static int netrun(void)
         error("intr_run() failure");
         return -1;
     }
-    debug("open all devices...");
+    trace("open all devices...");
     for (dev = devices; dev; dev = dev->next) {
         net_device_open(dev);
     }
-    debug("running...");
+    info("running...");
     return 0;
 }
 
@@ -333,12 +334,12 @@ void net_shutdown(void)
 {
     struct net_device *dev;
 
-    debug("close all devices...");
+    trace("close all devices...");
     for (dev = devices; dev; dev = dev->next) {
         net_device_close(dev);
     }
     intr_shutdown();
-    debug("shutting down");
+    info("shutting down");
 }
 
 #include <net/ip.h>

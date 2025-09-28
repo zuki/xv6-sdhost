@@ -1,5 +1,6 @@
 #include <types.h>
 #include <net/socket.h>
+#include <net/sockio.h>
 #include <net/if.h>
 #include <net/udp.h>
 #include <net/tcp.h>
@@ -10,6 +11,7 @@
 #include <mm.h>
 #include <string.h>
 #include <linux/errno.h>
+#include <console.h>
 
 int socket_alloc(int domain, int type, int protocol)
 {
@@ -18,19 +20,23 @@ int socket_alloc(int domain, int type, int protocol)
     struct socket *s;
 
     if (domain != AF_INET || protocol != 0) {
+        error("bad domain: %d or porotocol: %d", domain, protocol);
         return -EINVAL;
     }
     f = filealloc();
     if (!f) {
+        error("cant filealloc");
         return -ENOMEM;
     }
     fd = fdalloc(f);
     if (!fd) {
+        error("cant fdalloc");
         fileclose(f);
         return -EMFILE;
     }
     s = (struct socket *)kmalloc(sizeof(struct socket));
     if (!s) {
+        error("cant malloc for socket");
         thisproc()->ofile[fd] = 0;
         fileclose(f);
         return -ENOMEM;
@@ -44,6 +50,7 @@ int socket_alloc(int domain, int type, int protocol)
         s->desc = tcp_open();
         break;
     default:
+        error("wrong type: %d", type);
         thisproc()->ofile[fd] = 0;
         fileclose(f);
         memory_free(s);
@@ -53,6 +60,7 @@ int socket_alloc(int domain, int type, int protocol)
     f->readable = 1;
     f->writable = 1;
     f->socket = s;
+    trace("socket: %d, desc: %d", fd, s->desc);
     return fd;
 }
 
@@ -280,6 +288,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
     case SIOCSIFADDR:
         dev = net_device_by_name(ifreq->ifr_name);
         if (!dev) {
+            error("failed SIOCSIFADDR: %s", ifreq->ifr_name);
             return -1;
         }
         switch (ifreq->ifr_addr.sa_family) {
