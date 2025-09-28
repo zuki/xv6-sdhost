@@ -77,7 +77,12 @@ long sys_recvfrom(void)
         return -EINVAL;
     }
 
-    return socket_recvfrom(f->socket, buf, len, addr, addrlen);
+    if (f->socket->type == SOCK_DGRAM)
+        return socket_recvfrom(f->socket, buf, len, addr, addrlen);
+    else if (f->socket->type == SOCK_STREAM)
+        return socket_read(f->socket, buf, len);
+    else
+        return -EINVAL;
 }
 
 // ssize_t sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen);
@@ -113,7 +118,12 @@ long sys_sendto(void)
         return -EOPNOTSUPP;
     }
 
-    return socket_sendto(f->socket, buf, len, addr, addrlen);
+    if (f->socket->type == SOCK_DGRAM)
+        return socket_sendto(f->socket, buf, len, addr, addrlen);
+    else if (f->socket->type == SOCK_STREAM)
+        return socket_write(f->socket, buf, len);
+    else
+        return -EINVAL;
 }
 
 // int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
