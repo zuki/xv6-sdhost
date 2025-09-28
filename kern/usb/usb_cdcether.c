@@ -47,6 +47,8 @@ typedef struct ethernet_functional_descriptor {
     uint8_t      powerfilters;
 } PACKED eth_func_desc_t;
 
+static boolean usb_cdcether_init_macaddr(usb_cdcether_t *self, uint8_t id);
+
 void usb_cdcether(usb_cdcether_t *self, usb_function_t *func)
 {
     usb_function_copy(&self->usb_func, func);
@@ -158,33 +160,36 @@ const char *usb_cdcether_get_macaddr(usb_cdcether_t *self)
     return self->macaddr;
 }
 
-boolean usb_cdcether_send_frame(usb_cdcether_t *self, const void *buffer, uint32_t len)
+static ssize_t usb_cdcether_send_frame(struct net_device *dev, const uint8_t *buf, size_t size)
 {
     // USB転送（バルク）
-    return dwhc_xfer(usb_function_get_host(&self->usb_func), self->bulk_out, buffer, len) >= 0;
+    usb_cdcether_t *self = (usb_cdcether_t *)dev->priv;
+    return dwhc_xfer(usb_function_get_host(&self->usb_func), self->bulk_out, buf, size);
 }
 
-boolean usb_cdcether_receive_frame(usb_cdcether_t *self, void *buffer, uint32_t *resultlen)
+static ssize_t usb_cdcether_receive_frame(struct net_device *dev, uint8_t *buf, size_t size)
 {
     usb_request_t urb;
-    usb_request(&urb, self->bulk_in, buffer, FRAME_BUFFER_SIZE, 0);
+    usb_cdcether_t *self = (usb_cdcether_t *)dev->priv;
+
+    usb_request(&urb, self->bulk_in, buf, FRAME_BUFFER_SIZE, 0);
     urb.onnak = true;
 
     if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {
         error("failed submit block request");
-        return false;
+        return -1;
     }
 
-    uint32_t rlen = usb_request_get_resultlen(&urb);
+    ssize_t rlen = usb_request_get_resultlen(&urb);
     if (rlen == 0) {
         error("resultlen is 0");
-        return false;
+        return -1;
     }
-    *resultlen = rlen;
-    return true;
+
+    return rlen;
 }
 
-boolean usb_cdcether_init_macaddr(usb_cdcether_t *self, uint8_t id)
+static boolean usb_cdcether_init_macaddr(usb_cdcether_t *self, uint8_t id)
 {
     usb_string_t usb_str;
     usb_string(&usb_str, usb_function_get_dev(&self->usb_func));
@@ -236,13 +241,19 @@ static int usb_cdcether_net_close(struct net_device *dev)
 
 static int usb_cdcether_net_transmit(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst)
 {
-    return usb_cdcether_send_frame((usb_cdcether_t *)dev->priv, data, (size_t) len) ? 0 : -1;
+    return ether_transmit_helper(dev, type, data, len, dst, usb_cdcether_send_frame);
+}
+
+static int usb_cdcether_is_linkup(struct net_device *dev)
+{
+    return 1;
 }
 
 struct net_device_ops usb_cdcether_net_ops = {
     .open = usb_cdcether_net_open,
     .close = usb_cdcether_net_close,
     .transmit = usb_cdcether_net_transmit,
+    .linkup = usb_cdcether_is_linkup,
 };
 
 int usb_cdcether_net_init(usb_cdcether_t *self)
@@ -268,4 +279,13 @@ int usb_cdcether_net_init(usb_cdcether_t *self)
     self->net_dev = dev;
 
     return 0;
+}
+
+void usb_cdcether_net_handler(void)
+{
+    struct net_device *dev = net_device_by_name("eth01");
+    if (!dev) return;
+
+    if (ether_input_helper(dev, usb_cdcether_receive_frame) == 0)
+        intr_raise_irq(INTR_IRQ_SOFTIRQ);
 }

@@ -25,6 +25,7 @@
 #include <usb/usb_endpoint.h>
 #include <usb/usb_request.h>
 #include <net/net.h>
+#include <spinlock.h>
 
 // サイズ
 #define HS_USB_PKT_SIZE         512
@@ -247,14 +248,10 @@ typedef struct lan7800 {
 void lan7800(lan7800_t *self, usb_function_t *func);
 void _lan7800(lan7800_t *self);
 
-boolean lan7800_send_frame(lan7800_t *self, const void *buffer, uint32_t len);
-boolean lan7800_receive_frame(lan7800_t *self, void *buff, uint32_t *resultlen);
-int lan7800_is_linkup(lan7800_t *self);
-
-const char *lan7800_get_macaddr(lan7800_t *self);
 link_speed_t lan7800_get_linkspeed(lan7800_t *self);
 boolean lan7800_set_multicast_filter(lan7800_t *self, const uint8_t groups[][MAC_ADDRESS_SIZE]);
 
 int lan7800_net_init(lan7800_t *self);
+void lan7800_net_handler(void);
 
 #endif

@@ -54,35 +54,6 @@ void usb_keyboard_register_key_status_handler(key_status_hdl *handler);
 void usb_keyboard_update_leds(void);
 void usb_keyboard_set_leds(uint8_t mask);
 
-// Ethernetデバイス
-// (Ethernetにアクセスするのは、usb_init()の呼び出し後に2秒待ってから）
-
-/* Ethernetデバイスが利用可能化
- * コントローラを確認するだけでイーサネットリンクが確立されているか
- * 否かは確認しない
- * 利用可能な場合は0以外を返す
- */
-int usb_ethernet_available(void);
-
-/* MACAddressを取得する */
-void usb_get_MACAddress(unsigned char Buffer[6]);
-
-/* Ethernetはリンクアップしているか.
- * している場合は0以外を返す
- */
-int usb_ethernet_is_linkup(void);
-
-/* フレームを送信する.
- * 失敗した場合は0を返す
- */
-int usb_send_frame(const void *buffer, unsigned length);
-
-/* フレームを受信する.
- * bufferのサイズはFRAME_BUFFER_SIZEでなければならない
- * フレームが利用不可または失敗の場合は0を返す
- */
-int usb_receive_frame(void *buffer, unsigned *resultlen);
-
 //
 // USBデバイス情報
 //

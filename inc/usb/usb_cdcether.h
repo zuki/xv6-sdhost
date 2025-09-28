@@ -38,14 +38,9 @@ typedef struct usb_usb_cdcethernet {
 
 void usb_cdcether(usb_cdcether_t *self, usb_function_t *func);
 void _usb_cdcether(usb_cdcether_t *self);
-
 boolean usb_cdcether_configure(usb_function_t *func);
-boolean usb_cdcether_send_frame(usb_cdcether_t *self, const void *buffer, uint32_t len);
-boolean usb_cdcether_receive_frame(usb_cdcether_t *self, void *buff, uint32_t *resultlen);
-boolean usb_cdcether_init_macaddr(usb_cdcether_t *self, uint8_t id);
-
-const char *usb_cdcether_get_macaddr(usb_cdcether_t *self);
 
 int usb_cdcether_net_init(usb_cdcether_t *self);
+void usb_cdcether_net_handler(void);
 
 #endif

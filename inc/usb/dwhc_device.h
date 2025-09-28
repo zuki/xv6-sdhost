@@ -294,7 +294,7 @@ int dwhc_control_message(dwhc_device_t *self, usb_endpoint_t *ep,
 
 /// @brief 転送を行う
 /// @return 実際に送信した長さ、失敗の場合は負値
-int dwhc_xfer(dwhc_device_t *self, usb_endpoint_t *ep, const void *buffer, unsigned buflen);
+ssize_t dwhc_xfer(dwhc_device_t *self, usb_endpoint_t *ep, const void *buffer, unsigned buflen);
 
 /* plug and play関連
 static inline boolean dwhc_is_pap(dwhc_device_t *self) {

@@ -105,40 +105,7 @@ void usb_keyboard_update_leds(void)
     usb_keyboard_update_led(usb_lib->kbd);
 }
 
-int usb_ethernet_available(void)
-{
-    assert(usb_lib != 0);
-    return usb_lib->eth00 != 0 || usb_lib->eth01 != 0;
-}
-
-void usb_get_MACAddress(unsigned char buffer[6])
-{
-    assert(usb_lib != 0);
-    assert(buffer != 0);
-
-    if (usb_lib->eth00 != 0) {
-        memmove(buffer, lan7800_get_macaddr(usb_lib->eth00), 6);
-    } else if (usb_lib->eth01 != 0) {
-        memmove(buffer, usb_cdcether_get_macaddr(usb_lib->eth01), 6);
-    } else {
-        error("no ethernet device available");
-    }
-}
-
-int usb_ethernet_is_linkup(void)
-{
-    assert (usb_lib != 0);
-
-    if (usb_lib->eth00 != 0)
-    {
-        return lan7800_is_linkup(usb_lib->eth00) ? 1 : 0;
-    } else if (usb_lib->eth01 != 0) {
-        return 1;
-    }
-    error("no ethernet device available");
-    return 0;
-}
-
+#if 0
 int usb_send_frame (const void *buffer, unsigned length)
 {
     boolean ret = false;
@@ -170,6 +137,7 @@ int usb_receive_frame (void *buffer, unsigned *resultlen)
         warn("error has occured or no ethernet device available");
     return ret;
 }
+#endif
 
 int usb_device_get_information(unsigned klass, unsigned index, usb_device_info_t *info)
 {

@@ -29,6 +29,8 @@
 #include <usb/dwhc_scheduler.h>
 #include <usb/dwhc_root_port.h>
 #include <usb/usb_dev_ns.h>
+#include <usb/lan7800.h>
+#include <usb/usb_cdcether.h>
 #include <types.h>
 #include <arm.h>
 #include <console.h>
@@ -1237,8 +1239,13 @@ void dwhc_intr_hdl(dwhc_device_t *self)
         }
     }
 
-    // TODO: [4] DWHCI_CORE_INT_STAT_RXFLVL: RxFIFOにパケットが少なくとも1つある
-    // TODO: usb_received_frame(void *buffer, unsigned *resultlen) を実行する
+    if (intstat & DWHCI_CORE_INT_STAT_RXFLVL) {
+#ifdef USING_RASPI
+        usb_cdcether_net_handler();
+#else
+        lan7800_net_handler();
+#endif
+    }
 
 /* plug and play関連
     if (self->pap) {
@@ -1546,14 +1553,14 @@ int dwhc_control_message(dwhc_device_t *self, usb_endpoint_t *ep,
     return result;
 }
 
-int dwhc_xfer(dwhc_device_t *self, usb_endpoint_t *ep, const void *buffer, unsigned buflen)
+ssize_t dwhc_xfer(dwhc_device_t *self, usb_endpoint_t *ep, const void *buffer, unsigned buflen)
 {
     usb_request_t urb;
     usb_request(&urb, ep, buffer, buflen, 0);
 
-    int result = -1;
+    ssize_t result = -1;
     if (dwhc_submit_block_request(self, &urb, USB_TIMEOUT_NONE)) {
-        result = urb.resultlen;
+        result = (ssize_t)urb.resultlen;
     }
     _usb_request(&urb);
 

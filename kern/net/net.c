@@ -346,7 +346,6 @@ void net_shutdown(void)
 #include <net/icmp.h>
 #include <net/udp.h>
 #include <net/tcp.h>
-#include <usb.h>
 
 static int netinit(void)
 {

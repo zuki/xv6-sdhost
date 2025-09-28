@@ -213,76 +213,74 @@ boolean lan7800_configure(usb_function_t *super)
     //netdev_add_dev(self->net_dev);
 
     return true;
-
 }
 
-boolean lan7800_send_frame(lan7800_t *self, const void *buffer, uint32_t len)
+static ssize_t lan7800_send_frame(struct net_device *dev, const uint8_t *buf, size_t size)
 {
-    if (len > FRAME_BUFFER_SIZE)
+    if (size > FRAME_BUFFER_SIZE)
         return false;
 
-    memmove(self->tx_buffer+TX_HEADER_SIZE, buffer, len);
-    *(uint32_t *)&self->tx_buffer[0] = (len & TX_CMD_A_LEN_MASK) | TX_CMD_A_FCS;
+    lan7800_t *self = (lan7800_t *)dev->priv;
+    memmove(self->tx_buffer+TX_HEADER_SIZE, buf, size);
+    *(uint32_t *)&self->tx_buffer[0] = (size & TX_CMD_A_LEN_MASK) | TX_CMD_A_FCS;
     *(uint32_t *)&self->tx_buffer[4] = 0;
 
     // USB転送（バルク）
-    return dwhc_xfer(usb_function_get_host(&self->usb_func), self->bulk_out, self->tx_buffer, len+TX_HEADER_SIZE) >= 0;
+    return dwhc_xfer(usb_function_get_host(&self->usb_func), self->bulk_out, self->tx_buffer, size+TX_HEADER_SIZE);
 }
-
-boolean lan7800_receive_frame(lan7800_t *self, void *buffer, uint32_t *resultlen)
+//ssize_t (*ether_input_func_t)(struct net_device *dev, uint8_t *buf, size_t size);
+static ssize_t lan7800_receive_frame(struct net_device *dev, uint8_t *buf, size_t size)
 {
     usb_request_t urb;
-    usb_request(&urb, self->bulk_in, buffer, FRAME_BUFFER_SIZE, 0);
+    lan7800_t *self = (lan7800_t *)dev->priv;
+
+    usb_request(&urb, self->bulk_in, buf, FRAME_BUFFER_SIZE, 0);
 
     if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {
         _usb_request(&urb);
-        return false;
+        return -1;
     }
 
     uint32_t rlen = urb.resultlen;
     if (rlen < RX_HEADER_SIZE) {
         _usb_request(&urb);
-        return false;
+        return -1;
     }
 
-    uint32_t status = *(uint32_t *) buffer;    // RX command A
+    uint32_t status = *(uint32_t *) buf;    // RX command A
     if (status & RX_CMD_A_RED) {
         error("RX error (status 0x%X)", status);
         _usb_request(&urb);
-        return false;
+        return -1;
     }
 
     // CommandA(BC) + ethermet frame + FCS
-    //                <- buffer   ->
-    uint32_t framelen = status & RX_CMD_A_LEN_MASK;
+    //                <- buf   ->
+    size_t framelen = status & RX_CMD_A_LEN_MASK;
     if (framelen <= 4) {
         _usb_request(&urb);
-        return false;
+        return -1;
     }
     framelen -= 4;    // FCSは無視する
 
     trace("Frame received (status 0x%X)", status);
 
-    memmove(buffer, (uint8_t *)buffer + RX_HEADER_SIZE, framelen); // RX コマンドA..Cを上書き
+    memmove(buf, (uint8_t *)buf + RX_HEADER_SIZE, framelen); // RX コマンドA..Cを上書き
 
-    *resultlen = framelen;
     _usb_request(&urb);
-    return true;
+    return framelen;
 }
 
-boolean lan7800_is_linkup(lan7800_t *self)
+static int lan7800_is_linkup(struct net_device *dev)
 {
     uint16_t status;
+    lan7800_t *self = (lan7800_t *)dev->priv;
+
     if (!lan7800_phy_read(self, 0x01, &status)) {
-        return false;
+        return 0;
     }
 
-    return status & (1 << 2) ? true : false;
-}
-
-const char *lan7800_get_macaddr(lan7800_t *self)
-{
-    return self->macaddr;
+    return status & (1 << 2);
 }
 
 link_speed_t lan7800_get_linkspeed(lan7800_t *self)
@@ -533,13 +531,14 @@ static int lan7800_net_close(struct net_device *dev)
 
 static int lan7800_net_transmit(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst)
 {
-    return lan7800_send_frame((lan7800_t *)dev->priv, data, (size_t) len) ? 0 : -1;
+    return ether_transmit_helper(dev, type, data, len, dst, lan7800_send_frame);
 }
 
 struct net_device_ops lan7800_net_ops = {
     .open = lan7800_net_open,
     .close = lan7800_net_close,
     .transmit = lan7800_net_transmit,
+    .linkup = lan7800_is_linkup,
 };
 
 int lan7800_net_init(lan7800_t *self)
@@ -554,7 +553,7 @@ int lan7800_net_init(lan7800_t *self)
     }
     ether_setup_helper(dev);
 
-    memcpy(dev->addr, lan7800_get_macaddr(self), sizeof(dev->addr));
+    memcpy(dev->addr, self->macaddr, sizeof(dev->addr));
     dev->priv = self;
     dev->ops = &lan7800_net_ops;
     if (net_device_register(dev) == -1) {
@@ -565,4 +564,13 @@ int lan7800_net_init(lan7800_t *self)
     self->net_dev = dev;
 
     return 0;
+}
+
+void lan7800_net_handler(void)
+{
+    struct net_device *dev = net_device_by_name("eth00");
+    if (!dev) return;
+
+    if (ether_input_helper(dev, lan7800_receive_frame) == 0)
+        intr_raise_irq(INTR_IRQ_SOFTIRQ);
 }
