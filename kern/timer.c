@@ -30,7 +30,7 @@ void timer_init()
 #else
     dt = 62500000UL;        // QEMUはtimerfreq()で得られる値が実機と違う
 #endif
-    info("timerfreq = 0x%llx", timerfreq());
+    trace("timerfreq = 0x%llx", timerfreq());
     //dt = timerfreq();     /* dt = 19_200_000 */
     asm volatile ("msr cntp_ctl_el0, %[x]"::[x] "r"(1));    /* タイマーenable */
     asm volatile ("msr cntp_tval_el0, %[x]"::[x] "r"(dt));
