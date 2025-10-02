@@ -209,7 +209,7 @@ boolean dwhc_init(dwhc_device_t *self, boolean scan)
     if (scan) {
         dwhc_rescan_dev(self);
     }
-
+    trace("dwhc_init ok: intmask: 0x%x", get32(DWHCI_CORE_INT_MASK));
     return true;
 }
 
@@ -478,6 +478,7 @@ boolean dwhc_init_host(dwhc_device_t *self)
         put32(DWHCI_HOST_PORT, hostport);
     }
     dwhc_enable_host_intr(self);
+    trace("dhwc_init_host ok");
     return true;
 }
 
@@ -553,7 +554,7 @@ boolean dwhc_reset(dwhc_device_t *self)
     return true;
 }
 
-// ok
+// ok アプリケーションへの割り込みを有効化
 void dwhc_enable_global_intr(dwhc_device_t *self)
 {
     uint32_t ahbcfg;
@@ -585,6 +586,7 @@ void dwhc_enable_host_intr(dwhc_device_t *self)
 #ifdef USE_USB_SOF_INTR
             | DWHCI_CORE_INT_MASK_SOF_INTR
 #endif
+            | DWHCI_CORE_INT_MASK_RX_STS_Q_LVL
             );
 #if 0
     if (is_plug_and_play) {
@@ -592,6 +594,7 @@ void dwhc_enable_host_intr(dwhc_device_t *self)
     }
 #endif
     put32(DWHCI_CORE_INT_MASK, intmask);
+    trace("intmask: 0x%x", get32(DWHCI_CORE_INT_MASK));
 }
 
 // ok
@@ -1211,7 +1214,8 @@ void dwhc_intr_hdl(dwhc_device_t *self)
 
     uint32_t intstat;
     intstat = get32(DWHCI_CORE_INT_STAT);
-    trace("[%d](%d) USB int: 0x%x", cpuid(), thisproc()->pid, intstat);
+    if (intstat & DWHCI_CORE_INT_STAT_RXFLVL)
+        debug("[%d](%d) USB int: 0x%x", cpuid(), thisproc()->pid, intstat);
 
 #ifdef USE_USB_SOF_INTR
     // [3] SOF, マイクロSOF, Keep-AliveがUSBで送信された
@@ -1240,11 +1244,16 @@ void dwhc_intr_hdl(dwhc_device_t *self)
     }
 
     if (intstat & DWHCI_CORE_INT_STAT_RXFLVL) {
+        debug("DWHCI_CORE_INT_STAT_RXFLVL: 0x%x", intstat);
+        uint32_t rx_stat = get32(DWHCI_CORE_RX_STAT_RD);
+        debug("GRXSTSR: 0x%x", rx_stat);
+        if (rx_stat != 0) {
 #ifdef USING_RASPI
         usb_cdcether_net_handler();
 #else
         lan7800_net_handler();
 #endif
+        }
     }
 
 /* plug and play関連

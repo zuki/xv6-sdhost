@@ -14,6 +14,8 @@
 #include <net/ether.h>
 #include <net/platform.h>
 
+#define PRIV(x) ((lan7800_t *)(x)->priv)
+
 // 前方参照
 boolean lan7800_configure(usb_function_t *super);
 static void lan7800_set_addr_filter(lan7800_t *self, int index, const uint8_t addr[MAC_ADDRESS_SIZE]);
@@ -21,7 +23,8 @@ static boolean lan7800_init_macaddr(lan7800_t *self);
 static boolean lan7800_init_phy(lan7800_t *self);
 static boolean lan7800_phy_write(lan7800_t *self, uint8_t index, uint16_t value);
 static boolean lan7800_phy_read(lan7800_t *self, uint8_t index, uint16_t *phyvalue);
-static boolean lan7800_wait_reg(lan7800_t *self, uint32_t index, uint32_t mask, uint32_t compare);
+static boolean lan7800_wait_reg(lan7800_t *self, uint32_t index, uint32_t mask, uint32_t compare,
+    uint32_t delay_micro, uint32_t timeout);
 static boolean lan7800_readwrite_reg(lan7800_t *self, uint32_t index, uint32_t ormask, uint32_t andmask);
 static boolean lan7800_write_reg(lan7800_t *self, uint32_t index, uint32_t value);
 static boolean lan7800_read_reg(lan7800_t *self, uint32_t index, uint32_t *value);
@@ -116,7 +119,7 @@ boolean lan7800_configure(usb_function_t *super)
 
     // ハードウェアをリセット
     if (!lan7800_readwrite_reg(self, HW_CFG, HW_CFG_LRST, ~0U)
-     || !lan7800_wait_reg(self, HW_CFG, HW_CFG_LRST, 0)) {
+     || !lan7800_wait_reg(self, HW_CFG, HW_CFG_LRST, 0, 1000, 100)) {
         error("HW reset failed");
         return false;
     }
@@ -174,7 +177,7 @@ boolean lan7800_configure(usb_function_t *super)
 
     // PHYをリセット
     if (!lan7800_readwrite_reg(self, PMT_CTL, PMT_CTL_PHY_RST, ~0U)
-     || !lan7800_wait_reg(self, PMT_CTL, PMT_CTL_PHY_RST | PMT_CTL_READY, PMT_CTL_READY)) {
+     || !lan7800_wait_reg(self, PMT_CTL, PMT_CTL_PHY_RST | PMT_CTL_READY, PMT_CTL_READY, 1000, 100)) {
         error("failed to reset PHY");
         return false;
     }
@@ -220,7 +223,7 @@ static ssize_t lan7800_send_frame(struct net_device *dev, const uint8_t *buf, si
     if (size > FRAME_BUFFER_SIZE)
         return false;
 
-    lan7800_t *self = (lan7800_t *)dev->priv;
+    lan7800_t *self = PRIV(dev);
     memmove(self->tx_buffer+TX_HEADER_SIZE, buf, size);
     *(uint32_t *)&self->tx_buffer[0] = (size & TX_CMD_A_LEN_MASK) | TX_CMD_A_FCS;
     *(uint32_t *)&self->tx_buffer[4] = 0;
@@ -228,29 +231,29 @@ static ssize_t lan7800_send_frame(struct net_device *dev, const uint8_t *buf, si
     // USB転送（バルク）
     return dwhc_xfer(usb_function_get_host(&self->usb_func), self->bulk_out, self->tx_buffer, size+TX_HEADER_SIZE);
 }
-//ssize_t (*ether_input_func_t)(struct net_device *dev, uint8_t *buf, size_t size);
+
 static ssize_t lan7800_receive_frame(struct net_device *dev, uint8_t *buf, size_t size)
 {
     usb_request_t urb;
-    lan7800_t *self = (lan7800_t *)dev->priv;
+    lan7800_t *self = PRIV(dev);
 
-    usb_request(&urb, self->bulk_in, buf, FRAME_BUFFER_SIZE, 0);
+    usb_request(&urb, self->bulk_in, buf, (uint32_t)size, 0);
 
     if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {
-        _usb_request(&urb);
+        //_usb_request(&urb);
         return -1;
     }
 
     uint32_t rlen = urb.resultlen;
     if (rlen < RX_HEADER_SIZE) {
-        _usb_request(&urb);
+        //_usb_request(&urb);
         return -1;
     }
 
     uint32_t status = *(uint32_t *) buf;    // RX command A
     if (status & RX_CMD_A_RED) {
         error("RX error (status 0x%X)", status);
-        _usb_request(&urb);
+        //_usb_request(&urb);
         return -1;
     }
 
@@ -258,23 +261,23 @@ static ssize_t lan7800_receive_frame(struct net_device *dev, uint8_t *buf, size_
     //                <- buf   ->
     size_t framelen = status & RX_CMD_A_LEN_MASK;
     if (framelen <= 4) {
-        _usb_request(&urb);
+        //_usb_request(&urb);
         return -1;
     }
     framelen -= 4;    // FCSは無視する
 
-    trace("Frame received (status 0x%X)", status);
+    debug("Frame received (status 0x%X)", status);
 
     memmove(buf, (uint8_t *)buf + RX_HEADER_SIZE, framelen); // RX コマンドA..Cを上書き
 
-    _usb_request(&urb);
+    //_usb_request(&urb);
     return framelen;
 }
 
 static int lan7800_is_linkup(struct net_device *dev)
 {
     uint16_t status;
-    lan7800_t *self = (lan7800_t *)dev->priv;
+    lan7800_t *self = PRIV(dev);
 
     if (!lan7800_phy_read(self, 0x01, &status)) {
         return 0;
@@ -422,7 +425,7 @@ static boolean lan7800_init_phy(lan7800_t *self)
 
 static boolean lan7800_phy_write(lan7800_t *self, uint8_t index, uint16_t value)
 {
-    if (!lan7800_wait_reg (self, MII_ACC, MII_ACC_MII_BUSY, 0)
+    if (!lan7800_wait_reg (self, MII_ACC, MII_ACC_MII_BUSY, 0, 0, 100)
      || !lan7800_write_reg(self, MII_DATA, value)) {
         error("failed to write NII_DATA with %d", value);
         return false;
@@ -430,20 +433,20 @@ static boolean lan7800_phy_write(lan7800_t *self, uint8_t index, uint16_t value)
 
     // アドレス、インデックス、方向をセット（PHYへ書き込み）
     uint32_t mii_access  = (PHY_ADDRESS << MII_ACC_PHY_ADDR_SHIFT) & MII_ACC_PHY_ADDR_MASK;
-        mii_access |= ((uint32_t) index << MII_ACC_MIIRINDA_SHIFT) & MII_ACC_MIIRINDA_MASK;
-        mii_access |= MII_ACC_MII_WRITE | MII_ACC_MII_BUSY;
+    mii_access |= ((uint32_t) index << MII_ACC_MIIRINDA_SHIFT) & MII_ACC_MIIRINDA_MASK;
+    mii_access |= MII_ACC_MII_WRITE | MII_ACC_MII_BUSY;
 
     if (!lan7800_write_reg(self, MII_ACC, mii_access)) {
         error("failed to write NII_ACC with %x", mii_access);
         return false;
     }
 
-    return lan7800_wait_reg(self, MII_ACC, MII_ACC_MII_BUSY, 0);
+    return lan7800_wait_reg(self, MII_ACC, MII_ACC_MII_BUSY, 0, 0, 100);
 }
 
 static boolean lan7800_phy_read(lan7800_t *self, uint8_t index, uint16_t *phyvalue)
 {
-    if (!lan7800_wait_reg(self, MII_ACC, MII_ACC_MII_BUSY, 0)) {
+    if (!lan7800_wait_reg(self, MII_ACC, MII_ACC_MII_BUSY, 0, 0, 100)) {
         error("MII_ACC is busy");
         return false;
     }
@@ -455,7 +458,7 @@ static boolean lan7800_phy_read(lan7800_t *self, uint8_t index, uint16_t *phyval
 
     uint32_t value;
     if (!lan7800_write_reg(self, MII_ACC, mii_access)
-     || !lan7800_wait_reg (self, MII_ACC, MII_ACC_MII_BUSY, 0)
+     || !lan7800_wait_reg (self, MII_ACC, MII_ACC_MII_BUSY, 0, 0, 100)
      || !lan7800_read_reg(self, MII_DATA, &value)) {
         error("failed to read MII_DATA");
         return false;
@@ -464,16 +467,21 @@ static boolean lan7800_phy_read(lan7800_t *self, uint8_t index, uint16_t *phyval
     return true;
 }
 
-static boolean lan7800_wait_reg(lan7800_t *self, uint32_t index, uint32_t mask, uint32_t compare)
+static boolean lan7800_wait_reg(lan7800_t *self, uint32_t index, uint32_t mask, uint32_t compare,
+    uint32_t delay_micro, uint32_t timeout)
 {
-    unsigned tries = 1000;
+    uint64_t start_hz = get_ticks();
     uint32_t value;
     do {
-        delayus(1000);
-        if (--tries == 0)
+        if (delay_micro > 0)
+            delayus(delay_micro);
+
+        if (get_ticks() - start_hz >= timeout)
             return false;
+
         if (!lan7800_read_reg(self, index, &value))
             return false;
+
     } while ((value & mask) != compare);
 
     return true;

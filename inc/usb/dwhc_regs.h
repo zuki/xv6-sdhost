@@ -67,8 +67,8 @@
     #define DWHCI_CORE_INT_MASK_DISCONNECT          (1 << 29)
     #define DWHCI_CORE_INT_MASK_SESS_REQ_INTR       (1 << 30)
     #define DWHCI_CORE_INT_MASK_WKUP_INTR           (1 << 31)
-#define DWHCI_CORE_RX_STAT_RD           (ARM_USB_CORE_BASE + 0x01C)    // RO, slave mode only
-#define DWHCI_CORE_RX_STAT_POP          (ARM_USB_CORE_BASE + 0x020)    // RO, slave mode only
+#define DWHCI_CORE_RX_STAT_RD           (ARM_USB_CORE_BASE + 0x01C)    // RO
+#define DWHCI_CORE_RX_STAT_POP          (ARM_USB_CORE_BASE + 0x020)    // RO
     // for read and pop register in host mode
     #define DWHCI_CORE_RX_STAT_CHAN_NUMBER__MASK    0xF
     #define DWHCI_CORE_RX_STAT_BYTE_COUNT__SHIFT    4

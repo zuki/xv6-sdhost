@@ -299,10 +299,11 @@ int socket_ioctl(struct socket *s, int req, void *arg)
                     return -1;
                 }
             } else {
-                iface = ip_iface_alloc(ip_addr_ntop(((struct sockaddr_in *)&ifreq->ifr_addr)->sin_addr.s_addr, addr, sizeof(addr)), "255.255.255.255");
+                iface = ip_iface_alloc(ip_addr_ntop(((struct sockaddr_in *)&ifreq->ifr_addr)->sin_addr.s_addr, addr, sizeof(addr)), "255.255.255.0");
                 if (!iface) {
                     return -1;
                 }
+                debug("register iface");
                 ip_iface_register(dev, iface);
             }
             break;

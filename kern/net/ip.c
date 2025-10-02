@@ -39,6 +39,18 @@ struct ip_route {
 const ip_addr_t IP_ADDR_ANY       = 0x00000000; /* 0.0.0.0 */
 const ip_addr_t IP_ADDR_BROADCAST = 0xffffffff; /* 255.255.255.255 */
 
+#define IP_PROTOCOL_ICMP    1
+#define IP_PROTOCOL_TCP     6
+#define IP_PROTOCOL_UDP     17
+
+const char IP_PROTOCOL[][5] = {
+    [1] = "ICMP",
+    [6] = "TCP",
+    [17] = "UDP",
+};
+
+#define PROTOCOL_NAME(prot) IP_PROTOCOL[prot]
+
 /* NOTE: if you want to add/delete the entries after net_run(), you need to protect these lists with a mutex. */
 static struct ip_iface *ifaces;
 static struct ip_protocol *protocols;
@@ -142,6 +154,7 @@ static void ip_dump(const uint8_t *data, size_t len)
 /* NOTE: must not be call after net_run() */
 static struct ip_route *ip_route_add(ip_addr_t network, ip_addr_t netmask, ip_addr_t nexthop, struct ip_iface *iface)
 {
+    trace("addr: 0x%x, mask: 0x%x", network, netmask);
     struct ip_route *route;
     char addr1[IP_ADDR_STR_LEN];
     char addr2[IP_ADDR_STR_LEN];
@@ -306,7 +319,7 @@ int ip_protocol_register(uint8_t type, void (*handler)(const uint8_t *data, size
     entry->handler = handler;
     entry->next = protocols;
     protocols = entry;
-    info("registered, type=%u", entry->type);
+    info("registered, type=%u (%s)", entry->type, PROTOCOL_NAME(entry->type));
     return 0;
 }
 

@@ -124,6 +124,8 @@ boolean usb_cdcether_configure(usb_function_t *func)
                 }
                 self->bulk_in = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
                 usb_endpoint2(self->bulk_in, usb_function_get_dev(&self->usb_func), ep_desc);
+                // type=1 (buik) , num=2, in=1 (in)
+                trace("endpoint: type=%d, num=%d, in=%d", self->bulk_in->type, self->bulk_in->num, self->bulk_in->in);
             } else {                                // 出力パイプ
                 if (self->bulk_out != 0) {
                     error("bulk_out not null");
@@ -131,6 +133,8 @@ boolean usb_cdcether_configure(usb_function_t *func)
                 }
                 self->bulk_out = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
                 usb_endpoint2(self->bulk_out, usb_function_get_dev(&self->usb_func), ep_desc);
+                // type=1 (bulk), num=2, in=0 (out)
+                trace("endpoint: type=%d, num=%d, in=%d", self->bulk_out->type, self->bulk_out->num, self->bulk_out->in);
             }
         }
     }
@@ -172,7 +176,7 @@ static ssize_t usb_cdcether_receive_frame(struct net_device *dev, uint8_t *buf, 
     usb_request_t urb;
     usb_cdcether_t *self = (usb_cdcether_t *)dev->priv;
 
-    usb_request(&urb, self->bulk_in, buf, FRAME_BUFFER_SIZE, 0);
+    usb_request(&urb, self->bulk_in, buf, (uint32_t)size, 0);
     urb.onnak = true;
 
     if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {

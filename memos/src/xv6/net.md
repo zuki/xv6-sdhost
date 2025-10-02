@@ -962,8 +962,18 @@ $ ifconfig
 net0: flags=83<UP|BROADCAST|NEEDARP> mtu 1500
   ether 40:54:0:12:34:57
   inet 192.168.10.111 netmask 255.255.255.0 broadcast 192.168.10.255
+$ ifconfig net0 down
+[2]net_device_close: dev=net0, state=down
+$ ifconfig
+net0: flags=82<BROADCAST|NEEDARP> mtu 1500
+  ether 40:54:0:12:34:57
+  inet 192.168.10.111 netmask 255.255.255.0 broadcast 192.168.10.255
 $ ifconfig net0 up
-$
+[1]net_device_open: dev=net0, state=up
+$ ifconfig
+net0: flags=83<UP|BROADCAST|NEEDARP> mtu 1500
+  ether 40:54:0:12:34:57
+  inet 192.168.10.111 netmask 255.255.255.0 broadcast 192.168.10.255
 ```
 
 ### ただしpingは通らず
@@ -987,6 +997,8 @@ Request timeout for icmp_seq 7
 --- 192.168.10.111 ping statistics ---
 9 packets transmitted, 0 packets received, 100.0% packet loss
 ```
+
+- DWHCI_CORE_INT_STAT_RXFLVL 割り込みが起きないため
 
 ### 実機も同じ
 
@@ -1022,4 +1034,168 @@ Request timeout for icmp_seq 6
 ^C
 --- 192.168.10.110 ping statistics ---
 8 packets transmitted, 0 packets received, 100.0% packet loss
+```
+
+## circle/sample/18-ntptime
+
+- 他の端末からpingを発行したところ、GINtSTS#RxFLvl ビットが立った
+- pingも通っている
+
+```bash
+logger: Circle 50 started on Raspberry Pi 3 Model B+ 1GB (AArch64)
+logger: Revision code is a020d3, compiler has been GCC 11.2.1
+00:00:00.66 timer: SpeedFactor is 1.51
+00:00:01.29 kernel: Compile time: Sep 30 2025 09:49:32
+00:00:01.52 usbdev0-1: Device ven424-2514, dev9-0-2 found (HS)
+00:00:01.57 usbdev0-1: Interface int9-0-1 found
+00:00:01.58 usbdev0-1: Function is not supported
+00:00:01.58 usbdev0-1: Interface int9-0-2 found
+00:00:01.59 usbdev0-1: Using device/interface int9-0-2
+00:00:02.25 usbdev0-1: Device ven424-2514, dev9-0-2 found (HS)
+00:00:02.31 usbdev0-1: Interface int9-0-1 found
+00:00:02.31 usbdev0-1: Function is not supported
+00:00:02.32 usbdev0-1: Interface int9-0-2 found
+00:00:02.32 usbdev0-1: Using device/interface int9-0-2
+00:00:02.99 usbdev0-1: Device ven424-7800 found (HS)
+00:00:03.04 usbdev0-1: Using device/interface ven424-7800
+00:00:03.13 lan7800: MAC address is B8:27:EB:AB:E8:48
+00:00:03.27 usbhub: Port 1: Device configured
+00:00:03.28 usbhub: Port 1: Device configured
+00:00:03.28 dwroot: Device configured
+00:00:06.03 dhcp: IP address is 192.168.10.110
+00:00:06.04 kernel: Try "ping 192.168.10.110" from another computer!
+
+00:00:07.89 dwhci: USB INTSTAT: 0x6000031           // bit: 26, 25, 5, 4, 1 are ON
+
+Sep 30 00:50:31.04 ntpd: System time updated
+Sep 30 00:50:47.79 dwhci: USB INTSTAT: 0x6000031
+
+Sep 30 00:50:58.80 dwhci: USB INTSTAT: 0x6000031
+
+Sep 30 00:50:59.06 dwhci: USB INTSTAT: 0x6000031
+
+Sep 30 00:51:05.47 dwhci: USB INTSTAT: 0x6000031
+```
+
+```bash
+$ ping 192.168.10.110
+PING 192.168.10.110 (192.168.10.110): 56 data bytes
+64 bytes from 192.168.10.110: icmp_seq=0 ttl=64 time=0.870 ms
+64 bytes from 192.168.10.110: icmp_seq=1 ttl=64 time=0.577 ms
+64 bytes from 192.168.10.110: icmp_seq=2 ttl=64 time=0.516 ms
+64 bytes from 192.168.10.110: icmp_seq=3 ttl=64 time=0.683 ms
+64 bytes from 192.168.10.110: icmp_seq=4 ttl=64 time=0.807 ms
+64 bytes from 192.168.10.110: icmp_seq=5 ttl=64 time=0.773 ms
+64 bytes from 192.168.10.110: icmp_seq=6 ttl=64 time=0.577 ms
+64 bytes from 192.168.10.110: icmp_seq=7 ttl=64 time=0.701 ms
+64 bytes from 192.168.10.110: icmp_seq=8 ttl=64 time=0.650 ms
+64 bytes from 192.168.10.110: icmp_seq=9 ttl=64 time=0.745 ms
+64 bytes from 192.168.10.110: icmp_seq=10 ttl=64 time=0.494 ms
+64 bytes from 192.168.10.110: icmp_seq=11 ttl=64 time=0.604 ms
+64 bytes from 192.168.10.110: icmp_seq=12 ttl=64 time=0.716 ms
+64 bytes from 192.168.10.110: icmp_seq=13 ttl=64 time=0.754 ms
+64 bytes from 192.168.10.110: icmp_seq=14 ttl=64 time=0.703 ms
+^C
+--- 192.168.10.110 ping statistics ---
+15 packets transmitted, 15 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = 0.494/0.678/0.870/0.104 ms
+```
+
+- GINTSTS.RxFLvlアサート時のGRXSTSRを出力
+
+```bash
+00:00:06.04 dhcp: IP address is 192.168.10.110
+00:00:06.05 kernel: Try "ping 192.168.10.110" from another computer!
+00:00:06.05 ntpd: Resolve start
+00:00:07.05 ntpd: Resolve end
+00:00:07.05 ntpd: GetTime start
+00:00:07.06 ntp: send start
+00:00:07.06 ntp: send end
+00:00:08.06 ntp: recv start
+00:00:08.06 ntp: recv end: result=48
+00:00:08.07 ntpd: GetTime end
+Oct  1 15:55:45.07 ntpd: System time updated
+Oct  1 15:55:45.66 dwhci: IntStatus: 0x6000031      // [20:17] = 0011 : IN転送完了
+Oct  1 15:55:45.66 dwhci: GRXSTRSR: 0x60000         // [16:15] = 00   : DATA 0
+
+Oct  1 15:55:58.46 dwhci: IntStatus: 0x6000031      // [20:17] = 0010 : INパケット受信
+Oct  1 15:55:58.46 dwhci: GRXSTRSR: 0x40000         // [16:15] = 00   : DATA 0
+
+Oct  1 15:56:02.82 dwhci: IntStatus: 0x6000031      // [20:17] = 0010 : INパケット受信
+Oct  1 15:56:02.82 dwhci: GRXSTRSR: 0x50000         // [16:15] = 10   : DATA 1
+
+Oct  1 15:56:12.04 dwhci: IntStatus: 0x6000031      // [20:17] = 0011 : IN転送完了
+Oct  1 15:56:12.04 dwhci: GRXSTRSR: 0x70000         // [16:15] = 10   : DATA 1
+```
+
+- ntpを5秒間隔で実行
+- 結論: GINTSTS.RxFLvlがアサートしたタイミングで処理を開始することはできない
+
+```bash
+00:00:06.12 dhcp: IP address is 192.168.10.110
+00:00:06.12 kernel: Try "ping 192.168.10.110" from another computer!
+00:00:06.13 ntpd: Resolve start
+00:00:06.36 dwhci: IntStatus: 0x6000031
+00:00:06.36 dwhci: GRXSTRSR: 0x70000
+00:00:07.13 ntpd: Resolve end
+00:00:07.13 ntpd: GetTime start
+00:00:07.14 ntp: send start
+00:00:07.14 ntp: send end
+00:00:08.14 ntp: recv start
+00:00:08.14 ntp: recv end: result=48
+00:00:08.14 ntpd: GetTime end
+Oct  1 16:11:02.15 ntpd: System time updated
+Oct  1 16:11:03.44 dwhci: IntStatus: 0x6000031
+Oct  1 16:11:03.44 dwhci: GRXSTRSR: 0x60000
+Oct  1 16:11:05.22 dwhci: IntStatus: 0x6000031
+Oct  1 16:11:05.22 dwhci: GRXSTRSR: 0x40000
+Oct  1 16:11:07.03 dwhci: IntStatus: 0x6000031
+Oct  1 16:11:07.03 dwhci: GRXSTRSR: 0x60000
+Oct  1 16:11:07.15 ntpd: Resolve start
+Oct  1 16:11:08.15 ntpd: Resolve end
+Oct  1 16:11:08.16 ntpd: GetTime start
+Oct  1 16:11:08.16 ntp: send start
+Oct  1 16:11:08.16 ntp: send end
+Oct  1 16:11:09.17 ntp: recv start
+Oct  1 16:11:09.17 ntp: recv end: result=48
+Oct  1 16:11:09.17 ntpd: GetTime end
+Oct  1 16:11:09.17 ntpd: System time updated
+Oct  1 16:11:14.18 ntpd: Resolve start
+Oct  1 16:11:15.18 ntpd: Resolve end
+Oct  1 16:11:15.18 ntpd: GetTime start
+Oct  1 16:11:15.19 ntp: send start
+Oct  1 16:11:15.19 ntp: send end
+Oct  1 16:11:16.19 ntp: recv start
+Oct  1 16:11:16.19 ntp: recv end: result=48
+Oct  1 16:11:16.20 ntpd: GetTime end
+Oct  1 16:11:16.20 ntpd: System time updated
+Oct  1 16:11:21.20 ntpd: Resolve start
+Oct  1 16:11:22.21 ntpd: Resolve end
+Oct  1 16:11:22.21 ntpd: GetTime start
+Oct  1 16:11:22.21 ntp: send start
+Oct  1 16:11:22.22 ntp: send end
+Oct  1 16:11:23.22 ntp: recv start
+Oct  1 16:11:23.22 ntp: recv end: result=48
+Oct  1 16:11:23.22 ntpd: GetTime end
+Oct  1 16:11:23.23 ntpd: System time updated
+```
+
+
+```c
+static void lan78xx_defer_kevent(struct lan78xx_net *dev, int work);
+
+static int lan78xx_start_tx_path(struct lan78xx_net *dev);
+static int lan78xx_stop_tx_path(struct lan78xx_net *dev);
+static int lan78xx_start_rx_path(struct lan78xx_net *dev);
+static int lan78xx_stop_rx_path(struct lan78xx_net *dev);
+
+static int lan78xx_reset(struct lan78xx_net *dev);
+static int lan78xx_open(struct net_device *net);
+static int lan78xx_stop(struct net_device *net);
+static int lan78xx_rx(struct lan78xx_net *dev, struct sk_buff *skb,
+              int budget, int *work_done);
+static inline void rx_process(struct lan78xx_net *dev, struct sk_buff *skb,
+                  int budget, int *work_done);
+
+static int lan78xx_bh(struct lan78xx_net *dev, int budget);
 ```

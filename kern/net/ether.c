@@ -96,7 +96,6 @@ int ether_input_helper(struct net_device *dev, ether_input_func_t callback)
     ssize_t flen;
     struct ether_hdr *hdr;
     uint16_t type;
-    int ret;
 
     frame = memory_alloc(ETHER_FRAME_SIZE_MAX);
     if (!frame) {
@@ -119,8 +118,7 @@ int ether_input_helper(struct net_device *dev, ether_input_func_t callback)
     type = ntoh16(hdr->type);
     debug("dev=%s, type=0x%04x, len=%zd", dev->name, type, flen);
     ether_dump(frame, flen);
-    ret = net_input_handler(type, (uint8_t *)(hdr+1), flen - sizeof(*hdr), dev);
-    return ret;
+    return net_input_handler(type, (uint8_t *)(hdr+1), flen - sizeof(*hdr), dev);
 }
 
 void ether_setup_helper(struct net_device *dev)

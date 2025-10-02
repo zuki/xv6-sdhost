@@ -44,6 +44,7 @@ boolean usb_function_init(usb_function_t *self)
 boolean usb_function_config(usb_function_t *self)
 {
     assert(self->if_desc != 0);
+    // 代替インタフェースがあればセットする
     if (self->if_desc->alt != 0) {
         if (dwhc_control_message(self->dev->host,
             self->dev->ep0, REQUEST_OUT | REQUEST_TO_INTERFACE, SET_INTERFACE,

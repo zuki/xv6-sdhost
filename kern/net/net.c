@@ -193,7 +193,7 @@ int net_protocol_register(uint16_t type, void (*handler)(const uint8_t *data, si
     proto->handler = handler;
     proto->next = protocols;
     protocols = proto;
-    info("registered, type=0x%04x", type);
+    info("registered, type=0x%04x (%s)", type, type == 0x0800 ? "IP" : type == 0x0806 ? "ARP" : "IPv6");
     return 0;
 }
 
@@ -232,6 +232,7 @@ int net_timer_handler(void)
     return 0;
 }
 
+// 成功したら 0, エラーの場合は -1
 int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net_device *dev)
 {
     struct net_protocol *proto;
@@ -325,6 +326,9 @@ static int netrun(void)
     trace("open all devices...");
     for (dev = devices; dev; dev = dev->next) {
         net_device_open(dev);
+        while (!dev->ops->linkup(dev)) {
+            delay(1);
+        }
     }
     info("running...");
     return 0;
