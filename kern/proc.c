@@ -192,9 +192,11 @@ forkret()
         sd_init();
         iinit(ROOTDEV);
         initlog(ROOTDEV);
+#if 0
         usb_init();
         net_init();
         net_run();
+#endif
     } else {
         release(&ptable.lock);
     }
@@ -452,4 +454,42 @@ procdump()
             cprintf("%d %s %s\n", p->pid, states[p->state], p->name);
     }
     // release(&ptable.lock);
+}
+
+extern uint64_t kpgdir;
+
+void kthread_created(void(*func)())
+{
+    struct proc *p;
+
+    p = proc_alloc();
+    p->pgdir = (void *)kpgdir;
+
+    // allocate one user page and copy init's instructions
+    // and data into it.
+    //uvminit(p->pagetable, initcode, sizeof(initcode));
+    p->sz = PGSIZE;
+    safestrcpy(p->name,"test",sizeof(p->name));
+    p->context->lr = (uint64_t)func;
+
+    // prepare for the very first "return" from kernel to user.
+    //p->trapframe->epc = 0;      // user program counter
+    //p->trapframe->sp = PGSIZE;  // user stack pointer
+
+    //safestrcpy(p->name, "initcode", sizeof(p->name));
+    p->cwd = 0;
+    p->state = RUNNABLE;
+    acquire(&ptable.lock);
+    list_push_back(&ptable.sched_que, &p->link);
+    release(&ptable.lock);
+}
+
+void kthread_test(void)
+{
+    while(1) {
+        debug("kthread");
+        delayus(1000000);
+        thisproc()->state = RUNNABLE;
+        yield();
+    }
 }

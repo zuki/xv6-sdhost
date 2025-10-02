@@ -24,13 +24,13 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 /* Per-process state */
 struct proc {
-    /* 
+    /*
      * Memory layout
      *
      * +----------+
-     * |  Kernel  | 
+     * |  Kernel  |
      * +----------+  KERNBASE
-     * |  Stack   |  
+     * |  Stack   |
      * +----------+  KERNBASE - stksz
      * |   ....   |
      * |   ....   |
@@ -39,7 +39,7 @@ struct proc {
      * +----------+
      * |   Code   |
      * +----------+  base
-     * | Reserved | 
+     * | Reserved |
      * +----------+  0
      *
      */
@@ -98,5 +98,7 @@ void exit(int);
 int  wait();
 int  fork();
 void procdump();
+void kthread_test(void);
+void kthread_created(void(*func)());
 
 #endif
