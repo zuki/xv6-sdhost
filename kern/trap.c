@@ -24,6 +24,12 @@ static void softintr(void)
     pending = 0;
     release(&pendinglock);
 
+    if (irqs) {
+        debug("irqs: 0x%x", irqs);
+    } else {
+        return;
+    }
+
     if (irqs & SOFT_IRQ_NET_RX) {
         net_softirq_handler();
     }

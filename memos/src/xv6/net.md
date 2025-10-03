@@ -1199,3 +1199,28 @@ static inline void rx_process(struct lan78xx_net *dev, struct sk_buff *skb,
 
 static int lan78xx_bh(struct lan78xx_net *dev, int budget);
 ```
+
+## kthreadを作成し、ここでnet_handler()を実行する
+
+
+```bash
+$ ifconfig net0 192.168.10.111 netmask 255.255.255.0
+[3]socket_ioctl: register iface
+[3]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.111 dev=net0
+[3]ip_iface_register: registered: dev=net0, unicast=192.168.10.111, netmask=255.255.255.0, broadcast=192.168.10.255
+$ ifconfig
+net0: flags=83<UP|BROADCAST|NEEDARP> mtu 1500
+  ether 40:54:0:12:34:57
+  inet 192.168.10.111 netmask 255.255.255.0 broadcast 192.168.10.255
+$
+[1]dwhc_submit_block_request: failed bulk or interrupt xter
+[1]usb_cdcether_receive_frame: failed submit block request
+[3]dwhc_submit_block_request: failed bulk or interrupt xter
+[3]usb_cdcether_receive_frame: failed submit block request
+[2]dwhc_submit_block_request: failed bulk or interrupt xter
+[2]usb_cdcether_receive_frame: failed submit block request
+[1]dwhc_submit_block_request: failed bulk or interrupt xter
+[0]dwhc_start_channel: host=0xffff000000a40ed8, channel=-763359352      // channel番号がマイナス
+[1]usb_cdcether_receive_frame: kern/usb/dwhc_device.c:804: assertion failed.
+QEMU: Terminated
+```

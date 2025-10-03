@@ -102,11 +102,18 @@ int ether_input_helper(struct net_device *dev, ether_input_func_t callback)
         return -ENOMEM;
     }
     flen = callback(dev, frame, ETHER_FRAME_SIZE_MAX);
+    // データがない場合は何もしない.
+    if (flen < 0) {
+        memory_free(frame);
+        return -1;
+    }
+
     if (flen < (ssize_t)sizeof(*hdr)) {
         error("too short");
         memory_free(frame);
         return -1;
     }
+    debug("flen: %d");
     hdr = (struct ether_hdr *)frame;
     if (memcmp(dev->addr, hdr->dst, ETHER_ADDR_LEN) != 0) {
         if (memcmp(ETHER_ADDR_BROADCAST, hdr->dst, ETHER_ADDR_LEN) != 0) {

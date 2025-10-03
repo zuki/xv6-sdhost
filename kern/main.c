@@ -51,7 +51,6 @@ main()
 #endif
         user_init();
         binit();
-        kthread_created(kthread_test);
         // Tests
 #if 0
         mbox_test();

@@ -88,17 +88,17 @@ thisproc()
     return thiscpu()->proc;
 }
 
-void proc_init();
-void user_init();
-void scheduler();
+void proc_init(void);
+void user_init(void);
+void scheduler(void);
 void sleep(void *chan, struct spinlock *lk);
 void wakeup(void *chan);
-void yield();
-void exit(int);
-int  wait();
-int  fork();
+void yield(void);
+void exit(int err);
+int  wait(void);
+int  fork(void);
 void procdump();
-void kthread_test(void);
-void kthread_created(void(*func)());
+void kthread_read_ether(void);
+void kthread_created(void(*func)(void));
 
 #endif

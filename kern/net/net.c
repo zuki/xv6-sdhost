@@ -116,9 +116,10 @@ struct net_device *net_device_by_name(const char *name)
     struct net_device *entry;
 
     for (entry = devices; entry; entry = entry->next) {
-        trace("name: %s, dev->name: %d", name, entry->name);
         if (strcmp(entry->name, name) == 0) {
             break;
+        } else {
+            debug("name: %s, dev->name: %s", name, entry->name);
         }
     }
     return entry;
@@ -358,6 +359,7 @@ static int netinit(void)
         error("intr_init() failure");
         return -1;
     }
+
     if (ip_init() == -1) {
         error("ip_init() failure");
         return -1;

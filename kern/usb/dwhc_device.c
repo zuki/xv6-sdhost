@@ -669,6 +669,7 @@ boolean dwhc_xfer_stage(dwhc_device_t *self, usb_request_t *urb, boolean in, boo
     if (!dwhc_xfer_stage_async(self, urb, in, stage, timeout)) {
         self->waiting[wblk] = false;
         dwhc_free_wblock(self, wblk);
+        error("xfer_stage_async failed");
         return false;
     }
     trace("wait for wblk");
@@ -799,6 +800,8 @@ void dwhc_start_channel(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
     trace("host=0x%p, channel=%d", self, stdata->channel);
     // 1. 使用するチャネルを特定
     unsigned channel = stdata->channel;
+    if (channel >= self->channels)
+        debug("host=0x%p, channel=%d", self, stdata->channel);
     assert(channel < self->channels);
 
     // 2. サブステータスを転送完了に
@@ -1214,8 +1217,10 @@ void dwhc_intr_hdl(dwhc_device_t *self)
 
     uint32_t intstat;
     intstat = get32(DWHCI_CORE_INT_STAT);
+#if 0
     if (intstat & DWHCI_CORE_INT_STAT_RXFLVL)
         debug("[%d](%d) USB int: 0x%x", cpuid(), thisproc()->pid, intstat);
+#endif
 
 #ifdef USE_USB_SOF_INTR
     // [3] SOF, マイクロSOF, Keep-AliveがUSBで送信された
@@ -1243,6 +1248,7 @@ void dwhc_intr_hdl(dwhc_device_t *self)
         }
     }
 
+#if 0
     if (intstat & DWHCI_CORE_INT_STAT_RXFLVL) {
         debug("DWHCI_CORE_INT_STAT_RXFLVL: 0x%x", intstat);
         uint32_t rx_stat = get32(DWHCI_CORE_RX_STAT_RD);
@@ -1255,6 +1261,7 @@ void dwhc_intr_hdl(dwhc_device_t *self)
 #endif
         }
     }
+#endif
 
 /* plug and play関連
     if (self->pap) {

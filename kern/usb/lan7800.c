@@ -577,7 +577,7 @@ int lan7800_net_init(lan7800_t *self)
 
 void lan7800_net_handler(void)
 {
-    struct net_device *dev = net_device_by_name("eth00");
+    struct net_device *dev = net_device_by_name("net0");
     if (!dev) return;
 
     if (ether_input_helper(dev, lan7800_receive_frame) == 0)

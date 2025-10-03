@@ -15,6 +15,7 @@
 #include <log.h>
 #include <usb.h>
 #include <net/net.h>
+#include <rtc.h>
 
 extern void trapret();
 extern void swtch(struct context **old, struct context *new);
@@ -38,7 +39,7 @@ struct proc *initproc;
 static int pid = 0;
 
 void
-proc_init()
+proc_init(void)
 {
     list_init(&ptable.sched_que);
     for (int i = 0; i < SQSIZE; i++)
@@ -53,7 +54,7 @@ proc_init()
  * Otherwise return 0.
  */
 static struct proc *
-proc_alloc()
+proc_alloc(void)
 {
     struct proc *p;
     int found = 0;
@@ -127,7 +128,7 @@ proc_initx(char *name, char *code, size_t len)
 
 /* Initialize per-cpu idle process. */
 static void
-idle_init()
+idle_init(void)
 {
     extern char ispin[], eicode[];
     thiscpu()->idle = proc_initx("idle", ispin, (size_t)(eicode - ispin));
@@ -135,7 +136,7 @@ idle_init()
 
 /* Set up the first user process. */
 void
-user_init()
+user_init(void)
 {
     extern char icode[], eicode[];
     struct proc *p = proc_initx("icode", icode, (size_t)(eicode - icode));
@@ -157,7 +158,7 @@ user_init()
  *   via swtch back to the scheduler.
  */
 void
-scheduler()
+scheduler(void)
 {
     idle_init();
     for (struct proc * p;;) {
@@ -182,7 +183,7 @@ scheduler()
  * will swtch here. "Return" to user space.
  */
 static void
-forkret()
+forkret(void)
 {
     static int first = 1;
     if (first && thisproc() != thiscpu()->idle) {
@@ -192,10 +193,11 @@ forkret()
         sd_init();
         iinit(ROOTDEV);
         initlog(ROOTDEV);
-#if 0
+#if 1
         usb_init();
         net_init();
         net_run();
+        kthread_created(kthread_read_ether);
 #endif
     } else {
         release(&ptable.lock);
@@ -205,7 +207,7 @@ forkret()
 
 /* Give up CPU. */
 void
-yield()
+yield(void)
 {
     struct proc *p = thisproc();
     acquire(&ptable.lock);
@@ -284,7 +286,7 @@ wakeup(void *chan)
  * Caller must set state of returned proc to RUNNABLE.
  */
 int
-fork()
+fork(void)
 {
     struct proc *cp = thisproc();
     struct proc *np = proc_alloc();
@@ -340,7 +342,7 @@ fork()
  * Return -1 if this process has no children.
  */
 int
-wait()
+wait(void)
 {
     struct proc *cp = thisproc();
 
@@ -430,7 +432,7 @@ exit(int err)
  * Runs when user types ^P on console.
  */
 void
-procdump()
+procdump(void)
 {
     static char *states[] = {
         [UNUSED] "unused",
@@ -458,7 +460,7 @@ procdump()
 
 extern uint64_t kpgdir;
 
-void kthread_created(void(*func)())
+void kthread_created(void(*func)(void))
 {
     struct proc *p;
 
@@ -469,7 +471,7 @@ void kthread_created(void(*func)())
     // and data into it.
     //uvminit(p->pagetable, initcode, sizeof(initcode));
     p->sz = PGSIZE;
-    safestrcpy(p->name,"test",sizeof(p->name));
+    safestrcpy(p->name,"rxether",sizeof(p->name));
     p->context->lr = (uint64_t)func;
 
     // prepare for the very first "return" from kernel to user.
@@ -484,12 +486,15 @@ void kthread_created(void(*func)())
     release(&ptable.lock);
 }
 
-void kthread_test(void)
+void kthread_read_ether(void)
 {
     while(1) {
-        debug("kthread");
-        delayus(1000000);
-        thisproc()->state = RUNNABLE;
+#ifdef USING_RASPI
+        lan7800_net_handler();
+#else
+        usb_cdcether_net_handler();
+#endif
+        //thisproc()->state = RUNNABLE;
         yield();
     }
 }
