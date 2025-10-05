@@ -30,7 +30,7 @@ typedef struct spinlock mutex_t;
 
 static inline int mutex_init(mutex_t *mutex)
 {
-    initlock(mutex);
+    initlock(mutex, "mutext");
     return 0;
 }
 

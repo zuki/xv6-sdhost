@@ -7,7 +7,7 @@ static struct spinlock randlock;
 void
 rand_init(void)
 {
-    initlock(&randlock);
+    initlock(&randlock, "rand");
     // mask interrupt
     acquire(&randlock);
     uint32_t mask = get32(RNG_INT_MASK);

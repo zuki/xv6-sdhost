@@ -37,7 +37,7 @@ sd_init(void)
     char buf[BSIZE];
 
     list_init(&sdque);
-    initlock(&cardlock);
+    initlock(&cardlock, "card");
 
 #if RASPI == 3
     irq_enable(IRQ_SDIO);
@@ -92,7 +92,7 @@ static void sd_start(void)
     //uint32_t bno;
     while (!list_empty(&sdque)) {
         struct buf *b =
-            container_of(list_front(&sdque), struct buf, dlink);      
+            container_of(list_front(&sdque), struct buf, dlink);
 
         //bno = b->blockno + ptinfo[b->dev].lba;
         emmc_seek(&card, b->blockno * SECTOR_SIZE);

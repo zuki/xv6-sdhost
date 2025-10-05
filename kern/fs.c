@@ -181,7 +181,7 @@ iinit(int dev)
 {
     int i = 0;
 
-    initlock(&icache.lock);
+    initlock(&icache.lock, "inode");
     for (i = 0; i < NINODE; i++) {
         initsleeplock(&icache.inode[i].lock, "inode");
     }
@@ -283,7 +283,7 @@ iget(uint32_t dev, uint32_t inum)
     return ip;
 }
 
-/* 
+/*
  * Increment reference count for ip.
  * Returns ip to enable ip = idup(ip1) idiom.
  */
@@ -296,7 +296,7 @@ idup(struct inode *ip)
     return ip;
 }
 
-/* 
+/*
  * Lock the given inode.
  * Reads the inode from disk if necessary.
  */
@@ -424,7 +424,7 @@ bmap(struct inode *ip, uint32_t bn)
     }
 
     bn -= NINDIRECT;
- 
+
     if (bn < NINDIRECT2) {
         // Load indirect block, allocating if necessary.
         if ((addr = ip->addrs[NDIRECT+1]) == 0) {
@@ -729,7 +729,7 @@ skipelem(const char *path, char *name)
 }
 
 /* Look up and return the inode for a path name.
- * 
+ *
  * If parent != 0, return the inode for the parent and copy the final
  * path element into name, which must have room for DIRSIZ bytes.
  * Must be called inside a transaction since it calls iput().

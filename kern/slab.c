@@ -121,7 +121,7 @@ static struct slab_cache *slab_cache_new(void) {
     cache->next = NULL;
 
     /* 5. slab_cache lockを初期化する */
-    initlock(&cache->lock);
+    initlock(&cache->lock, "cache");
 
     trace("cache: %08p, free_cache_head: %08p", cache, free_cache_head);
 
@@ -161,7 +161,7 @@ void slab_cache_init(void) {
         trace("i: %d, page_size: 0x%x, limits: %d", i, slab_size, slab_size_limits[i]);
     }
 
-    initlock(&slab_lock);
+    initlock(&slab_lock, "slab");
 
     free_cache_head = NULL;
 }

@@ -156,7 +156,7 @@ void buddy_init(void) {
         panic("fix PAGE_START");
 
     /* 1. buddyシステムのロックを初期化 */
-    initlock(&buddy_lock);
+    initlock(&buddy_lock, "buddy");
 
     /* 2. 配列 free_lists[PAGE_MAX_DEPTH] を0クリアする
      *        free_listはブロックごとに1つずつある */

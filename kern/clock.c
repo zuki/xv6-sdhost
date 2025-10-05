@@ -76,7 +76,7 @@ void clock_init()
     irq_register(IRQ_LOCAL_TIMER, clock_intr, 0);
 #endif
 
-    initlock(&clocklock);
+    initlock(&clocklock, "clock");
     if (rtc_gettime(&xtime) < 0) {
         xtime.tv_nsec = 0L;
         xtime.tv_sec = 1757378760L;      // 2025/09/09 09:46:00 JST

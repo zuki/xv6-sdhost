@@ -18,7 +18,7 @@ struct {
 void
 fileinit()
 {
-    initlock(&ftable.lock);
+    initlock(&ftable.lock, "file");
 }
 
 /* Allocate a file structure. */

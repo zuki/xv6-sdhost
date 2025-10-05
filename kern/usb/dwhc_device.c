@@ -112,10 +112,10 @@ void dwhc_device(dwhc_device_t *self)
     self->allocated_wkblock = 0;
     self->root_port_enabled = false;
     self->shutdown = false;
-    initlock(&self->chanlock);
-    initlock(&self->wblklock);
-    initlock(&self->imasklock);
-    initlock(&self->hublock);
+    initlock(&self->chanlock, "chan");
+    initlock(&self->wblklock, "wblk");
+    initlock(&self->imasklock, "imask");
+    initlock(&self->hublock, "hub");
     list_init(&self->hublist);
 #ifdef USE_USB_SOF_INTR
     list_init(&self->tqueue);

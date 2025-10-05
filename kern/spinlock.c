@@ -3,9 +3,10 @@
 #include <console.h>
 
 void
-initlock(struct spinlock *lk)
+initlock(struct spinlock *lk, char *name)
 {
     lk->locked = 0;
+    lk->name = name;
 }
 
 void
@@ -18,7 +19,9 @@ acquire(struct spinlock *lk)
 void
 release(struct spinlock *lk)
 {
-    if (!lk->locked)
+    if (!lk->locked) {
+        error("name: %s", lk->name);
         panic("release: not locked\n");
+    }
     __atomic_clear(&lk->locked, __ATOMIC_RELEASE);
 }

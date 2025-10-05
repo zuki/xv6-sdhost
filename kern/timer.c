@@ -40,7 +40,7 @@ void timer_init()
     irq_register(IRQ_LOCAL_CNTPNS, timer_intr, 0);
 #endif
 
-    initlock(&timerlock);
+    initlock(&timerlock, "timer");
     list_init(&timer_list.list);
 }
 
