@@ -8,6 +8,7 @@
 #include <spinlock.h>
 #include <rtc.h>
 #include <linux/errno.h>
+#include <net/net.h>
 
 /* ARM 64bit ローカルタイマー : 19.2 MHzのU/Dエッジでカウント */
 /* ローカルタイマー割り込みルーティングレジスタ */

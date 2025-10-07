@@ -51,7 +51,7 @@ struct arp_cache {
     struct timeval timestamp;
 };
 
-static mutex_t mutex = MUTEX_INITIALIZER;
+static mutex_t mutex; // = MUTEX_INITIALIZER;
 static struct arp_cache caches[ARP_CACHE_SIZE];
 
 static char *arp_opcode_ntoa(uint16_t opcode)
@@ -213,7 +213,7 @@ static void arp_input(const uint8_t *data, size_t len, struct net_device *dev)
     ip_addr_t spa, tpa;
     int marge = 0;
     struct net_iface *iface;
-
+    debug("data: 0x%p, size: %ld, device: %s", data, len, dev->name);
     if (len < sizeof(*msg)) {
         error("too short");
         return;
@@ -293,7 +293,7 @@ int arp_resolve(struct net_iface *iface, ip_addr_t pa, uint8_t *ha)
     return ARP_RESOLVE_FOUND;
 }
 
-static void arp_timer_handler(void)
+static void arp_timer_handler(uint64_t params)
 {
     struct arp_cache *entry;
     struct timeval now, diff;
@@ -313,15 +313,16 @@ static void arp_timer_handler(void)
 
 int arp_init(void)
 {
-    struct timeval interval = {1, 0}; /* 1s */
+    int interval = 1000; /* 1000ms = 1s */
+
+    mutex_init(&mutex, "arp_mutex");
 
     if (net_protocol_register(NET_PROTOCOL_TYPE_ARP, arp_input) == -1) {
         error("net_protocol_register() failure");
         return -1;
     }
-    if (net_timer_register(interval, arp_timer_handler) == -1) {
-        error("net_timer_register() failure");
-        return -1;
-    }
+
+    net_timer_register(MSEC2HZ(interval), arp_timer_handler, 0, 0);
+
     return 0;
 }

@@ -2,6 +2,7 @@
 #include <net/socket.h>
 #include <net/sockio.h>
 #include <net/if.h>
+#include <net/ip.h>
 #include <net/udp.h>
 #include <net/tcp.h>
 #include <net/platform.h>
@@ -19,8 +20,8 @@ int socket_alloc(int domain, int type, int protocol)
     struct file *f;
     struct socket *s;
 
-    if (domain != AF_INET || protocol != 0) {
-        error("bad domain: %d or porotocol: %d", domain, protocol);
+    if (domain != AF_INET || (protocol != 0 && protocol != IP_PROTOCOL_ICMP && protocol != IP_PROTOCOL_TCP && protocol != IP_PROTOCOL_UDP)) {
+        error("bad domain: %d or protocol: %d", domain, protocol);
         return -EINVAL;
     }
     f = filealloc();

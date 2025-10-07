@@ -170,7 +170,6 @@ void _usb_device(usb_dev_t *self)
 
 boolean usb_dev_init(usb_dev_t *self)
 {
-    trace("usb_dev_init start");
     assert (self->dev_desc == 0);
     // FIXME: 64 byte alignのメモリアロケータを作成する
     //self->dev_desc = (usb_dev_desc_t *) kmalloc(sizeof (usb_dev_desc_t));
@@ -187,7 +186,6 @@ boolean usb_dev_init(usb_dev_t *self)
         self->dev_desc = 0;
         return false;
     }
-
     if (self->dev_desc->length != sizeof *self->dev_desc
      || self->dev_desc->type   != DESCRIPTOR_DEVICE) {
         error("Invalid device descriptor");
@@ -211,7 +209,6 @@ boolean usb_dev_init(usb_dev_t *self)
         self->dev_desc = 0;
         return false;
     }
-
     dmb();
     //debug_struct("dev_desc", self->dev_desc, sizeof *self->dev_desc);
 
@@ -228,7 +225,6 @@ boolean usb_dev_init(usb_dev_t *self)
         return false;
     }
     self->addr = addr;
-    trace("4");
     // 5. コンフィグレーションディスクリプタ（先頭のconfig_descのみ）を仮設定
     assert (self->cfg_desc == 0);
     // FIXME
@@ -268,7 +264,6 @@ boolean usb_dev_init(usb_dev_t *self)
     }
     dmb();
     //debug_struct("config_desc(8)", self->cfg_desc, sizeof(usb_cfg_desc_t));
-
     trace("5.4");;
     // 6. 正式版のコンフィグレーションディスクリプタを取得
     unsigned total = self->cfg_desc->total;
@@ -291,7 +286,6 @@ boolean usb_dev_init(usb_dev_t *self)
         self->cfg_desc = 0;
         return false;
     }
-    trace("6");
     //dmb();
     //debug_struct("config_desc", self->cfg_desc, (uint64_t)total);
 
@@ -304,7 +298,6 @@ boolean usb_dev_init(usb_dev_t *self)
         usb_cfg_parser_error(self->usb_cfg_parser, "usbdevice");
         return false;
     }
-    trace("7");
     // 8. デバイス名を表示
     char *names = (char *)kmalloc(128);
     names = usb_dev_get_names(self);
@@ -331,7 +324,6 @@ boolean usb_dev_init(usb_dev_t *self)
         info("Product: %s %s", self->manufact != 0 ? self->manufact->str : "",
                                self->product != 0 ? self->product->str : "");
     }
-    trace("8");
     // 9. コンフィグレーションディスクリプタからインタフェースを取得する
     unsigned i = 0;
     uint8_t num = 0;
@@ -394,7 +386,7 @@ boolean usb_dev_init(usb_dev_t *self)
         warn("Device has no supported function");
         return false;
     }
-    trace("9");
+    trace("b");
     return true;
 }
 

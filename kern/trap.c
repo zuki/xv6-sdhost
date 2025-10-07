@@ -48,7 +48,8 @@ void trap_init()
 void trap(struct trapframe *tf)
 {
     uint64_t esr = resr();
-    //uint64_t far = rfar();
+    uint64_t far = rfar();
+    uint64_t elr = relr();
     int ec  = (int)(esr >> EC_SHIFT);
     int iss = (int)(esr & ISS_MASK);
     int il  = (int)(esr & IR_MASK);
@@ -74,7 +75,7 @@ void trap(struct trapframe *tf)
         break;
 
     default:
-        info("unknown trap code: %d", ec);
+        info("unknown trap code: %d at 0x%llx with 0x%llx", ec, elr, far);
         exit(1);
     }
     softintr();

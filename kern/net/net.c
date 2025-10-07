@@ -4,6 +4,7 @@
 #include <net/net.h>
 #include <net/platform.h>
 #include <linux/time.h>
+#include <timer.h>
 #include <clock.h>
 #include <console.h>
 #include <string.h>
@@ -199,6 +200,18 @@ int net_protocol_register(uint16_t type, void (*handler)(const uint8_t *data, si
 }
 
 /* NOTE: must not be call after net_run() */
+void net_timer_register(uint64_t expires, fn handler, void *param, void *context) {
+    struct timer_list *timer = (struct timer_list *)alloc_timer();
+    uint64_t *params = (uint64_t *)kmalloc(2 * sizeof(uint64_t));
+    params[0] = (uint64_t)param;
+    params[1] = (uint64_t)context;
+    timer->expires = expires;
+    timer->data = (uint64_t)params;
+    timer->fn = handler;
+    add_timer(timer);
+}
+
+#if 0
 int net_timer_register(struct timeval interval, void (*handler)(void))
 {
     struct net_timer *timer;
@@ -216,6 +229,7 @@ int net_timer_register(struct timeval interval, void (*handler)(void))
     info("registered: interval={%d, %d}", interval.tv_sec, interval.tv_usec);
     return 0;
 }
+#endif
 
 int net_timer_handler(void)
 {

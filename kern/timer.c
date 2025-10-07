@@ -3,9 +3,11 @@
 #include <base.h>
 #include <irq.h>
 #include <console.h>
+#include <mm.h>
 #include <proc.h>
 #include <spinlock.h>
 #include <rtc.h>
+#include <slab.h>
 #include <linux/time.h>
 
 /* コア(n)割り込み制御レジスタ : 0x4000_0040 + (4 * n) */
@@ -21,6 +23,8 @@ struct spinlock timerlock;
 static struct timer_list timer_list;
 /* 次のタイマー発火までのticks */
 static uint64_t timer_jiffies = 0;
+
+static struct slab_cache *TIMERS;
 
 void timer_init()
 {
@@ -42,6 +46,7 @@ void timer_init()
 
     initlock(&timerlock, "timer");
     list_init(&timer_list.list);
+    TIMERS = slab_cache_create("timer_list", sizeof(struct timer_list), 64);
 }
 
 static void timer_reset()
@@ -104,6 +109,17 @@ static void update_proc_time(int user_mode)
 }
 #endif
 
+struct timer_list *alloc_timer(void)
+{
+    struct timer_list *timer = (struct timer_list *)slab_cache_alloc(TIMERS);
+    timer->list.next = timer->list.prev = NULL;
+    return timer;
+}
+
+void free_timer(struct timer_list *timer) {
+    slab_cache_free(TIMERS, timer);
+}
+
 /* タイマーを登録から外す */
 static inline int detach_timer(struct timer_list *timer)
 {
@@ -128,6 +144,7 @@ bug:
             __builtin_return_address(0));
 }
 
+// TODO: return値がokの場合、1になっているのを修正
 /* タイアーを削除する */
 int del_timer(struct timer_list * timer)
 {
@@ -137,6 +154,9 @@ int del_timer(struct timer_list * timer)
     ret = detach_timer(timer);                      // 1. リストから削除
     timer->list.next = timer->list.prev = NULL;     // 2. 内部リストからクリア
     release(&timerlock);
+    if (timer->data != 0)
+        kmfree((void *)timer->data);
+    free_timer(timer);
     return ret;
 }
 

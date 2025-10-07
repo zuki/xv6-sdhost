@@ -28,9 +28,9 @@ typedef struct spinlock mutex_t;
 
 #define MUTEX_INITIALIZER {0}
 
-static inline int mutex_init(mutex_t *mutex)
+static inline int mutex_init(mutex_t *mutex, char *name)
 {
-    initlock(mutex, "mutext");
+    initlock(mutex, name);
     return 0;
 }
 

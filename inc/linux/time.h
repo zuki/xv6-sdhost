@@ -4,9 +4,12 @@
 #include <types.h>
 #include <list.h>
 
-#define HZ 100
-#define TICK_USEC (10000UL)
-#define TICK_NSEC (10000000UL)
+#define HZ                  100
+#define MSEC2HZ(msec)       ((msec) * HZ / 1000)
+#define TICK_USEC           (10000UL)
+#define TICK_NSEC           (10000000UL)
+
+typedef void(*fn)(uint64_t);
 
 struct timeval {
     time_t      tv_sec;     /* 秒 */
@@ -55,7 +58,6 @@ extern struct timespec xtime;
 
 #define TIME_UTC                1
 
-// FIXEME: externは必要？
 // タイマーの登録
 extern void add_timer(struct timer_list *timer);
 // タイマーのキャンセル

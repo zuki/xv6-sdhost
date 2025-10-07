@@ -439,9 +439,10 @@ static ssize_t ip_output_core(struct ip_iface *iface, uint8_t protocol,
     return ret;
 }
 
+static mutex_t mutex; // = MUTEX_INITIALIZER;
+
 static uint16_t ip_generate_id(void)
 {
-    static mutex_t mutex = MUTEX_INITIALIZER;
     static uint16_t id = 128;
     uint16_t ret;
 
@@ -489,6 +490,8 @@ ssize_t ip_output(uint8_t protocol, const uint8_t *data, size_t len, ip_addr_t s
 
 int ip_init(void)
 {
+    mutex_init(&mutex, "ip_mutex");
+
     if (net_protocol_register(NET_PROTOCOL_TYPE_IP, ip_input) == -1) {
         error("net_protocol_register() failure");
         return -1;

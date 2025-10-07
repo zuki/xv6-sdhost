@@ -86,6 +86,7 @@ uint32_t usb_request_get_buflen(usb_request_t *self)
 
 void usb_request_set_comp_cb(usb_request_t *self, usb_comp_cb *cb, void *param, void *ctx)
 {
+    trace("cb: 0x%p, param: 0x%p, ctx: 0x%p", cb, param, ctx);
     self->cb    = cb;
     self->param = param;
     self->ctx   = ctx;

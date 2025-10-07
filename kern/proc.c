@@ -197,7 +197,7 @@ forkret(void)
         usb_init();
         net_init();
         net_run();
-        kthread_created(kthread_read_ether);
+        //kthread_created(kthread_read_ether);
 #endif
     } else {
         release(&ptable.lock);

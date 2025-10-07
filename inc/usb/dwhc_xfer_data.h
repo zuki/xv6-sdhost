@@ -32,9 +32,12 @@
 
 #define USB_TIMEOUT_NONE    0    // Wait forever
 
+// 先頭をDMAキャッシュアライン(64)に合わせる
+;
 typedef struct dwhc_xfer_data {
+    uint32_t        buffer[16];         ///< DMA buffer
     unsigned        channel;            ///< チャネル
-    usb_request_t      *urb;                ///< リクエスト
+    usb_request_t   *urb;                ///< リクエスト
     boolean         in;                 ///< 方向（INか）
     boolean         ststatus;           ///< ステージステータス
 
@@ -43,7 +46,7 @@ typedef struct dwhc_xfer_data {
     unsigned        timeout;            ///< タイムアウト
 
     usb_dev_t      *dev;                ///< デバイス
-    usb_endpoint_t       *ep;                 ///< エンドポイント
+    usb_endpoint_t *ep;                 ///< エンドポイント
     usb_speed_t     speed;              ///< 速度
     uint32_t        xpsize;             ///< 最大パケットサイズ
 
@@ -57,8 +60,6 @@ typedef struct dwhc_xfer_data {
     unsigned        substate;           ///< 副状態
     uint32_t        trstatus;           ///< トランザクション状態
     unsigned        err_cnt;            ///< エラー数
-
-    uint32_t        buffer[16] GALIGN(4);   ///< DMA buffer
     const void     *buffp;              ///< バッファへのポインタ
 
     unsigned        start;              ///< スタート時(tickHZ)
@@ -71,6 +72,11 @@ typedef struct dwhc_xfer_data {
         dwhc_non_split_t    nosplit;
     } scheduler;                           ///< フレームスケジューラ
 } dwhc_xfer_data_t;
+
+void dwhc_xfer_data_init(void);
+
+dwhc_xfer_data_t *dwhc_xfer_data_alloc(void);
+void dwhc_xfer_data_free(dwhc_xfer_data_t *stdata);
 
 void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb, boolean in, boolean ststatus, unsigned timeout);
 

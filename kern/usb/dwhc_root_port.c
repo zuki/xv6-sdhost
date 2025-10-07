@@ -43,17 +43,16 @@ void _dwhc_root_port(dwhc_root_port_t *self)
 
 boolean dwhc_root_port_init(dwhc_root_port_t *self)
 {
+    trace("start");
     // 1. speedをチェック
     usb_speed_t speed = dwhc_get_port_speed(self->host);
     if (speed == usb_speed_unknown) {
         error("cannot detect port speed");
         return false;
     }
-
     // 2. デフォルトデバイスを作成
     self->dev = (usb_dev_t *)kmalloc(sizeof(usb_dev_t));
     usb_device(self->dev, self->host, speed, self);
-
     // 3. デフォルトデバイスの初期化
     if (!usb_dev_init(self->dev)) {
         _usb_device(self->dev);
@@ -61,7 +60,6 @@ boolean dwhc_root_port_init(dwhc_root_port_t *self)
         self->dev = 0;
         return false;
     }
-    trace("3");
     // 4. デフォルトデバイスのコンフィグレーション
     if (!usb_dev_config(self->dev)) {
         error("cannot configure device");
@@ -70,7 +68,6 @@ boolean dwhc_root_port_init(dwhc_root_port_t *self)
         self->dev = 0;
         return false;
     }
-    trace("4");
     // 5. 過電流を検知したらルートポートは無効としてFALSEを返す
     if (dwhc_overcurrent_detected(self->host)) {
         error("Over-current condition");

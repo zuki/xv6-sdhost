@@ -26,11 +26,14 @@
 #include <types.h>
 #include <console.h>
 #include <debug.h>
+#include <slab.h>
 #include <linux/time.h>
 
 #define MAX_BULK_TRIES      8
 
 #define BTF(x) ((x) ? "true" : "false")
+
+static struct slab_cache *STDATA;
 
 void
 debug_stdata(dwhc_xfer_data_t *self)
@@ -42,6 +45,22 @@ debug_stdata(dwhc_xfer_data_t *self)
         self->state, self->substate, self->trstatus);
     cprintf("    : buffp: 0x%p, bpt: %d, ppt: %d, packets: %d\n\n",
         self->buffp, self->bpt, self->ppt, self->packets);
+}
+
+void dwhc_xfer_data_init(void)
+{
+    STDATA = slab_cache_create("stdata", sizeof(dwhc_xfer_data_t), 64);
+}
+
+
+dwhc_xfer_data_t *dwhc_xfer_data_alloc(void)
+{
+    return (dwhc_xfer_data_t *)slab_cache_alloc(STDATA);
+}
+
+void dwhc_xfer_data_free(dwhc_xfer_data_t *stdata)
+{
+    slab_cache_free(STDATA, stdata);
 }
 
 void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb, boolean in, boolean ststatus, unsigned timeout)
@@ -93,7 +112,7 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
             self->ppt = self->packets;
         }
     } else {
-        self->buffp = &self->buffer;
+        self->buffp = self->buffer;    // TODO: &を取る?
 
         self->xfersize = 0;
         self->bpt = 0;

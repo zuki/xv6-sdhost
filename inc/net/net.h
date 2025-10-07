@@ -81,8 +81,7 @@ int net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data
 
 int net_protocol_register(uint16_t type, void (*handler)(const uint8_t *data, size_t len, struct net_device *dev));
 
-int net_timer_register(struct timeval interval, void (*handler)(void));
-int net_timer_handler(void);
+void net_timer_register(uint64_t expires, fn handler, void *param, void *context);
 
 int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net_device *dev);
 int net_softirq_handler(void);

@@ -180,7 +180,7 @@ static ssize_t usb_cdcether_receive_frame(struct net_device *dev, uint8_t *buf, 
     urb.onnak = true;
     trace("submit block req: buf=%p, size: %lld", buf, size);
     if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {
-        error("failed submit block request");
+        trace("failed submit block request");
         return -1;
     }
 

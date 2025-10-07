@@ -47,7 +47,7 @@ struct udp_queue_entry {
     uint8_t data[];
 };
 
-static mutex_t mutex = MUTEX_INITIALIZER;
+static mutex_t mutex; // = MUTEX_INITIALIZER;
 static struct udp_pcb pcbs[UDP_PCB_SIZE];
 
 static void udp_dump(const uint8_t *data, size_t len)
@@ -261,6 +261,8 @@ static void event_handler(void *arg)
 
 int udp_init(void)
 {
+    mutex_init(&mutex, "udp_mutex");
+
     if (ip_protocol_register(IP_PROTOCOL_UDP, udp_input) == -1) {
         error("ip_protocol_register() failure");
         return -1;
@@ -384,7 +386,7 @@ ssize_t udp_recvfrom(int id, uint8_t *buf, size_t size, struct ip_endpoint *fore
     struct udp_queue_entry *entry;
     ssize_t len;
     int err;
-
+    trace("id: %d, buf: 0x%p, size: %ld", id, buf, size);
     mutex_lock(&mutex);
     pcb = udp_pcb_get(id);
     if (!pcb) {
@@ -414,6 +416,7 @@ ssize_t udp_recvfrom(int id, uint8_t *buf, size_t size, struct ip_endpoint *fore
     mutex_unlock(&mutex);
     if (foreign) {
         *foreign = entry->foreign;
+        debug("foreign addr: 0x%x, port: %d", entry->foreign.addr, entry->foreign.port);
     }
     len = MIN(size, entry->len); /* truncate */
     memcpy(buf, entry->data, len);

@@ -10,6 +10,8 @@
 #include <random.h>
 #include <string.h>
 #include <linux/errno.h>
+#include <linux/time.h>
+#include <timer.h>
 
 #define TCP_FLG_FIN 0x01
 #define TCP_FLG_SYN 0x02
@@ -112,7 +114,7 @@ struct tcp_queue_entry {
     uint8_t data[];
 };
 
-static mutex_t mutex = MUTEX_INITIALIZER;
+static mutex_t mutex; // = MUTEX_INITIALIZER;
 static struct tcp_pcb pcbs[TCP_PCB_SIZE];
 
 static char *tcp_flg_ntoa(uint8_t flg)
@@ -741,7 +743,7 @@ static void tcp_input(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t 
     return;
 }
 
-static void tcp_timer(void)
+static void tcp_timer(uint64_t params)
 {
     struct tcp_pcb *pcb;
 
@@ -770,16 +772,15 @@ static void event_handler(void *arg)
 
 int tcp_init(void)
 {
-    struct timeval interval = {0,100000}; /* 100ms */
+    int interval = 100; /* 100ms */
+    mutex_init(&mutex, "tcp_mutex");
 
     if (ip_protocol_register(IP_PROTOCOL_TCP, tcp_input) == -1) {
         error("ip_protocol_register() failure");
         return -1;
     }
-    if (net_timer_register(interval, tcp_timer) == -1) {
-        error("net_timer_register() failure");
-        return -1;
-    }
+
+    net_timer_register(MSEC2HZ(interval), tcp_timer, 0, 0);
     net_event_subscribe(event_handler, NULL);
     return 0;
 }
