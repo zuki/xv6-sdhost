@@ -76,13 +76,18 @@ static struct slab_header *slab_new(const struct slab_cache *cache) {
     /* free objリストの直後, header->freeは4バイト、+ 1はSLAB_FREE_END用 */
     header->object = (void *)(header->free + max_object_num + 1);
     if (cache->alignment)
-        header->object = (void *)(((uint64_t)header->object + (cache->alignment - 1)) & ~(cache->alignment - 1));
+        header->object = (void *)ROUNDUP((uint64_t)header->object, cache->alignment);
+        //header->object = (void *)(((uint64_t)header->object + ((uint64_t)cache->alignment - 1)) & ~((uint64_t)cache->alignment - 1));
     /* 3. free objectリストに次のobject番号をセットする: 0->1->2->...->14->SLAB_FREE_END */
     for (i = 0; i < max_object_num; ++i) {
         header->free[i] = i + 1;
     }
     /* 3.1 最後に終了マークをセットする */
     header->free[max_object_num] = SLAB_FREE_END;
+
+    trace("[0x%p] name: %s, obj_num: %d", cache, cache->name, max_object_num);
+    trace("  header: 0x%p, free: 0x%p, object: 0x%p", header, header->free, header->object);
+    //hexdump(header, sizeof(struct slab_header)+4*(max_object_num+1)+8);
 
     return header;
 }
@@ -194,7 +199,7 @@ struct slab_cache *slab_cache_create(const char *name, size_t size, uint32_t ali
     release(&slab_lock);
 
     /* 5. 名前とオブジェクトサイズを設定する */
-    safestrcpy(cache->name, name, strlen(name));
+    safestrcpy(cache->name, name, strlen(name)+1);
     uint32_t align = alignment ? alignment : 4;         // 最低4バイトアライメント
     cache->object_size = (size + align - 1) & ~(align - 1);
     cache->alignment = alignment;
@@ -208,8 +213,11 @@ struct slab_cache *slab_cache_create(const char *name, size_t size, uint32_t ali
     }
     /* 7. オブジェクトサイズが大きすぎる場合はエラー */
     if (!cache->slab_size) {
+        error("too large object_size");
         return NULL;
     }
+
+    trace("[0x%p] name: %s, next: 0x%p\n  slab_size: %d, obj_size: %d, alignment: %d\n  full: 0x%p, partial: 0x%p", cache, cache->name, cache->next, cache->slab_size, cache->object_size, cache->alignment, cache->slabs_full, cache->slabs_partial);
 
     return cache;
 }
@@ -271,11 +279,12 @@ void *slab_cache_alloc(struct slab_cache *cache) {
     /* 4. フリーリストを更新する */
     free_list = (uint32_t *)(header + 1);       /* free_listの先頭アドレス*/
     index = (uint32_t)(header->free - free_list); /* 使用するフリーオブジェクトのインデックス */
-
+    trace("head->free: 0x%p, free_list: 0x%p, index: %d", header->free, free_list, index);
     next_index = *header->free;                 /* 次のフリーオブジェクトのインデックス */
                                                 /* 初期化時に i+1 が設定されている */
     free_list[index] = SLAB_FREE_END;           /* 使用するオブジェクト位置に空き終了マークを付ける */
     header->free = &free_list[next_index];      /* header->freeを更新する */
+
 
     /* 5. header->freeが終了マークを指した場合はslabs_fullにつなげる */
     if (*header->free == SLAB_FREE_END) {
@@ -294,8 +303,11 @@ void *slab_cache_alloc(struct slab_cache *cache) {
     release(&cache->lock);
 
     /* 7. 割り当てたオブジェクトを返す */
-    trace("obj: 0x%p, size: 0x%x, index: %d", header->object, cache->object_size, index);
-    return (void *)(PAGE_START + (uint64_t)header->object + (cache->object_size * index));
+    trace("START: 0x%llx, head->object: 0x%llx, size: 0x%x, index: %d", (uint64_t)PAGE_START, (uint64_t)header->object, cache->object_size, index);
+    uint64_t obj = (uint64_t)header->object + (uint64_t)(cache->object_size * index);
+    trace("  obj: 0x%p", obj);
+    return (void *)obj;
+    //return (void *)(PAGE_START + (uint64_t)header->object + (cache->object_size * index));
 }
 
 /**
@@ -309,18 +321,24 @@ void slab_cache_free(struct slab_cache *cache, void *obj) {
     uint32_t index, next_index, *free_list;
 
     // FIXME: 実際に使用した場合にこれで問題ないか確認すること
-    obj = (char *)((uint64_t)obj - (uint64_t)PAGE_START);
+    // obj: 0xffff00000108d080, START: 0xffff000000660000
+    // TODO: page_find_by_address()でobj - PAGE_STARTをしているので2重
+    //obj = (char *)((uint64_t)obj - (uint64_t)PAGE_START);
 
     struct page *page = page_find_head(page_find_by_address(obj));
     struct slab_header *header = (void*)page_address(page), *h, **hp;
-
+    trace("header: 0x%p", header);
+    //hexdump(header, sizeof(*header));
     /* 1. lockを取得する */
     acquire(&cache->lock);
 
     /* 2. free_listを求める */
     free_list = (void*)(header + 1);
+    trace("list: 0x%llx", free_list);
     /* 3. オブジェクトのインデックスを求める */
+    //trace("obj: 0x%llx, h->obj: 0x%llx, size: 0x%x", obj, header->object, cache->object_size);
     index = ((uint8_t*)obj - header->object) / cache->object_size;
+    trace("[%s] obj: 0x%p, head->object: 0x%p, index: %d", cache->name, obj, header->object, index);
     /* 4. 次のフリーオブジェクトのインデックスを求める */
     next_index = (uint32_t)(header->free - free_list);
     /* 5. 解放するオブジェクトを次のフリーオブジェクトとする */
