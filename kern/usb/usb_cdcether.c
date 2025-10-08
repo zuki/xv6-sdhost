@@ -274,7 +274,7 @@ int usb_cdcether_net_init(usb_cdcether_t *self)
 
     memcpy(dev->addr, self->macaddr, sizeof(self->macaddr));
     dev->priv = self;
-    memcpy(dev->name, "eth01", sizeof("eth01"));
+    //memcpy(dev->name, "eth01", sizeof("eth01"));
     dev->ops = &usb_cdcether_net_ops;
     trace("call net_device_register");
     if (net_device_register(dev) == -1) {
