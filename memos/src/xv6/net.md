@@ -1224,3 +1224,378 @@ $
 [1]usb_cdcether_receive_frame: kern/usb/dwhc_device.c:804: assertion failed.
 QEMU: Terminated
 ```
+
+## udpecho
+
+```bash
+$ ifconfig net0 192.168.10.111 netmask 255.255.255.0
+[2]socket_alloc: bad domain: 2 or protocol: 0
+$ udpecho
+Starting UDP Echo Server
+socket: success, soc=3
+[1]udp_bind: bound, id=0, local=0.0.0.0:7       // local ipがセットされていない
+bind: success, self=0.0.0.0:7
+waiting for message...
+
+[0]dwhc_start_channel: host=0xffff000000a40ea8, channel=-763359352
+[1]rekleeaser: n/usb/dwhc_device.c:802: assertion failed.
+
+$ udpecho
+Starting UDP Echo Server
+socket: success, soc=3
+[2]udp_bind: bound, id=1, local=0.0.0.0:7
+bind: success, self=0.0.0.0:7
+waiting for message...          // メッセージを受け付けない
+```
+
+```bash
+$ nc -uv 192.168.10.111 7
+Connection to 192.168.10.111 port 7 [udp/echo] succeeded!
+abc         // エコーされない
+```
+
+- trace.log
+
+```bash
+usb_packet_state_change bus 0, port 1.1, ep 2, packet 0x7ff36f179518, state complete -> setup
+usb_packet_state_change bus 0, port 1.1, ep 2, packet 0x7ff36f179518, state setup -> setup
+usb_packet_state_change bus 0, port 1.1, ep 2, packet 0x7ff36f179518, state setup -> setup  // 以後ずっとこの行が続く
+```
+
+- この行を出力しているqemuのコード: `qemu/hw/usb/core.c`
+
+```c
+void usb_packet_set_state(USBPacket *p, USBPacketState state)
+{
+    if (p->ep) {
+        USBDevice *dev = p->ep->dev;
+        USBBus *bus = usb_bus_from_device(dev);
+        trace_usb_packet_state_change(bus->busnr, dev->port->path, p->ep->nr, p,
+                                      usb_packet_state_name(p->state),
+                                      usb_packet_state_name(state));
+    }
+    p->state = state;
+}
+
+void usb_packet_setup(USBPacket *p, int pid,
+                      USBEndpoint *ep, unsigned int stream,
+                      uint64_t id, bool short_not_ok, bool int_req)
+{
+    assert(!usb_packet_is_inflight(p));
+    assert(p->iov.iov != NULL);
+    p->id = id;
+    p->pid = pid;
+    p->ep = ep;
+    p->stream = stream;
+    p->status = USB_RET_SUCCESS;
+    p->actual_length = 0;
+    p->parameter = 0;
+    p->short_not_ok = short_not_ok;
+    p->int_req = int_req;
+    p->combined = NULL;
+    qemu_iovec_reset(&p->iov);
+    usb_packet_set_state(p, USB_PACKET_SETUP);
+}
+```
+
+```bash
+usb_dwc2_enable_chan ch 0 dev 0x7fd886090600 pkt 0x7fd886979518 ep 2
+usb_dwc2_handle_packet ch 0 dev 0x7fd886090600 pkt 0x7fd886979518 ep 2 type Bulk dir In mps 64 len 1514 pcnt 24
+usb_packet_state_change bus 0, port 1.1, ep 2, packet 0x7fd886979518, state complete -> setup
+
+usb_dwc2_packet_status status USB_RET_NAK len 0
+usb_dwc2_packet_next status USB_RET_NAK len 1514 pcnt 24
+usb_dwc2_raise_host_irq 0x0001
+usb_dwc2_raise_global_irq 0x02000000
+usb_dwc2_update_irq level=1
+usb_dwc2_work_bh
+usb_dwc2_find_device 2
+usb_dwc2_device_found device found on port 0
+usb_dwc2_work_bh_service first 1 servicing 0 dev 0x7fd886090600 ep 2
+usb_dwc2_handle_packet ch 0 dev 0x7fd886090600 pkt 0x7fd886979518 ep 2 type Bulk dir In mps 64 len 1514 pcnt 24
+usb_packet_state_change bus 0, port 1.1, ep 2, packet 0x7fd886979518, state setup -> setup
+
+usb_dwc2_packet_status status USB_RET_NAK len 0
+usb_dwc2_packet_next status USB_RET_NAK len 1514 pcnt 24
+usb_dwc2_work_bh_next next 1
+usb_dwc2_glbreg_read  0x0014 GINTSTS   val 0x07000029
+usb_dwc2_hreg0_read   0x0414 HAINT     val 0x00000001
+usb_dwc2_hreg0_read   0x0414 HAINT     val 0x00000001
+usb_dwc2_hreg1_write  0x050c HCINTMSK0 val 0x00000000 old 0x0000079f result 0x00000000
+usb_dwc2_lower_host_irq 0x0001
+usb_dwc2_lower_global_irq 0x02000000
+usb_dwc2_update_irq level=0
+
+usb_dwc2_hreg1_read   0x0510 HCTSIZ  40 val 0x00c005ea
+usb_dwc2_hreg1_read   0x0508 HCINT   40 val 0x00000010
+usb_dwc2_hreg1_read   0x0508 HCINT   40 val 0x00000010
+usb_dwc2_hreg1_read   0x0500 HCCHAR  40 val 0x80989040
+usb_dwc2_hreg0_read   0x0418 HAINTMSK  val 0x00000001
+usb_dwc2_hreg0_write  0x0418 HAINTMSK  val 0x00000000 old 0x00000001 result 0x00000000
+usb_dwc2_hreg1_write  0x0500 HCCHAR  0 val 0x40989040 old 0x80989040 result 0x00989040
+usb_dwc2_hreg0_read   0x0414 HAINT     val 0x00000000
+usb_dwc2_hreg0_read   0x0414 HAINT     val 0x00000000
+usb_dwc2_hreg0_read   0x0414 HAINT     val 0x00000000
+usb_dwc2_hreg0_read   0x0414 HAINT     val 0x00000000
+usb_dwc2_hreg0_read   0x0414 HAINT     val 0x00000000
+usb_dwc2_hreg0_read   0x0414 HAINT     val 0x00000000
+usb_dwc2_hreg0_read   0x0414 HAINT     val 0x00000000
+usb_dwc2_work_timer
+usb_dwc2_work_bh
+usb_dwc2_find_device 2
+usb_dwc2_device_found device found on port 0
+usb_dwc2_work_bh_service first 1 servicing 0 dev 0x7fd886090600 ep 2
+usb_dwc2_handle_packet ch 0 dev 0x7fd886090600 pkt 0x7fd886979518 ep 2 type Bulk dir In mps 64 len 1514 pcnt 24
+usb_packet_state_change bus 0, port 1.1, ep 2, packet 0x7fd886979518, state setup -> setup
+usb_dwc2_packet_status status USB_RET_NAK len 0
+usb_dwc2_packet_next status USB_RET_NAK len 1514 pcnt 24
+usb_dwc2_work_bh_next next 1
+```
+
+```bash
+$ nc -uv 192.168.10.111 7
+Connection to 192.168.10.111 port 7
+
+$ arp -a
+aterm.me (192.168.10.1) at f8:b7:97:87:2c:dc on en0 ifscope [ethernet]
+? (192.168.10.101) at 90:8c:43:8c:c4:5a on en0 ifscope [ethernet]
+? (192.168.10.111) at (incomplete) on en0 ifscope [ethernet]
+? (192.168.10.255) at ff:ff:ff:ff:ff:ff on en0 ifscope [ethernet]
+mdns.mcast.net (224.0.0.251) at 1:0:5e:0:0:fb on en0 ifscope permanent [ethernet]
+```
+
+```bash
+$ ifconfig net0 192.168.10.111 netmask 255.255.255.0
+[1]trap: unknown trap code: 37 at 0xb00000b1
+[1]exit: exit: pid 8, err 1
+$ [1]dwhc_channel_intr_hdl: substate: wait_for_channel_disaable, channel: 0, st->ch: -763359352
++------+-------------------------------------------------+------------------+
+| 0000 | 88 0f 80 d2 01 00 00 d4 fe ff ff 17 2f 69 6e 69 | ............/ini |
+| 0010 | 74 00 00 00 1f 20 03 d5 1f 20 03 d5 00 00 00 00 | t.... ... ...... |
+| 0020 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |
+...
+| 0130 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |
++------+-------------------------------------------------+------------------+
+[1]dwhc_start_channel: dwhc=0xffff000000a40ea8, channel=-763359352  // 0xd2800f88
+kern/usb/dwhc_device.c:803: assertion failed.
+kern/console.c:307: kernel panic at cpu 1.
+```
+
+```bash
+$ xxd obj/kern/icode.S.o
+00000040: a81b 80d2 e000 0010 0100 80d2 0200 80d2  ................
+00000050: 0100 00d4
+                    880f 80d2 0100 00d4 0000 0014  ................
+00000060: 2f69 6e69 7400 0000 1f20 03d5 1f20 03d5  /init.... ... ..
+00000070: 4e00 0000 0500 0800 2e00 0000 0401 01fb  N...............
+00000080: 0e0d 0001 0101 0100 0000 0100 0001 0101  ................
+00000090: 1f02 0000 0000 0000 0000 0201 1f02 0f02  ................
+000000a0: 0000 0000 0100 0000 0001 0009 0200 0000  ................
+```
+
+- `kthread_created()`を`forkret()`から`main()`に移動
+- `channel=-763359352 `になる件は解決?（してなかった。再現）
+
+### stdata, paramsをslabから割り当てるように変更
+
+```bash
+[0]trap: unknown trap code: 37 at 0x15e8008
+[0]exit: exit: pid 6, err 1
+```
+
+- データ例外
+- trap出力を修正
+
+```bash
+[0]slab_cache_free: cache: stdat, obj: 0xffff00000108d080
+[0]slab_cache_free: page: 0x0, heaer: 0xffff1d28015e8000
+[0]slab_cache_free: list: 0xffff1d28015e8018
+[0]trap: unknown trap code: 37 at 0xffff000000080764 with 0xffff1d28015e8008
+[0]exit: exit: pid 6, err 1
+```
+
+- slab_cache_freeの問題で、対象データは0xffff1d28015e8008
+
+```bash
+[0]slab_cache_free: cache: stdat, obj: 0xffff00000108d080
+[0]page_find_by_address: addr: 0xa2d080, START: 0xffff000000660000, index: 68719477709
+[0]slab_cache_free: page: 0x0, heaer: 0xffff1d28015e8000
+[0]slab_cache_free: list: 0xffff1d28015e8018
+[0]trap: unknown trap code: 37 at 0xffff000000080764 with 0xffff1d28015e8008
+[0]exit: exit: pid 4, err 1
+```
+
+- objの2重補正
+
+```bash
+[0]slab_cache_free: cache: stdat, obj: 0xffff00000108d080
+[0]page_find_by_address: addr: 0xffff00000108d080, START: 0xffff000000660000, index: 2605
+[0]slab_cache_free: page: 0xffff000000605fe8, heaer: 0xffff000000a5f000
+[0]slab_cache_free: list: 0xffff000000a5f018
+[0]trap: unknown trap code: 37 at 0xffff000000080778 with 0xffff000400000000    //
+[0]exit: exit: pid 4, err 1
+```
+
+- slabを修正してsh画面まで出るようなる
+
+```bash
+qemu-system-aarch64 -M raspi3b -nographic -serial null -serial mon:stdio -drive file=obj/sd.img,if=sd,format=raw -netdev user,id=net0,hostfwd=tcp::8080-:80 -device usb-net,netdev=net0 -trace events=events,file=trace.log -kernel obj/kernel8.img
+[2]rand_init: rand_init ok
+[0]main: cpu 0 init finished
+[1]main: cpu 1 init finished
+[3]main: cpu 3 init finished
+[2]main: cpu 2 init finished
+[0]mbox_set_sdhost_clock: unexpected tag resp 0x80000000, normal for qemu
+[0]sdhost_set_ios: ios clock 400000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
+[0]sdhost_finish_command: error detected: CMD 0x4205, HSTS 0x40, EDM 0x10800
+[0]sdhost_finish_command: command 5 timeout
+[0]emmc_card_reset: OCR: 0xffff, 1.8v support: 0, SDHC support: 0
+[0]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
+[0]emmc_card_reset: card CID: 0xaa585951, 0x454d5521, 0x1deadbe, 0xef006219
+[0]emmc_card_reset: RCA: 0x4567
+[3]emmc_card_reset: SCR: version 2.00, bus_widths 0x5
+[3]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 1, timing 0, vdd 0, drv_type 0
+[3]emmc_card_reset: found valid version 2.00 SD card
+[3]sd_init: partition[0]: TYPE: 12, LBA = 0x800, #SECS = 0x20000
+[3]sd_init: partition[1]: TYPE: 131, LBA = 0x20800, #SECS = 0x1f800
+[3]sd_init: sd_init ok
+
+[2]iinit: sb: size 1000 nblocks 963 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 36
+[2]initlog: not use log
+[3]usb_dev_init: Device ven409-55aa, dev9-0-0 found
+[2]usb_dev_init: Product: QEMU QEMU USB Hub
+[2]usb_function_get_if_name: func name=int9-0-0
+[2]usb_dev_init: Interface int9-0-0 found
+[2]usb_dev_factory_get_device: Using device/interface int9-0-0
+[2]usb_dev_init: Device ven525-a4a2, dev2-0-0 found
+[3]usb_dev_init: Product: QEMU RNDIS/QEMU USB Network Device
+[3]usb_function_get_if_name: func name=int2-6-0
+[3]usb_dev_init: Interface int2-6-0 found
+[3]usb_dev_factory_get_device: Using device/interface int2-6-0
+[3]usb_function_get_if_name: func name=inta-0-0
+[3]usb_dev_init: Interface inta-0-0 found
+[3]usb_dev_init: Function is not supported
+[3]usb_function_get_if_name: func name=inta-0-0
+[3]usb_dev_init: Interface inta-0-0 found
+[3]usb_dev_init: Function is not supported
+[3]usb_cdcether_configure: MAC address is 40:54:0:12:34:57
+[3]usb_standard_hub_enumerate_ports: Port 1: Device configured
+[2]dwhc_root_port_init: Device configured
+[2]dwhc_init: dwhc_init ok: intmask: 0x2000010
+[2]usb_init: dwhc initialized
+
+[2]net_device_register: registered, dev=net0, type=0x0002
+[2]usb_init: usb_init ok
+[2]net_protocol_register: registered, type=0x0800 (IP)
+[2]net_protocol_register: registered, type=0x0806 (ARP)
+[2]ip_protocol_register: registered, type=1 (ICMP)
+[2]ip_protocol_register: registered, type=17 (UDP)
+[2]ip_protocol_register: registered, type=6 (TCP)
+[2]netinit: initialized
+[2]net_device_open: dev=net0, state=up
+[2]netrun: running...
+init: starting sh
+sh: argv[0] = 'sh'
+sh: testenv = 'FROM_INIT'
+$ ifconfig net0 192.168.10.111 netmask 255.255.255.0
+[3]socket_ioctl: register iface
+[3]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.111 dev=net0
+[3]ip_iface_register: registered: dev=net0, unicast=192.168.10.111, netmask=255.255.255.0, broadcast=192.168.10.255
+$ ifconfig
+net0: flags=83<UP|BROADCAST|NEEDARP> mtu 1500
+  ether 40:54:0:12:34:57
+  inet 192.168.10.111 netmask 255.255.255.0 broadcast 192.168.10.255
+$ udpecho
+Starting UDP Echo Server
+socket: success, soc=3
+[3]udp_bind: bound, id=3, local=0.0.0.0:7
+bind: success, self=0.0.0.0:7
+waiting for message...
+[1]dwhc_xfer_data_get_ep_type: bad ep_type: -1440807965
+```
+
+### usbの構造体をslabから割り当てるよう変更
+
+- バルク入出力がされない状態まで戻る (10/8現在)
+
+```bash
+qemu-system-aarch64 -M raspi3b -nographic -serial null -serial mon:stdio -drive file=obj/sd.img,if=sd,format=raw -netdev user,id=net0,hostfwd=tcp::8080-:80 -device usb-net,netdev=net0 -trace events=events,file=trace.log -kernel obj/kernel8.img
+[2]rand_init: rand_init ok
+[0]main: cpu 0 init finished
+[3]main: cpu 3 init finished
+[1]main: cpu 1 init finished
+[2]main: cpu 2 init finished
+[0]mbox_set_sdhost_clock: unexpected tag resp 0x80000000, normal for qemu
+[0]sdhost_set_ios: ios clock 400000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
+[0]sdhost_finish_command: error detected: CMD 0x4205, HSTS 0x40, EDM 0x10800
+[0]sdhost_finish_command: command 5 timeout
+[0]emmc_card_reset: OCR: 0xffff, 1.8v support: 0, SDHC support: 0
+[0]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
+[0]emmc_card_reset: card CID: 0xaa585951, 0x454d5521, 0x1deadbe, 0xef006219
+[0]emmc_card_reset: RCA: 0x4567
+[3]emmc_card_reset: SCR: version 2.00, bus_widths 0x5
+[3]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 1, timing 0, vdd 0, drv_type 0
+[3]emmc_card_reset: found valid version 2.00 SD card
+[2]sd_init: partition[0]: TYPE: 12, LBA = 0x800, #SECS = 0x20000
+[2]sd_init: partition[1]: TYPE: 131, LBA = 0x20800, #SECS = 0x1f800
+[2]sd_init: sd_init ok
+
+[3]iinit: sb: size 1000 nblocks 963 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 36
+[3]initlog: not use log
+[2]usb_dev_init: Device ven409-55aa, dev9-0-0 found
+[2]usb_dev_init: Product: QEMU QEMU USB Hub
+[2]usb_function_get_if_name: func name=int9-0-0
+[2]usb_dev_init: Interface int9-0-0 found
+[2]usb_dev_factory_get_device: Using device/interface int9-0-0
+[2]usb_dev_init: Device ven525-a4a2, dev2-0-0 found
+[3]usb_dev_init: Product: QEMU RNDIS/QEMU USB Network Device
+[3]usb_function_get_if_name: func name=int2-6-0
+[3]usb_dev_init: Interface int2-6-0 found
+[3]usb_dev_factory_get_device: Using device/interface int2-6-0
+[3]usb_function_get_if_name: func name=inta-0-0
+[3]usb_dev_init: Interface inta-0-0 found
+[3]usb_dev_init: Function is not supported
+[3]usb_function_get_if_name: func name=inta-0-0
+[3]usb_dev_init: Interface inta-0-0 found
+[3]usb_dev_init: Function is not supported
+[3]usb_cdcether_configure: MAC address is 40:54:0:12:34:57
+[3]usb_standard_hub_enumerate_ports: Port 1: Device configured
+[3]dwhc_root_port_init: Device configured
+[3]dwhc_init: dwhc_init ok: intmask: 0x2000010
+[3]usb_init: dwhc initialized
+
+[3]net_device_register: registered, dev=net0, type=0x0002
+[3]usb_init: usb_init ok
+[3]net_protocol_register: registered, type=0x0800 (IP)
+[3]net_protocol_register: registered, type=0x0806 (ARP)
+[3]ip_protocol_register: registered, type=1 (ICMP)
+[3]ip_protocol_register: registered, type=17 (UDP)
+[3]ip_protocol_register: registered, type=6 (TCP)
+[3]netinit: initialized
+[3]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.111 dev=net0
+[3]ip_iface_register: registered: dev=net0, unicast=192.168.10.111, netmask=255.255.255.0, broadcast=192.168.10.255
+[3]net_device_open: dev=net0, state=up
+[3]netrun: running...
+init: starting sh
+sh: argv[0] = 'sh'
+sh: testenv = 'FROM_INIT'
+$ ls
+.              4000 1 4096
+..             4000 1 4096
+cat            8000 2 38568
+init           8000 3 22400
+echo           8000 4 39480
+mkfs           8000 5 45528
+ifconfig       8000 6 44184
+date           8000 7 49368
+sh             8000 8 54056
+utest          8000 9 17744
+ls             8000 10 41304
+udpecho        8000 11 39032
+console        0 12 0
+$ ifconfig
+net0: flags=83<UP|BROADCAST|NEEDARP> mtu 1500
+  ether 40:54:0:12:34:57
+  inet 192.168.10.111 netmask 255.255.255.0 broadcast 192.168.10.255
+$
+```
