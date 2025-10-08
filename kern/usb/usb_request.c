@@ -20,68 +20,33 @@
 #include <usb/usb_request.h>
 #include <types.h>
 #include <console.h>
+#include <slab.h>
 
-void usb_request(usb_request_t *self, usb_endpoint_t *ep, const void *buffer, uint32_t buflen, usb_setup_data_t *setup_data)
-{
-    self->ep            = ep;
-    self->setup_data    = setup_data;
-    self->buffer        = buffer;
-    self->buflen        = buflen;
-    self->status        = 0;
-    self->resultlen     = 0;
-    self->cb            = 0;
-    self->param         = 0;
-    self->ctx           = 0;
-    self->onnak         = false;
-    self->error         = usb_err_unknown;
+struct slab_cache *URB;
+
+void usb_request_init(void) {
+    URB = slab_cache_create("urb", sizeof(usb_request_t), 64);
 }
 
-void _usb_request(usb_request_t *self)
+usb_request_t *usb_request_alloc(struct usb_endpoint *ep, const void *buffer, uint32_t buflen, usb_setup_data_t *setup_data)
 {
-    self->ep            = 0;
-    self->setup_data    = 0;
-    self->buffer        = 0;
-    self->cb            = 0;
+    usb_request_t *urb = (usb_request_t *)slab_cache_alloc(URB);
+    urb->ep            = ep;
+    urb->setup_data    = setup_data;
+    urb->buffer        = buffer;
+    urb->buflen        = buflen;
+    urb->status        = 0;
+    urb->resultlen     = 0;
+    urb->cb            = 0;
+    urb->param         = 0;
+    urb->ctx           = 0;
+    urb->onnak         = false;
+    urb->error         = usb_err_unknown;
+    return urb;
 }
 
-usb_endpoint_t *usb_request_get_ep(usb_request_t *self)
-{
-    return self->ep;
-}
-
-void usb_request_set_status(usb_request_t *self, int status)
-{
-    self->status = status;
-}
-
-void usb_request_set_resultlen(usb_request_t *self, uint32_t resultlen)
-{
-    self->resultlen = resultlen;
-}
-
-int usb_request_get_status(usb_request_t *self)
-{
-    return self->status;
-}
-
-uint32_t usb_request_get_resultlen(usb_request_t *self)
-{
-    return self->resultlen;
-}
-
-usb_setup_data_t *usb_request_get_setup_data(usb_request_t *self)
-{
-    return self->setup_data;
-}
-
-const void *usb_request_get_buffer(usb_request_t *self)
-{
-    return self->buffer;
-}
-
-uint32_t usb_request_get_buflen(usb_request_t *self)
-{
-    return self->buflen;
+void usb_reqeust_free(usb_request_t *self) {
+    slab_cache_free(URB, self);
 }
 
 void usb_request_set_comp_cb(usb_request_t *self, usb_comp_cb *cb, void *param, void *ctx)
@@ -95,14 +60,4 @@ void usb_request_set_comp_cb(usb_request_t *self, usb_comp_cb *cb, void *param, 
 void usb_request_call_comp_cb(usb_request_t *self)
 {
     (*self->cb)(self, self->param, self->ctx);
-}
-
-void usb_request_set_comp_on_nak(usb_request_t *self)
-{
-    self->onnak = true;
-}
-
-boolean usb_request_is_comp_on_nak(usb_request_t *self)
-{
-    return self->onnak;
 }

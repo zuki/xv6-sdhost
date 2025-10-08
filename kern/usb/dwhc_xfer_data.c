@@ -81,7 +81,7 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
     self->err_cnt = 0;
     self->start = 0;
 
-    self->ep = usb_request_get_ep(urb);
+    self->ep = urb->ep;
     self->dev = usb_endpoint_get_device(self->ep);
     self->speed = usb_dev_get_speed(self->dev);
     self->xpsize = usb_endpoint_get_max_packet_size(self->ep);
@@ -94,7 +94,7 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
             self->xfersize = sizeof(usb_setup_data_t);
         } else {
             self->buffp = urb->buffer;
-            self->xfersize = usb_request_get_buflen(urb);
+            self->xfersize = urb->buflen;
         }
 
         self->packets =(self->xfersize + self->xpsize - 1) / self->xpsize;
@@ -409,7 +409,7 @@ uint32_t dwhc_xfer_data_get_status_mask(dwhc_xfer_data_t *self)
              | DWHCI_HOST_CHAN_INT_NYET;
     }
 #ifdef USE_NAK_USB_FIX
-    else if (usb_request_is_comp_on_nak(self->urb)) {
+    else if (self->urb->onnak) {
         mask |= DWHCI_HOST_CHAN_INT_NAK;
     }
 #endif

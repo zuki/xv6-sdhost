@@ -398,8 +398,7 @@ boolean usb_standard_hub_start_status_change_req(usb_standard_hub_t *self)
         self->buffer = (uint8_t *)kmalloc(buflen);
     }
     // 割り込みEPにステータス変更リクエストを発行
-    usb_request_t *urb = (usb_request_t *)kmalloc(sizeof(usb_request_t));
-    usb_request(urb, self->intr_ep, self->buffer, buflen, 0);
+    usb_request_t *urb = usb_request_alloc(self->intr_ep, self->buffer, buflen, 0);
     usb_request_set_comp_cb(urb, usb_standard_hub_comp_cbstub, 0, self);
     return dwhc_submit_async_request(host, urb, USB_TIMEOUT_NONE);
 }
@@ -413,8 +412,7 @@ void usb_standard_hub_comp_cb(usb_standard_hub_t *self, usb_request_t *urb)
         if (urb->error == usb_err_frame_overrun)
             usb_standard_hub_start_status_change_req(self);
     }
-    _usb_request(urb);
-    kmfree(urb);
+    usb_reqeust_free(urb);
 }
 
 void usb_standard_hub_comp_cbstub(usb_request_t *urb, void *param, void *ctx)

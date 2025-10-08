@@ -173,18 +173,16 @@ static ssize_t usb_cdcether_send_frame(struct net_device *dev, const uint8_t *bu
 
 static ssize_t usb_cdcether_receive_frame(struct net_device *dev, uint8_t *buf, size_t size)
 {
-    usb_request_t urb;
     usb_cdcether_t *self = (usb_cdcether_t *)dev->priv;
-
-    usb_request(&urb, self->bulk_in, buf, (uint32_t)size, 0);
-    urb.onnak = true;
+    usb_request_t *urb = usb_request_alloc(self->bulk_in, buf, (uint32_t)size, 0);
+    urb->onnak = true;
     trace("submit block req: buf=%p, size: %lld", buf, size);
-    if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {
+    if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), urb, USB_TIMEOUT_NONE)) {
         trace("failed submit block request");
         return -1;
     }
 
-    ssize_t rlen = usb_request_get_resultlen(&urb);
+    ssize_t rlen = urb->resultlen;
     if (rlen == 0) {
         trace("no data");
         return -1;

@@ -234,26 +234,25 @@ static ssize_t lan7800_send_frame(struct net_device *dev, const uint8_t *buf, si
 
 static ssize_t lan7800_receive_frame(struct net_device *dev, uint8_t *buf, size_t size)
 {
-    usb_request_t urb;
     lan7800_t *self = PRIV(dev);
 
-    usb_request(&urb, self->bulk_in, buf, (uint32_t)size, 0);
+    usb_request_t *urb = usb_request_alloc(self->bulk_in, buf, (uint32_t)size, 0);
 
-    if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), &urb, USB_TIMEOUT_NONE)) {
-        //_usb_request(&urb);
+    if (!dwhc_submit_block_request(usb_function_get_host(&self->usb_func), urb, USB_TIMEOUT_NONE)) {
+        usb_reqeust_free(urb);
         return -1;
     }
 
-    uint32_t rlen = urb.resultlen;
+    uint32_t rlen = urb->resultlen;
     if (rlen < RX_HEADER_SIZE) {
-        //_usb_request(&urb);
+        usb_reqeust_free(urb);
         return -1;
     }
 
     uint32_t status = *(uint32_t *) buf;    // RX command A
     if (status & RX_CMD_A_RED) {
         error("RX error (status 0x%X)", status);
-        //_usb_request(&urb);
+        usb_reqeust_free(urb);
         return -1;
     }
 
@@ -261,7 +260,7 @@ static ssize_t lan7800_receive_frame(struct net_device *dev, uint8_t *buf, size_
     //                <- buf   ->
     size_t framelen = status & RX_CMD_A_LEN_MASK;
     if (framelen <= 4) {
-        //_usb_request(&urb);
+        usb_reqeust_free(urb);
         return -1;
     }
     framelen -= 4;    // FCSは無視する
@@ -270,7 +269,8 @@ static ssize_t lan7800_receive_frame(struct net_device *dev, uint8_t *buf, size_
 
     memmove(buf, (uint8_t *)buf + RX_HEADER_SIZE, framelen); // RX コマンドA..Cを上書き
 
-    //_usb_request(&urb);
+    usb_reqeust_free(urb);
+
     return framelen;
 }
 

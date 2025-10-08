@@ -251,9 +251,9 @@ boolean usb_keyboard_start_request(usb_keyboard_t *self)
     assert (self->ep != 0);
     assert (self->buffer != 0);
 
-    usb_request(&self->urb, self->ep, self->buffer, BOOT_REPORT_SIZE, 0);
-    usb_request_set_comp_cb(&self->urb, usb_keyboard_comp_cb, 0, self);
-    return dwhc_submit_async_request(usb_function_get_host(&self->func), &self->urb, 0);
+    self->urb = usb_request_alloc(self->ep, self->buffer, BOOT_REPORT_SIZE, 0);
+    usb_request_set_comp_cb(self->urb, usb_keyboard_comp_cb, 0, self);
+    return dwhc_submit_async_request(usb_function_get_host(&self->func), self->urb, 0);
 }
 
 void usb_keyboard_comp_cb(usb_request_t *urb, void *param, void *ctx)
@@ -261,10 +261,9 @@ void usb_keyboard_comp_cb(usb_request_t *urb, void *param, void *ctx)
     usb_keyboard_t *self = (usb_keyboard_t *)ctx;
     assert (self != 0);
     assert (urb != 0);
-    assert (&self->urb == urb);
+    assert (self->urb == urb);
 
-    if ( usb_request_get_status(urb) != 0
-      && usb_request_get_resultlen(urb) == BOOT_REPORT_SIZE) {
+    if ( urb->status != 0 && urb->resultlen == BOOT_REPORT_SIZE) {
         if (self->status_handler != 0) {
             (*self->status_handler)(usb_keyboard_get_modifiers(self), self->buffer+2);
         } else {
@@ -293,7 +292,7 @@ void usb_keyboard_comp_cb(usb_request_t *urb, void *param, void *ctx)
             }
         }
     }
-    _usb_request(&self->urb);
+    usb_reqeust_free(self->urb);
     usb_keyboard_start_request(self);
 }
 

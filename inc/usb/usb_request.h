@@ -41,25 +41,11 @@ typedef struct usb_request {
     usb_error_t         error;              ///< error
 } usb_request_t;
 
-void usb_request(usb_request_t *self, struct usb_endpoint *ep, const void *buffer, uint32_t buflen, usb_setup_data_t *setup_data);
-void _usb_request(usb_request_t *self);
-
-struct usb_endpoint *usb_request_get_ep(usb_request_t *self);
-
-void usb_request_set_status(usb_request_t *self, int status);
-void usb_request_set_resultlen(usb_request_t *self, uint32_t resultlen);
-
-int usb_request_get_status(usb_request_t *self);
-uint32_t usb_request_get_resultlen(usb_request_t *self);
-
-usb_setup_data_t *usb_request_get_setup_data(usb_request_t *self);
-const void *usb_request_get_buffer(usb_request_t *self);
-uint32_t usb_request_get_buflen(usb_request_t *self);
+void usb_request_init(void);
+usb_request_t *usb_request_alloc(struct usb_endpoint *ep, const void *buffer, uint32_t buflen, usb_setup_data_t *setup_data);
+void usb_reqeust_free(usb_request_t *self);
 
 void usb_request_set_comp_cb(usb_request_t *self, usb_comp_cb *cb, void *param, void *ctx);
 void usb_request_call_comp_cb(usb_request_t *self);
-
-void usb_request_set_comp_on_nak(usb_request_t *self);
-boolean usb_request_is_comp_on_nak(usb_request_t *self);
 
 #endif

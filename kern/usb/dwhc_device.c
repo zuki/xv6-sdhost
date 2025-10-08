@@ -157,6 +157,8 @@ boolean dwhc_init(dwhc_device_t *self, boolean scan)
     trace("PARAMS inited");
     dwhc_xfer_data_init();
     trace("STADATA inited");
+    usb_request_init();
+    trace("URB inited");
 
     uint32_t vendor;
     // 1. ホストコントローラのバージョンチェック
@@ -248,7 +250,7 @@ boolean dwhc_submit_block_request(dwhc_device_t *self, usb_request_t *urb, unsig
     dmb();
 
     // 1. リクエストステータスを初期セット
-    usb_request_set_status(urb, 0);
+    urb->status = 0;
 
     // 2. コントロール転送
     if (urb->ep->type == ep_type_control) {
@@ -269,7 +271,7 @@ boolean dwhc_submit_block_request(dwhc_device_t *self, usb_request_t *urb, unsig
         // 2-2. OUTリクエストの場合
         } else {
             // 2-2-1. データを受け取らない場合
-            if (usb_request_get_buflen(urb) == 0) {
+            if (urb->buflen == 0) {
                 trace("Control xfer: OUT request no data");
                 // 2-2-1-1. セットアップステージ: OUTコマンドの送信
                 if (!dwhc_xfer_stage(self, urb, false, false, USB_TIMEOUT_NONE)
@@ -308,7 +310,7 @@ boolean dwhc_submit_block_request(dwhc_device_t *self, usb_request_t *urb, unsig
 boolean dwhc_submit_async_request(dwhc_device_t *self, usb_request_t *urb, unsigned timeout)
 {
     dmb();
-    usb_request_set_status(urb, 0);
+    urb->status = 0;
     boolean result = dwhc_xfer_stage_async(self, urb, urb->ep->in, false, timeout);
     dmb();
     return result;
@@ -1063,7 +1065,7 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
             }
         } else {
             if (!stdata->ststatus) {
-                usb_request_set_resultlen(urb, dwhc_xfer_data_get_resultlen(stdata));
+                urb->resultlen = dwhc_xfer_data_get_resultlen(stdata);
             }
             urb->status = 1;
         }
@@ -1573,30 +1575,28 @@ int dwhc_control_message(dwhc_device_t *self, usb_endpoint_t *ep,
     setupdata.length    = datalen;
 
     // 3. USBリクエストを作成
-    usb_request_t urb;
-    usb_request(&urb, ep, data, datalen, &setupdata);
+    usb_request_t *urb = usb_request_alloc(ep, data, datalen, &setupdata);
 
     int result = -1;
     // 4. リクエストを送信
-    if (dwhc_submit_block_request(self, &urb, USB_TIMEOUT_NONE)) {
-        result = urb.resultlen;
+    if (dwhc_submit_block_request(self, urb, USB_TIMEOUT_NONE)) {
+        result = urb->resultlen;
     }
     // 4. USBリクエストを破棄
-    _usb_request(&urb);
+    usb_reqeust_free(urb);
     trace("result len=%d", result);
     return result;
 }
 
 ssize_t dwhc_xfer(dwhc_device_t *self, usb_endpoint_t *ep, const void *buffer, unsigned buflen)
 {
-    usb_request_t urb;
-    usb_request(&urb, ep, buffer, buflen, 0);
+    usb_request_t *urb = usb_request_alloc(ep, buffer, buflen, 0);
 
     ssize_t result = -1;
-    if (dwhc_submit_block_request(self, &urb, USB_TIMEOUT_NONE)) {
-        result = (ssize_t)urb.resultlen;
+    if (dwhc_submit_block_request(self, urb, USB_TIMEOUT_NONE)) {
+        result = (ssize_t)urb->resultlen;
     }
-    _usb_request(&urb);
+    usb_reqeust_free(urb);
 
     return result;
 }

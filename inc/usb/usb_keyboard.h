@@ -44,7 +44,7 @@ typedef struct usb_keyborad {
     sel_console_hdl    *sel_handler;
     shutdown_hdl       *shutdown_handler;
     key_status_hdl     *status_handler;
-    usb_request_t           urb;
+    usb_request_t      *urb;
     uint8_t            *buffer;
     uint8_t             pcode;
     unsigned            timer;
