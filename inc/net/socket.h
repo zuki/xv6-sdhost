@@ -27,7 +27,7 @@ struct sockaddr {
 };
 
 struct sockaddr_in {
-    unsigned short sin_family;
+    unsigned short sin_family;      //
     uint16_t sin_port;
     struct in_addr sin_addr;
 };
@@ -35,12 +35,12 @@ struct sockaddr_in {
 #define IFNAMSIZ    16
 
 struct ifreq {
-    char ifr_name[IFNAMSIZ]; /* Interface name */
+    char ifr_name[IFNAMSIZ]; /* インタフェース名 */
     union {
-        struct sockaddr ifr_addr;
-        struct sockaddr ifr_dstaddr;
-        struct sockaddr ifr_broadaddr;
-        struct sockaddr ifr_netmask;
+        struct sockaddr ifr_addr;               // 読み出し元アドレス
+        struct sockaddr ifr_dstaddr;            // 宛先アドレス
+        struct sockaddr ifr_broadaddr;          // ブロードキャストアドレス
+        struct sockaddr ifr_netmask;            // サブネットマスク
         struct sockaddr ifr_hwaddr;
         short           ifr_flags;
         int             ifr_ifindex;

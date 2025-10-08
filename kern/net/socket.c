@@ -221,6 +221,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
 
     ifreq = (struct ifreq *)arg;
     switch ((unsigned int)req) {
+    // インターフェースの interface index を取得し、 ifr_ifindex に入れて返す
     case SIOCGIFINDEX:
         dev = net_device_by_name(ifreq->ifr_name);
         if (!dev) {
@@ -228,6 +229,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
         }
         ifreq->ifr_ifindex = dev->index;
         break;
+    // ifr_ifindex を受け取り、インターフェースの名前を ifr_name に入れて返す。
     case SIOCGIFNAME:
         dev = net_device_by_index(ifreq->ifr_ifindex);
         if (!dev) {
@@ -249,6 +251,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
     case SIOCSIFHWADDR:
         // TODO
         break;
+    // デバイスの active フラグワードを取得する
     case SIOCGIFFLAGS:
         dev = net_device_by_name(ifreq->ifr_name);
         if (!dev) {
@@ -256,6 +259,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
         }
         ifreq->ifr_flags = dev->flags;
         break;
+    // デバイスの active フラグワードを設定する
     case SIOCSIFFLAGS:
         dev = net_device_by_name(ifreq->ifr_name);
         if (!dev) {
@@ -269,6 +273,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
             }
         }
         break;
+    // ifr_addr を用いてデバイスのアドレスを取得する
     case SIOCGIFADDR:
         dev = net_device_by_name(ifreq->ifr_name);
         if (!dev) {
@@ -286,6 +291,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
             return -1;
         }
         break;
+    // ifr_addr を用いてデバイスのアドレスを設定する
     case SIOCSIFADDR:
         dev = net_device_by_name(ifreq->ifr_name);
         if (!dev) {
@@ -312,6 +318,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
             return -1;
         }
         break;
+    // デバイスのネットワークマスクを ifr_netmask を用いて取得する
     case SIOCGIFNETMASK:
         dev = net_device_by_name(ifreq->ifr_name);
         if (!dev) {
@@ -329,6 +336,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
             return -1;
         }
         break;
+    // デバイスのネットワークマスクを ifr_netmask を用いて設定する
     case SIOCSIFNETMASK:
         dev = net_device_by_name(ifreq->ifr_name);
         if (!dev) {
@@ -348,6 +356,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
             return -1;
         }
         break;
+    // デバイスのブロードキャストアドレスを ifr_brdaddr を用いて取得する
     case SIOCGIFBRDADDR:
         dev = net_device_by_name(ifreq->ifr_name);
         if (!dev) {
@@ -365,9 +374,11 @@ int socket_ioctl(struct socket *s, int req, void *arg)
             return -1;
         }
         break;
+    // デバイスのブロードキャストアドレスを ifr_brdaddr を用いて設定する
     case SIOCSIFBRDADDR:
         // TODO
         break;
+    // デバイスの MTU (Maximum Transfer Unit) を ifr_mtu を用いて取得する
     case SIOCGIFMTU:
         dev = net_device_by_name(ifreq->ifr_name);
         if (!dev) {
@@ -375,6 +386,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
         }
         ifreq->ifr_mtu = dev->mtu;
         break;
+    // デバイスの MTU (Maximum Transfer Unit) を ifr_mtu を用いて設定する
     case SIOCSIFMTU:
         break;
     default:
