@@ -41,6 +41,7 @@ static int pid = 0;
 void
 proc_init(void)
 {
+    initlock(&ptable.lock, "ptable");
     list_init(&ptable.sched_que);
     for (int i = 0; i < SQSIZE; i++)
         list_init(&ptable.slpque[i]);
