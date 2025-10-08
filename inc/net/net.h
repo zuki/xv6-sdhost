@@ -4,6 +4,7 @@
 
 #include <types.h>
 #include <linux/time.h>
+#include <net/if.h>
 
 #ifndef IFNAMSIZ
 #define IFNAMSIZ    16
@@ -15,15 +16,18 @@
 #define NET_DEVICE_TYPE_WLAN        0x0003
 #define NET_DEVICE_TYPE_ANY         0x0004
 
+// <net/if.h>のIFF_*を使用する
+#if 0
 #define NET_DEVICE_FLAG_UP          0x0001
 #define NET_DEVICE_FLAG_BROADCAST   0x0002
 #define NET_DEVICE_FLAG_LOOPBACK    0x0008
 #define NET_DEVICE_FLAG_P2P         0x0010
 #define NET_DEVICE_FLAG_NEED_ARP    0x0080
+#endif
 
 #define NET_DEVICE_ADDR_LEN         16
 
-#define NET_DEVICE_IS_UP(x)     ((x)->flags & NET_DEVICE_FLAG_UP)
+#define NET_DEVICE_IS_UP(x)     ((x)->flags & IFF_UP)
 #define NET_DEVICE_STATE(x)     (NET_DEVICE_IS_UP(x) ? "up" : "down")
 
 /* NOTE: use same value as the Ethernet types */
@@ -38,7 +42,7 @@
 
 struct net_device {
     struct net_device *next;
-    struct net_iface *ifaces; /* NOTE: if you want to add/delete the entries after net_run(), you need to protect ifaces with a mutex. */
+    struct net_iface *ifaces; /* NOTE: net_run()後に追加/削除する場合はmutexでifacesを守る必要がある */
     unsigned int index;
     char name[IFNAMSIZ];
     uint16_t type;          // NET_DEVICE_TYPE_XXX

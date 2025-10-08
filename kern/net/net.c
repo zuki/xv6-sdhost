@@ -2,8 +2,11 @@
 #include <types.h>
 #include <net/util.h>
 #include <net/net.h>
+#include <net/if.h>
+#include <net/ip.h>
 #include <net/platform.h>
 #include <linux/time.h>
+#include <mm.h>
 #include <timer.h>
 #include <clock.h>
 #include <console.h>
@@ -12,7 +15,7 @@
 struct net_protocol {
     struct net_protocol *next;
     uint16_t type;                  // NET_PROTOCOL_TYPE_XXX: IP, ARP, IPv6
-    struct queue_head queue; /* input queue */
+    struct queue_head queue;        /* input queue */
     void (*handler)(const uint8_t *data, size_t len, struct net_device *dev);
 };
 
@@ -38,7 +41,7 @@ struct net_event {
 /* NOTE: if you want to add/delete the entries after net_run(), you need to protect these lists with a mutex. */
 static struct net_device *devices;
 static struct net_protocol *protocols;
-static struct net_timer *timers;
+//static struct net_timer *timers;
 static struct net_event *events;
 
 struct net_device *net_device_alloc(void)
@@ -78,7 +81,7 @@ int net_device_open(struct net_device *dev)
             return -1;
         }
     }
-    dev->flags |= NET_DEVICE_FLAG_UP;
+    dev->flags |= IFF_UP;
     info("dev=%s, state=%s", dev->name, NET_DEVICE_STATE(dev));
     return 0;
 }
@@ -95,7 +98,7 @@ int net_device_close(struct net_device *dev)
             return -1;
         }
     }
-    dev->flags &= ~NET_DEVICE_FLAG_UP;
+    dev->flags &= ~IFF_UP;
     info("dev=%s, state=%s", dev->name, NET_DEVICE_STATE(dev));
     return 0;
 }
@@ -229,7 +232,6 @@ int net_timer_register(struct timeval interval, void (*handler)(void))
     info("registered: interval={%d, %d}", interval.tv_sec, interval.tv_usec);
     return 0;
 }
-#endif
 
 int net_timer_handler(void)
 {
@@ -246,7 +248,9 @@ int net_timer_handler(void)
     }
     return 0;
 }
+#endif
 
+// ether.c#ether_input_helper(dev, callback)から呼ばれる
 // 成功したら 0, エラーの場合は -1
 int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net_device *dev)
 {
@@ -398,11 +402,28 @@ static int netinit(void)
     return 0;
 }
 
+static void set_ip_config(struct net_device *dev)
+{
+#ifdef USING_RASPI
+    const char * ipaddr = "192.168.10.110";
+#else
+    const char * ipaddr = "192.168.10.111";
+#endif
+    struct ip_iface *iface = ip_iface_alloc(ipaddr, "255.255.255.0");
+    assert(iface != 0);
+    ip_iface_register(dev, iface);
+}
+
 void net_init(void)
 {
     if (netinit() == -1) {
         panic("net_init() failure");
     }
+#if 1
+    struct net_device *dev = net_device_by_index(0);
+    assert(dev != 0);
+    set_ip_config(dev);
+#endif
 }
 
 void net_run(void)
