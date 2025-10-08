@@ -31,6 +31,7 @@
 #include <mm.h>
 #include <mm.h>
 #include <string.h>
+#include <usb.h>
 
 static uint32_t DEVNOS = 0;
 
@@ -138,7 +139,7 @@ boolean usb_standard_hub_config(usb_function_t *func)
     dwhc_device_t *host = usb_function_get_host(&self->func);
     // FIXME
     //self->hub_desc = (hub_desc_t *)kmalloc(sizeof(hub_desc_t));
-    self->hub_desc = (hub_desc_t *)kalloc();
+    self->hub_desc = hub_desc_alloc();
     assert(self->hub_desc != 0);
     if (dwhc_get_desc(host, usb_function_get_ep0(&self->func),
                     DESCRIPTOR_HUB, DESCRIPTOR_INDEX_DEFAULT,
@@ -219,7 +220,7 @@ usb_standard_hub_enumerate_ports(usb_standard_hub_t *self)
         // 2.2 status[i]の領域を確保する
         if (self->status[i] == 0) {
             //self->status[i] = (usb_port_status_t *)kmalloc(sizeof(usb_port_status_t));
-            self->status[i] = (usb_port_status_t *)kalloc();
+            self->status[i] = (usb_port_status_t *)usb_4byte_alloc();
             assert (self->status[i] != 0);
         }
         // 2.3 ポートのステータスを取得する
@@ -308,7 +309,7 @@ usb_standard_hub_enumerate_ports(usb_standard_hub_t *self)
 
     // 4. もう一度過電流がないかチェックする
     //usb_hub_status_t *hubstatus = kmalloc(sizeof(usb_hub_status_t));
-    usb_hub_status_t *hubstatus = kalloc();
+    usb_hub_status_t *hubstatus = (usb_hub_status_t *)usb_4byte_alloc();
     assert (hubstatus != 0);
     // 4.1 ハブの過電流チェック
     if (dwhc_control_message(host, ep0,

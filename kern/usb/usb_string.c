@@ -26,6 +26,7 @@
 #include <mm.h>
 #include <mm.h>
 #include <string.h>
+#include <usb.h>
 
 #define USBSTR_MIN_LENGTH       4
 #define USBSTR_DEFAULT_LANGID   0x409
@@ -43,7 +44,7 @@ void usb_string_copy(usb_string_t *self, usb_string_t *parent)
     self->str = 0;
     if (parent->str_desc != 0) {
         //self->str_desc = (usb_str_desc_t *)kmalloc(parent->str_desc->len);
-        self->str_desc = (usb_str_desc_t *)kalloc();
+        self->str_desc = usb_str_desc_alloc();
         memmove(self->str_desc, parent->str_desc, parent->str_desc->len);
     }
     self->str = (char *)kmalloc(strlen(parent->str) + 1);
@@ -57,7 +58,7 @@ void _usb_string(usb_string_t *self)
 
     if (self->str_desc != 0) {
         //kmfree(self->str_desc);
-        kfree(self->str_desc);
+        usb_str_desc_free(self->str_desc);
         self->str_desc = 0;
     }
 
@@ -68,12 +69,12 @@ boolean usb_string_get_from_desc(usb_string_t *self, uint8_t id, uint16_t langid
 {
     if (self->str_desc != 0) {
         //kmfree (self->str_desc);
-        kfree (self->str_desc);
+        usb_str_desc_free(self->str_desc);
     }
 
     // FIXME
     //self->str_desc = (usb_str_desc_t *)kmalloc(USBSTR_MIN_LENGTH);
-    self->str_desc = (usb_str_desc_t *)kalloc();
+    self->str_desc = usb_str_desc_alloc();
     if (dwhc_control_message(self->dev->host, self->dev->ep0,
             REQUEST_IN, GET_DESCRIPTOR,
             (DESCRIPTOR_STRING << 8) | id, langid,

@@ -23,8 +23,10 @@
 #define INC_USB_H
 
 #include <types.h>
+#include <usb/usb.h>
 #include <usb/dwhc_device.h>
 #include <usb/usb_dev_ns.h>
+#include <usb/usb_hub.h>
 #include <usb/lan7800.h>
 #include <usb/usb_cdcether.h>
 #include <usb/usb_keyboard.h>
@@ -45,6 +47,29 @@ typedef struct usb_library
 // usbライブラリを初期化する
 // 失敗した場合はpanic
 void usb_init(void);
+
+// USBdescription用のメモリ割り当てと解放
+usb_dev_desc_t *usb_dev_desc_alloc(void);
+void usb_dev_desc_free(usb_dev_desc_t *self);
+
+usb_cfg_desc_t *usb_cfg_desc_alloc(void);
+void usb_cfg_desc_free(usb_cfg_desc_t *self);
+
+usb_if_desc_t *usb_if_desc_alloc(void);
+void usb_if_desc_free(usb_if_desc_t *self);
+
+usb_ep_desc_t *usb_ep_desc_alloc(void);
+void usb_ep_desc_free(usb_ep_desc_t *self);
+
+usb_str_desc_t *usb_str_desc_alloc(void);
+void usb_str_desc_free(usb_str_desc_t *self);
+
+hub_desc_t *hub_desc_alloc(void);
+void hub_desc_free(hub_desc_t *self);
+
+void *usb_4byte_alloc(void);
+void usb_4byte_free(void *self);
+
 
 // keyboard
 int usb_keyboard_available(void);

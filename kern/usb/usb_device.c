@@ -27,7 +27,7 @@
 #include <string.h>
 #include <debug.h>
 #include <mm.h>
-
+#include <usb.h>
 
 #define MAX_CONFIG_DESC_SIZE    512        // best guess
 
@@ -132,7 +132,7 @@ void _usb_device(usb_dev_t *self)
 
     if (self->cfg_desc != 0) {
         //kmfree(self->cfg_desc);
-        kfree(self->cfg_desc);
+        usb_cfg_desc_free(self->cfg_desc);
         self->cfg_desc = 0;
     }
 
@@ -166,7 +166,7 @@ boolean usb_dev_init(usb_dev_t *self)
     assert (self->dev_desc == 0);
     // FIXME: 64 byte alignのメモリアロケータを作成する
     //self->dev_desc = (usb_dev_desc_t *) kmalloc(sizeof (usb_dev_desc_t));
-    self->dev_desc = (usb_dev_desc_t *) kalloc();
+    self->dev_desc = usb_dev_desc_alloc();
     assert(sizeof *self->dev_desc >= USB_DEFAULT_MAX_PACKET_SIZE);
     // 1.  8バイトデバイスディスクリプタを取得
     if (dwhc_get_desc(self->host, self->ep0,
@@ -175,7 +175,7 @@ boolean usb_dev_init(usb_dev_t *self)
         != USB_DEFAULT_MAX_PACKET_SIZE) {
         error("Cannot get device descriptor (short)");
         //kmfree(self->dev_desc);
-        kfree(self->dev_desc);
+        usb_dev_desc_free(self->dev_desc);
         self->dev_desc = 0;
         return false;
     }
@@ -183,7 +183,7 @@ boolean usb_dev_init(usb_dev_t *self)
      || self->dev_desc->type   != DESCRIPTOR_DEVICE) {
         error("Invalid device descriptor");
         //kmfree(self->dev_desc);
-        kfree(self->dev_desc);
+        usb_dev_desc_free(self->dev_desc);
         self->dev_desc = 0;
         return false;
     }
@@ -198,7 +198,7 @@ boolean usb_dev_init(usb_dev_t *self)
                     self->dev_desc, sizeof *self->dev_desc, REQUEST_IN, 0)
         != (int) sizeof *self->dev_desc) {
         error("Cannot get device descriptor");
-        kmfree(self->dev_desc);
+        usb_dev_desc_free(self->dev_desc);
         self->dev_desc = 0;
         return false;
     }
@@ -222,7 +222,7 @@ boolean usb_dev_init(usb_dev_t *self)
     assert (self->cfg_desc == 0);
     // FIXME
     //self->cfg_desc = (usb_cfg_desc_t *)kmalloc(sizeof (usb_cfg_desc_t));
-    self->cfg_desc = (usb_cfg_desc_t *)kalloc();
+    self->cfg_desc = usb_cfg_desc_alloc();
     assert (self->cfg_desc != 0);
     trace("cfg_desc[1]=0x%p", self->cfg_desc);
     // 5.1 コンフィグレーションインデックスの設定
@@ -240,7 +240,7 @@ boolean usb_dev_init(usb_dev_t *self)
         != (int) sizeof *self->cfg_desc) {
         error("Cannot get configuration descriptor (short)");
         //kmfree(self->cfg_desc);
-        kfree(self->cfg_desc);
+        usb_cfg_desc_free(self->cfg_desc);
         self->cfg_desc = 0;
         return false;
     }
@@ -251,7 +251,7 @@ boolean usb_dev_init(usb_dev_t *self)
      || self->cfg_desc->total  >  MAX_CONFIG_DESC_SIZE) {
         error("Invalid configuration descriptor");
         //kmfree(self->cfg_desc);
-        kfree(self->cfg_desc);
+        usb_cfg_desc_free(self->cfg_desc);
         self->cfg_desc = 0;
         return false;
     }
@@ -275,7 +275,7 @@ boolean usb_dev_init(usb_dev_t *self)
         != (int) total) {
         error("Cannot get configuration descriptor");
         //kmfree(self->cfg_desc);
-        kfree(self->cfg_desc);
+        usb_cfg_desc_free(self->cfg_desc);
         self->cfg_desc = 0;
         return false;
     }

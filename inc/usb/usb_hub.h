@@ -53,8 +53,8 @@ typedef struct usb_hub_descriptor {
     unsigned char   nports;
     unsigned short  hubchars;
         #define HUB_POWER_MODE(reg)         ((reg) & 3)
-            #define HUB_POWER_MODE_GANGED       0
-            #define HUB_POWER_MODE_INDIVIDUAL   1
+        #define HUB_POWER_MODE_GANGED       0
+        #define HUB_POWER_MODE_INDIVIDUAL   1
         #define HUB_TT_THINK_TIME(reg)      (((reg) >> 5) & 3)
     unsigned char   pwrgood;
     unsigned char   current;

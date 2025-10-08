@@ -27,9 +27,9 @@
 struct usb_device;
 
 typedef struct usb_string {
-    struct usb_device  *dev;
+    struct usb_device   *dev;
     usb_str_desc_t      *str_desc;
-    char            *str;
+    char                *str;
 } usb_string_t;
 
 void usb_string(usb_string_t *self, struct usb_device *dev);

@@ -20,20 +20,39 @@
 #include <types.h>
 #include <console.h>
 #include <mm.h>
+#include <slab.h>
 #include <usb.h>
 #include <usb/usb.h>
 #include <usb/usb_device.h>
+#include <usb/usb_hub.h>
 #include <usb/usb_dev_ns.h>
 #include <usb/usb_function.h>
 #include <usb/usb_string.h>
 #include <usb/lan7800.h>
 #include <usb/usb_cdcether.h>
 #include <usb/usb_keyboard.h>
+#include <usb/usb_hub.h>
 
 static usb_lib_t *usb_lib = 0;
 
+static struct slab_cache *USB_DEV_DESC;
+static struct slab_cache *USB_CFG_DESC;
+static struct slab_cache *USB_IF_DESC;
+static struct slab_cache *USB_EP_DESC;
+static struct slab_cache *USB_STR_DESC;
+static struct slab_cache *HUB_DESC;
+static struct slab_cache *USB_4BYTE;
+
 void usb_init(void)
 {
+    USB_DEV_DESC = slab_cache_create("usb_dev_desc", sizeof(usb_dev_desc_t), 64);
+    USB_CFG_DESC = slab_cache_create("usb_cfg_desc", sizeof(usb_cfg_desc_t), 64);
+    USB_IF_DESC = slab_cache_create("usb_if_desc", sizeof(usb_if_desc_t), 64);
+    USB_EP_DESC = slab_cache_create("usb_ep_desc", sizeof(usb_dev_desc_t), 64);
+    USB_STR_DESC = slab_cache_create("usb_str_desc", sizeof(usb_str_desc_t), 64);
+    HUB_DESC = slab_cache_create("hub_desc", sizeof(hub_desc_t), 64);
+    USB_4BYTE = slab_cache_create("usb_4byte", 4, 64);
+
     usb_lib = (usb_lib_t *)kmalloc(sizeof(usb_lib_t));
     assert(usb_lib != 0);
     usb_device_ns(&usb_lib->ns);
@@ -64,6 +83,76 @@ void usb_init(void)
         panic("failed to initialize usb_cdcether");
 
     info("usb_init ok");
+}
+
+usb_dev_desc_t *usb_dev_desc_alloc(void)
+{
+    return (usb_dev_desc_t *)slab_cache_alloc(USB_DEV_DESC);
+}
+
+void usb_dev_desc_free(usb_dev_desc_t *self)
+{
+    slab_cache_free(USB_DEV_DESC, self);
+}
+
+usb_cfg_desc_t *usb_cfg_desc_alloc(void)
+{
+    return (usb_cfg_desc_t *)slab_cache_alloc(USB_CFG_DESC);
+}
+
+void usb_cfg_desc_free(usb_cfg_desc_t *self)
+{
+    slab_cache_free(USB_CFG_DESC, self);
+}
+
+usb_if_desc_t *usb_if_desc_alloc(void)
+{
+    return (usb_if_desc_t *)slab_cache_alloc(USB_IF_DESC);
+}
+
+void usb_if_desc_free(usb_if_desc_t *self)
+{
+    slab_cache_free(USB_IF_DESC, self);
+}
+
+usb_ep_desc_t *usb_ep_desc_alloc(void)
+{
+    return (usb_ep_desc_t *)slab_cache_alloc(USB_EP_DESC);
+}
+
+void usb_ep_desc_free(usb_ep_desc_t *self)
+{
+    slab_cache_free(USB_EP_DESC, self);
+}
+
+usb_str_desc_t *usb_str_desc_alloc(void)
+{
+    return (usb_str_desc_t *)slab_cache_alloc(USB_STR_DESC);
+}
+
+void usb_str_desc_free(usb_str_desc_t *self)
+{
+    slab_cache_free(USB_STR_DESC, self);
+}
+
+hub_desc_t *hub_desc_alloc(void)
+{
+    return (hub_desc_t *)slab_cache_alloc(HUB_DESC);
+}
+
+void hub_desc_free(hub_desc_t *self)
+{
+    slab_cache_free(HUB_DESC, self);
+}
+
+void *usb_4byte_alloc(void)
+{
+    return slab_cache_alloc(USB_4BYTE);
+}
+
+void usb_4byte_free(void *self)
+{
+    slab_cache_free(USB_4BYTE, self);
 }
 
 int usb_keyboard_available(void)
