@@ -82,9 +82,9 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
     self->start = 0;
 
     self->ep = urb->ep;
-    self->dev = usb_endpoint_get_device(self->ep);
+    self->dev = self->ep->dev;
     self->speed = usb_dev_get_speed(self->dev);
-    self->xpsize = usb_endpoint_get_max_packet_size(self->ep);
+    self->xpsize = self->ep->xsize;
 
     self->split = self->dev->hubaddr != 0 && self->speed != usb_speed_high;
 
@@ -266,7 +266,7 @@ unsigned dwhc_xfer_data_get_channel_number(dwhc_xfer_data_t *self)
 
 boolean dwhc_xfer_data_is_periodic(dwhc_xfer_data_t *self)
 {
-    usb_endpoint_type_t type = usb_endpoint_get_type(self->ep);
+    usb_endpoint_type_t type = self->ep->type;
 
     return type == ep_type_interrupt || type == ep_type_isochronous;
 }
@@ -280,7 +280,7 @@ uint8_t dwhc_xfer_data_get_ep_type(dwhc_xfer_data_t *self)
 {
     unsigned type = 0;
 
-    switch(usb_endpoint_get_type(self->ep))
+    switch(self->ep->type)
     {
     case ep_type_control:
         type = DWHCI_HOST_CHAN_CHARACTER_EP_TYPE_CONTROL;
@@ -295,7 +295,7 @@ uint8_t dwhc_xfer_data_get_ep_type(dwhc_xfer_data_t *self)
         break;
 
     default:
-        warn("bad ep_type: %d", usb_endpoint_get_type(self->ep));
+        warn("bad ep_type: %d", self->ep->type);
         //assert(0);
         type = DWHCI_HOST_CHAN_CHARACTER_EP_TYPE_CONTROL;
         break;
@@ -306,7 +306,7 @@ uint8_t dwhc_xfer_data_get_ep_type(dwhc_xfer_data_t *self)
 
 uint8_t dwhc_xfer_data_get_ep_number(dwhc_xfer_data_t *self)
 {
-    return usb_endpoint_get_number(self->ep);
+    return self->ep->num;
 }
 
 uint32_t dwhc_xfer_data_get_max_packet_size(dwhc_xfer_data_t *self)

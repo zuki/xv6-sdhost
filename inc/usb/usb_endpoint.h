@@ -44,21 +44,11 @@ typedef struct usb_endpoint {
     usb_pid_t           nextpid;            ///< 次のPID
 } usb_endpoint_t;
 
-void usb_endpoint(usb_endpoint_t *self, struct usb_device *dev);  // for ep0
-void usb_endpoint2(usb_endpoint_t *self, struct usb_device *dev, const usb_ep_desc_t *desc);
-void usb_endpoint_copy(usb_endpoint_t *self, usb_endpoint_t *ep, struct usb_device *dev);
-void _usb_endpoint(usb_endpoint_t *self);
+void usb_endpoint_init(void);
+usb_endpoint_t *usb_endpoint_alloc(struct usb_device *dev, const usb_ep_desc_t *desc);
+void usb_endpoint_free(usb_endpoint_t *self);
 
-// getter
-struct usb_device *usb_endpoint_get_device(usb_endpoint_t *self);
-uint8_t usb_endpoint_get_number(usb_endpoint_t *self);
-usb_endpoint_type_t usb_endpoint_get_type(usb_endpoint_t *self);
-uint32_t usb_endpoint_get_max_packet_size(usb_endpoint_t *self);
-unsigned usb_endpoint_get_interval(usb_endpoint_t *self);		// Milliseconds
-// setter
-void usb_endpoint_set_max_packet_size(usb_endpoint_t *self, uint32_t xsize);
 // その他
-boolean usb_endpoint_is_direction_in(usb_endpoint_t *self);
 usb_pid_t usb_endpoint_get_nextpid(usb_endpoint_t *self, boolean ststatus);
 void usb_endpoint_skip_pid(usb_endpoint_t *self, unsigned packets, boolean ststatus);
 void usb_endpoint_reset_pid(usb_endpoint_t *self);

@@ -25,6 +25,7 @@
 #include <usb/dwhc_device.h>
 #include <usb/usb_request.h>
 #include <usb/usb_dev_ns.h>
+#include <usb/usb_endpoint.h>
 #include <types.h>
 #include <console.h>
 #include <mm.h>
@@ -125,8 +126,7 @@ boolean usb_standard_hub_config(usb_function_t *func)
     }
 
     // 4. 割り込みエンドポイントの作成
-    self->intr_ep = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
-    usb_endpoint2(self->intr_ep, usb_function_get_dev(&self->func), ep_desc);
+    self->intr_ep = usb_endpoint_alloc(usb_function_get_dev(&self->func), ep_desc);
 
     // 5. ファンクションクラスとしてConfigure
     if (!usb_function_config(&self->func)) {

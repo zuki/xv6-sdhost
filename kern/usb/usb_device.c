@@ -56,9 +56,7 @@ void usb_device(usb_dev_t *self, dwhc_device_t *host, usb_speed_t speed,
     self->dev_desc = 0;
     self->cfg_desc = 0;
     self->usb_cfg_parser = 0;
-    self->ep0 = (usb_endpoint_t *) kmalloc(sizeof(usb_endpoint_t));
-    assert (self->ep0 != 0);
-    usb_endpoint(self->ep0, self);
+    self->ep0 = usb_endpoint_alloc(self, 0);
     self->manufact = 0;
     self->product= 0;
 
@@ -98,11 +96,7 @@ void usb_device2(usb_dev_t *self, dwhc_device_t *host, usb_speed_t speed,
         self->hubport = self->pindex + 1;
         self->tt_hub = hubdev;
     }
-
-    self->ep0 = (usb_endpoint_t *) kmalloc(sizeof(usb_endpoint_t));
-    assert (self->ep0 != 0);
-    usb_endpoint(self->ep0, self);
-
+    self->ep0 = usb_endpoint_alloc(self, 0);
     self->manufact = 0;
     self->product = 0;
 
@@ -149,8 +143,7 @@ void _usb_device(usb_dev_t *self)
     }
 
     if (self->ep0 != 0) {
-        _usb_endpoint(self->ep0);
-        kmfree(self->ep0);
+        usb_endpoint_free(self->ep0);
     }
 
     self->host = 0;

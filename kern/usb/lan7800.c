@@ -3,6 +3,7 @@
 #include <usb/usb_request.h>
 #include <usb/dwhc_device.h>
 #include <usb/usb_dev_ns.h>
+#include <usb/usb_endpoint.h>
 #include <types.h>
 #include <console.h>
 #include <mm.h>
@@ -49,13 +50,11 @@ void _lan7800(lan7800_t *self)
     }
 
     if (self->bulk_out != 0) {
-        _usb_endpoint(self->bulk_out);
-        kmfree(self->bulk_out);
+        usb_endpoint_free(self->bulk_out);
     }
 
     if (self->bulk_in != 0) {
-        _usb_endpoint(self->bulk_in);
-        kmfree(self->bulk_in);
+        usb_endpoint_free(self->bulk_in);
     }
 
     _usb_function(&self->usb_func);
@@ -84,15 +83,13 @@ boolean lan7800_configure(usb_function_t *super)
                     error("bulk_in not null");
                     return false;
                 }
-                self->bulk_in = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
-                usb_endpoint2(self->bulk_in, usb_function_get_dev(&self->usb_func), ep_desc);
+                self->bulk_in = usb_endpoint_alloc(usb_function_get_dev(&self->usb_func), ep_desc);
             } else {                                    // 出力
                 if (self->bulk_out != 0) {
                     error("bulk_out not null");
                     return false;
                 }
-                self->bulk_out = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
-                usb_endpoint2(self->bulk_out, usb_function_get_dev(&self->usb_func), ep_desc);
+                self->bulk_out = usb_endpoint_alloc(usb_function_get_dev(&self->usb_func), ep_desc);
             }
         }
     }

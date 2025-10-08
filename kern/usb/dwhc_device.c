@@ -159,6 +159,8 @@ boolean dwhc_init(dwhc_device_t *self, boolean scan)
     trace("STADATA inited");
     usb_request_init();
     trace("URB inited");
+    usb_endpoint_init();
+    trace("ENDPOINT inited");
 
     uint32_t vendor;
     // 1. ホストコントローラのバージョンチェック

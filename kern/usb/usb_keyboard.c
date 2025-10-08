@@ -77,8 +77,7 @@ void _usb_keyboard(usb_keyboard_t *self)
     }
 
     if (self->ep != 0) {
-        _usb_endpoint(self->ep);
-        kmfree(self->ep);
+        usb_endpoint_free(self->ep);
         self->ep = 0;
     }
 
@@ -106,9 +105,7 @@ boolean usb_keyboard_config(usb_function_t *func)
         }
 
         assert (self->ep == 0);
-        self->ep = kmalloc(sizeof(usb_endpoint_t));
-        assert (self->ep != 0);
-        usb_endpoint2(self->ep, usb_function_get_dev(&self->func), ep_desc);
+        self->ep = usb_endpoint_alloc(usb_function_get_dev(&self->func), ep_desc);
         break;
     }
     if (self->ep == 0) {

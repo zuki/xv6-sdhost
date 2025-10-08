@@ -23,6 +23,7 @@
 #include <usb/usb_string.h>
 #include <usb/dwhc_device.h>
 #include <usb/usb_dev_ns.h>
+#include <usb/usb_endpoint.h>
 #include <types.h>
 #include <console.h>
 #include <mm.h>
@@ -60,13 +61,11 @@ void usb_cdcether(usb_cdcether_t *self, usb_function_t *func)
 void _usb_cdcether(usb_cdcether_t *self)
 {
     if (self->bulk_out != 0) {
-        _usb_endpoint(self->bulk_out);
-        kmfree(self->bulk_out);
+        usb_endpoint_free(self->bulk_out);
     }
 
     if (self->bulk_in != 0) {
-        _usb_endpoint(self->bulk_in);
-        kmfree(self->bulk_in);
+        usb_endpoint_free(self->bulk_in);
     }
 
     _usb_function(&self->usb_func);
@@ -122,8 +121,7 @@ boolean usb_cdcether_configure(usb_function_t *func)
                     error("bulk_in not null");
                     return false;
                 }
-                self->bulk_in = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
-                usb_endpoint2(self->bulk_in, usb_function_get_dev(&self->usb_func), ep_desc);
+                self->bulk_in = usb_endpoint_alloc(usb_function_get_dev(&self->usb_func), ep_desc);
                 // type=1 (buik) , num=2, in=1 (in)
                 trace("endpoint: type=%d, num=%d, in=%d", self->bulk_in->type, self->bulk_in->num, self->bulk_in->in);
             } else {                                // 出力パイプ
@@ -131,8 +129,7 @@ boolean usb_cdcether_configure(usb_function_t *func)
                     error("bulk_out not null");
                     return false;
                 }
-                self->bulk_out = (usb_endpoint_t *)kmalloc(sizeof(usb_endpoint_t));
-                usb_endpoint2(self->bulk_out, usb_function_get_dev(&self->usb_func), ep_desc);
+                self->bulk_out = usb_endpoint_alloc(usb_function_get_dev(&self->usb_func), ep_desc);
                 // type=1 (bulk), num=2, in=0 (out)
                 trace("endpoint: type=%d, num=%d, in=%d", self->bulk_out->type, self->bulk_out->num, self->bulk_out->in);
             }

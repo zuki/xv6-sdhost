@@ -20,142 +20,101 @@
 #include <usb/usb_endpoint.h>
 #include <types.h>
 #include <console.h>
+#include <slab.h>
 
-void usb_endpoint(usb_endpoint_t *self, usb_dev_t *dev)
+struct slab_cache *ENDPOINT;
+
+void usb_endpoint_init(void)
 {
-    assert(self != 0);
-    self->dev = dev;
-    self->num = 0;
-    self->type = ep_type_control;
-    self->in = false;
-    self->xsize = USB_DEFAULT_MAX_PACKET_SIZE;
-    self->interval = 1;
-    self->nextpid = usb_pid_setup;
+    ENDPOINT = slab_cache_create("urb", sizeof(usb_request_t), 64);
 }
 
-void usb_endpoint2(usb_endpoint_t *self, usb_dev_t *dev, const usb_ep_desc_t *desc)
+usb_endpoint_t *usb_endpoint_alloc(usb_dev_t *dev, const usb_ep_desc_t *desc)
 {
-    self->dev = dev;
-    self->interval = 1;
-    self->nextpid = usb_pid_data0;
-    assert(desc->length >= sizeof *desc); // クラス固有トレイラがある場合があるので>=
-    assert(desc->type == DESCRIPTOR_ENDPOINT);
+    usb_endpoint_t *ep = (usb_endpoint_t *)slab_cache_alloc(ENDPOINT);
+    ep->dev = dev;
+    ep->interval = 1;
+    if (desc != 0) {
+        ep->nextpid = usb_pid_data0;
+        assert(desc->length >= sizeof *desc); // クラス固有トレイラがある場合があるので>=
+        assert(desc->type == DESCRIPTOR_ENDPOINT);
 
-    switch(desc->attr & 0x03) {
-    case 2:
-        self->type = ep_type_bulk;
-        break;
+        switch(desc->attr & 0x03) {
+        case 2:
+            ep->type = ep_type_bulk;
+            break;
 
-    case 3:
-        self->type = ep_type_interrupt;
-        break;
+        case 3:
+            ep->type = ep_type_interrupt;
+            break;
 
-    default:
-        assert(0);  // エンドポイントコンフィグレーションは
-        return;     // 属性クラスのドライバでチェックする
-    }
-
-    self->num       = desc->addr & 0x0F;
-    self->in        = desc->addr & 0x80 ? true : false;
-    self->xsize     = desc->xsize & 0x7FF;
-
-    // インタラプト転送
-    if (self->type == ep_type_interrupt) {
-        uint8_t interval = desc->interval;
-        if (interval < 1) {
-            interval = 1;
+        default:
+            assert(0);  // エンドポイントコンフィグレーションは
+            return NULL;      // 属性クラスのドライバでチェックする
         }
 
-        // see USB 2.0 spec chapter 9.6.6
-        if(self->dev->speed < usb_speed_high) {    // LS/FS
-            self->interval = interval;
-        } else {                                    // HS
-            if (interval > 16) {
-                interval = 16;
+        ep->num       = desc->addr & 0x0F;
+        ep->in        = desc->addr & 0x80 ? true : false;
+        ep->xsize     = desc->xsize & 0x7FF;
+
+        // インタラプト転送
+        if (ep->type == ep_type_interrupt) {
+            uint8_t interval = desc->interval;
+            if (interval < 1) {
+                interval = 1;
             }
-            unsigned value = 1 << (interval - 1);
-            self->interval = value / 8;
-            if(self->interval < 1) {
-                self->interval = 1;
+
+            // see USB 2.0 spec chapter 9.6.6
+            if (ep->dev->speed < usb_speed_high) {    // LS/FS
+                ep->interval = interval;
+            } else {                                    // HS
+                if (interval > 16) {
+                    interval = 16;
+                }
+                unsigned value = 1 << (interval - 1);
+                ep->interval = value / 8;
+                if(ep->interval < 1) {
+                    ep->interval = 1;
+                }
             }
-        }
 #ifndef USE_USB_SOF_INTR
-        // interval 20ms is minimum to reduce interrupt rate
-        if (self->interval < 20)
-        {
-            self->interval = 20;
-        }
+            // interval 20ms is minimum to reduce interrupt rate
+            if (ep->interval < 20)
+            {
+                ep->interval = 20;
+            }
 #endif
-    }
+        }
 
-    // バルクエンドポイントでLPの場合の回避策、通常、仕様では禁止されている
-    if (self->dev->speed == usb_speed_low && self->type == ep_type_bulk) {
-        warn("Device is not fully USB compliant");
-        // 割り込みEPにする
-        self->type = ep_type_interrupt;
-        // 最大パケットサイズは8以下
-        if (self->xsize > 8)
-            self->xsize = 8;
+        // バルクエンドポイントでLPの場合の回避策、通常、仕様では禁止されている
+        if (ep->dev->speed == usb_speed_low && ep->type == ep_type_bulk) {
+            warn("Device is not fully USB compliant");
+            // 割り込みEPにする
+            ep->type = ep_type_interrupt;
+            // 最大パケットサイズは8以下
+            if (ep->xsize > 8)
+                ep->xsize = 8;
 
 #ifdef USE_USB_SOF_INTR
-        self->interval = 1;
+            ep->interval = 1;
 #else
-        self->interval = 20;
+            ep->interval = 20;
 #endif
+        }
+    } else {
+        ep->num = 0;
+        ep->type = ep_type_control;
+        ep->in = false;
+        ep->xsize = USB_DEFAULT_MAX_PACKET_SIZE;
+        ep->interval = 1;
+        ep->nextpid = usb_pid_setup;
     }
-
+    return ep;
 }
 
-void usb_endpoint_copy(usb_endpoint_t *self, usb_endpoint_t *ep, usb_dev_t *dev)
+void usb_endpoint_free(usb_endpoint_t *self)
 {
-    self->dev       = dev;
-    self->num       = ep->num;
-    self->type      = ep->type;
-    self->in        = ep->in;
-    self->xsize     = ep->xsize;
-    self->interval  = ep->interval;
-    self->nextpid   = ep->nextpid;
-}
-
-void _usb_endpoint(usb_endpoint_t *self)
-{
-    self->dev = 0;
-}
-
-usb_dev_t *usb_endpoint_get_device(usb_endpoint_t *self)
-{
-    return self->dev;
-}
-
-uint8_t usb_endpoint_get_number(usb_endpoint_t *self)
-{
-    return self->num;
-}
-
-usb_endpoint_type_t usb_endpoint_get_type(usb_endpoint_t *self)
-{
-    return self->type;
-}
-
-boolean usb_endpoint_is_direction_in(usb_endpoint_t *self)
-{
-    return self->in;
-}
-
-void usb_endpoint_set_max_packet_size(usb_endpoint_t *self, uint32_t xsize)
-{
-    self->xsize = xsize;
-}
-
-uint32_t usb_endpoint_get_max_packet_size(usb_endpoint_t *self)
-{
-    return self->xsize;
-}
-
-unsigned usb_endpoint_get_interval(usb_endpoint_t *self)
-{
-    assert(self->type == ep_type_interrupt);
-    return self->interval;
+    slab_cache_free(ENDPOINT, self);
 }
 
 usb_pid_t usb_endpoint_get_nextpid(usb_endpoint_t *self, boolean ststatus)
