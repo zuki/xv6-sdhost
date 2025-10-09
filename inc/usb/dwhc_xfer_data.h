@@ -35,48 +35,46 @@
 // 先頭をDMAキャッシュアライン(64)に合わせる
 ;
 typedef struct dwhc_xfer_data {
-    uint32_t        buffer[16];         ///< DMA buffer
-    unsigned        channel;            ///< チャネル
-    usb_request_t   *urb;                ///< リクエスト
-    boolean         in;                 ///< 方向（INか）
-    boolean         ststatus;           ///< ステージステータス
+    uint32_t            buffer[16];         ///< DMA buffer
+    unsigned            channel;            ///< チャネル
+    usb_request_t   *   urb;                ///< リクエスト
+    boolean             in;                 ///< 方向（INか）
+    boolean             ststatus;           ///< ステージステータス
 
-    boolean         split;              ///< 分割トランザクションか
-    boolean         split_comp;         ///< 分割完了か
-    unsigned        timeout;            ///< タイムアウト
+    boolean             split;              ///< 分割トランザクションか
+    boolean             split_comp;         ///< 分割完了か
+    unsigned            timeout;            ///< タイムアウト
 
-    usb_dev_t      *dev;                ///< デバイス
-    usb_endpoint_t *ep;                 ///< エンドポイント
-    usb_speed_t     speed;              ///< 速度
-    uint32_t        xpsize;             ///< 最大パケットサイズ
+    usb_dev_t      *    dev;                ///< デバイス
+    usb_endpoint_t *    ep;                 ///< エンドポイント
+    usb_speed_t         speed;              ///< 速度
+    uint32_t            xpsize;             ///< 最大パケットサイズ
 
-    uint32_t        xfersize;           ///< 転送サイズ
-    unsigned        packets;            ///< パケット数
-    uint32_t        bpt;                ///< トランザクションあたりのバイト数
-    unsigned        ppt;                ///< トランザクションあたりのパケット数
-    uint32_t        xfered;             ///< 転送済み層バイト数
+    uint32_t            xfersize;           ///< 転送サイズ
+    unsigned            packets;            ///< パケット数
+    uint32_t            bpt;                ///< トランザクションあたりのバイト数
+    unsigned            ppt;                ///< トランザクションあたりのパケット数
+    uint32_t            xfered;             ///< 転送済み層バイト数
 
-    unsigned        state;              ///< 状態
-    unsigned        substate;           ///< 副状態
-    uint32_t        trstatus;           ///< トランザクション状態
-    unsigned        err_cnt;            ///< エラー数
-    const void     *buffp;              ///< バッファへのポインタ
+    unsigned            state;              ///< 状態
+    unsigned            substate;           ///< 副状態
+    uint32_t            trstatus;           ///< トランザクション状態
+    unsigned            err_cnt;            ///< エラー数
+    const void     *    buffp;              ///< バッファへのポインタ
 
-    unsigned        start;              ///< スタート時(tickHZ)
+    unsigned            start;              ///< スタート時(tickHZ)
 
-    boolean         fsused;
-    union {
-        dwhc_scheduler_t    base;
-        dwhc_periodic_t     periodic;
-        dwhc_non_periodic_t nonperiodic;
-        dwhc_non_split_t    nosplit;
-    } scheduler;                           ///< フレームスケジューラ
+    boolean             fsused;
+    dwhc_scheduler_t *  scheduler;          ///< フレームスケジューラ
 } dwhc_xfer_data_t;
 
 void dwhc_xfer_data_init(void);
 
 dwhc_xfer_data_t *dwhc_xfer_data_alloc(void);
 void dwhc_xfer_data_free(dwhc_xfer_data_t *stdata);
+
+dwhc_scheduler_t *dwhc_scheduler_alloc(dwhc_scheduler_type_t type);
+void dwhc_scheduler_free(dwhc_scheduler_t *self);
 
 void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb, boolean in, boolean ststatus, unsigned timeout);
 

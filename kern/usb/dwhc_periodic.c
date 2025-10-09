@@ -20,6 +20,7 @@
 #include <usb/dwhc_scheduler.h>
 #include <usb/dwhc_periodic.h>
 #include <usb/dwhc_regs.h>
+#include <usb/dwhc_xfer_data.h>
 #include <types.h>
 #include <arm.h>
 #include <console.h>
@@ -37,39 +38,14 @@ typedef enum framescheduler_state{
     scheduler_state_unknown
 } scheduler_state_t;
 
-void dwhc_periodic(dwhc_periodic_t *self)
+static void _dwhc_periodic(dwhc_scheduler_t *scheduler)
 {
-    dwhc_scheduler_t *base =(dwhc_scheduler_t *) self;
-
-    base->_scheduler = _dwhc_periodic;
-    base->start_split = dwhc_periodic_start_split;
-    base->complete_split = dwhc_periodic_complete_split;
-    base->transaction_complete = dwhc_periodic_transaction_complete;
-#ifndef USE_USB_SOF_INTR
-    base->wait_for_frame = dwhc_periodic_wait_for_frame;
-#else
-    base->get_frame_number = dwhc_periodicget_frame_number;
-    base->periodic_delay = w2_scheduler_per_periodic_delay;
-#endif
-    base->is_odd_frame = dwhc_periodic_is_odd_frame;
-
-    self->state = scheduler_state_unknown;
-    self->next = FRAME_UNSET;
-#ifdef USE_USB_SOF_INTR
-    self->offset = FRAME_UNSET;
-#endif
+    dwhc_scheduler_free(scheduler);
 }
 
-void _dwhc_periodic(dwhc_scheduler_t *base)
+void dwhc_periodic_start_split(dwhc_scheduler_t *scheduler)
 {
-    dwhc_periodic_t *self = (dwhc_periodic_t *) base;
-
-    self->state = scheduler_state_unknown;
-}
-
-void dwhc_periodic_start_split(dwhc_scheduler_t *base)
-{
-    dwhc_periodic_t *self = (dwhc_periodic_t *) base;
+    dwhc_periodic_t *self = (dwhc_periodic_t *) scheduler;
 
 #ifdef USE_USB_SOF_INTR
     if (self->state != scheduler_state_comp_split_failed
@@ -83,9 +59,9 @@ void dwhc_periodic_start_split(dwhc_scheduler_t *base)
 
 }
 
-boolean dwhc_periodic_complete_split(dwhc_scheduler_t *base)
+static boolean dwhc_periodic_complete_split(dwhc_scheduler_t *scheduler)
 {
-    dwhc_periodic_t *self =(dwhc_periodic_t *) base;
+    dwhc_periodic_t *self =(dwhc_periodic_t *) scheduler;
 
     boolean result = false;
 
@@ -124,9 +100,9 @@ boolean dwhc_periodic_complete_split(dwhc_scheduler_t *base)
     return result;
 }
 
-void dwhc_periodic_transaction_complete(dwhc_scheduler_t *base, uint32_t status)
+static void dwhc_periodic_transaction_complete(dwhc_scheduler_t *scheduler, uint32_t status)
 {
-    dwhc_periodic_t *self = (dwhc_periodic_t *) base;
+    dwhc_periodic_t *self = (dwhc_periodic_t *) scheduler;
 
     switch(self->state) {
     case scheduler_state_start_split:
@@ -169,9 +145,9 @@ void dwhc_periodic_transaction_complete(dwhc_scheduler_t *base, uint32_t status)
 
 #ifndef USE_USB_SOF_INTR
 
-void dwhc_periodic_wait_for_frame(dwhc_scheduler_t *base)
+static void dwhc_periodic_wait_for_frame(dwhc_scheduler_t *scheduler)
 {
-    dwhc_periodic_t *self =(dwhc_periodic_t *) base;
+    dwhc_periodic_t *self =(dwhc_periodic_t *) scheduler;
 
     uint32_t number;
     if (self->next == FRAME_UNSET) {
@@ -189,9 +165,9 @@ void dwhc_periodic_wait_for_frame(dwhc_scheduler_t *base)
 
 #else
 
-uint16_t dwhc_periodic_get_frame_number(dwhc_scheduler_t *base)
+static uint16_t dwhc_periodic_get_frame_number(dwhc_scheduler_t *scheduler)
 {
-    dwhc_periodic_t *self =(dwhc_periodic_t *) base;
+    dwhc_periodic_t *self =(dwhc_periodic_t *) scheduler;
 
     uint32_t framenum = get32(DWHCI_HOST_FRM_NUM);
     uint16_t fnum = DWHCI_HOST_FRM_NUM_NUMBER(framenum);
@@ -205,8 +181,10 @@ uint16_t dwhc_periodic_get_frame_number(dwhc_scheduler_t *base)
     return self->next;
 }
 
-void dwhc_periodic_periodic_delay(dwhc_scheduler_t *base, uint16_t offset)
+static void dwhc_periodic_periodic_delay(dwhc_scheduler_t *scheduler, uint16_t offset)
 {
+    dwhc_periodic_t *self =(dwhc_periodic_t *) scheduler;
+
     self->state  = scheduler_state_periodic_delay;
     self->offset = offset;
     self->next   = FRAME_UNSET;
@@ -214,9 +192,34 @@ void dwhc_periodic_periodic_delay(dwhc_scheduler_t *base, uint16_t offset)
 
 #endif
 
-boolean dwhc_periodic_is_odd_frame(dwhc_scheduler_t *base)
+static boolean dwhc_periodic_is_odd_frame(dwhc_scheduler_t *scheduler)
 {
-    dwhc_periodic_t *self =(dwhc_periodic_t *) base;
+    dwhc_periodic_t *self =(dwhc_periodic_t *) scheduler;
 
     return self->next & 1 ? true : false;
+}
+
+static dwhc_scheduler_ops_t periodic_ops = {
+    ._scheduler = _dwhc_periodic,
+    .start_split = dwhc_periodic_start_split,
+    .complete_split = dwhc_periodic_complete_split,
+    .transaction_complete = dwhc_periodic_transaction_complete,
+#ifndef USE_USB_SOF_INTR
+    .wait_for_frame = dwhc_periodic_wait_for_frame,
+#else
+    .get_frame_number = dwhc_periodicget_frame_number,
+    .periodic_delay = w2_scheduler_per_periodic_delay,
+#endif
+    .is_odd_frame = dwhc_periodic_is_odd_frame,
+};
+
+void dwhc_periodic(dwhc_periodic_t *self)
+{
+    self->scheduler.ops = &periodic_ops;
+    self->scheduler.type = dwhc_scheduler_type_periodic;
+    self->state = scheduler_state_unknown;
+    self->next = FRAME_UNSET;
+#ifdef USE_USB_SOF_INTR
+    self->offset = FRAME_UNSET;
+#endif
 }

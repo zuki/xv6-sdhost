@@ -749,7 +749,7 @@ boolean dwhc_xfer_stage_async(dwhc_device_t *self, usb_request_t *urb, boolean i
         stdata->split_comp = false;
         dwhc_scheduler_t *scheduler = dwhc_xfer_data_get_scheduler(stdata);
         assert(scheduler != 0);
-        scheduler->start_split(scheduler);
+        scheduler->ops->start_split(scheduler);
     }
 #ifndef USE_USB_SOF_INTR
     // 6. トランザクション開始
@@ -913,11 +913,11 @@ void dwhc_start_channel(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
     if (scheduler != 0) {
 #ifndef USE_USB_SOF_INTR
         // 10-11. フレームが送信されるのを待つ
-        scheduler->wait_for_frame(scheduler);
+        scheduler->ops->wait_for_frame(scheduler);
         trace("10-11");;
 #endif
         // 10-12. [29] 奇数フレームか
-        if (scheduler->is_odd_frame(scheduler)) {
+        if (scheduler->ops->is_odd_frame(scheduler)) {
             // 偶数フレーム
             character |= DWHCI_HOST_CHAN_CHARACTER_PER_ODD_FRAME;
         } else {
@@ -1107,10 +1107,10 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
             break;
         }
 
-        scheduler->transaction_complete(scheduler, status);
+        scheduler->ops->transaction_complete(scheduler, status);
         stdata->state = stage_status_complete_split;
         stdata->split_comp = true;
-        if (!scheduler->complete_split(scheduler)) {
+        if (!scheduler->ops->complete_split(scheduler)) {
             goto LeaveCompleteSplit;
         }
 
@@ -1139,8 +1139,8 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
             break;
         }
 
-        scheduler->transaction_complete(scheduler, status);
-        if (scheduler->complete_split(scheduler)) {
+        scheduler->ops->transaction_complete(scheduler, status);
+        if (scheduler->ops->complete_split(scheduler)) {
 #ifndef USE_USB_SOF_INTR
             dwhc_start_trans(self, stdata);
 #else
@@ -1167,7 +1167,7 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
             if (!dwhc_xfer_data_is_periodic(stdata)) {
                 stdata->state = stage_status_start_split;
                 stdata->split_comp = false;
-                scheduler->start_split(scheduler);
+                scheduler->ops->start_split(scheduler);
 #ifndef USE_USB_SOF_INTR
                 dwhc_start_trans(self, stdata);
 #else
@@ -1365,7 +1365,7 @@ void dwhc_device_timer_hdl(dwhc_device_t *self, dwhc_xfer_data_t *stdata)
 
         dwhc_scheduler_t *scheduler = dwhc_xfer_data_get_scheduler(stdata);
         assert(scheduler != 0);
-        scheduler->start_split(scheduler);
+        scheduler->ops->start_split(scheduler);
     } else {
         stdata->state = stage_status_no_split;
     }

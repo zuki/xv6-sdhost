@@ -20,6 +20,7 @@
 #include <usb/dwhc_scheduler.h>
 #include <usb/dwhc_non_periodic.h>
 #include <usb/dwhc_regs.h>
+#include <usb/dwhc_xfer_data.h>
 #include <types.h>
 #include <arm.h>
 #include <console.h>
@@ -34,37 +35,14 @@ typedef enum framescheduler_state{
     scheduler_state_unknown
 } scheduler_state_t;
 
-void dwhc_non_periodic(dwhc_non_periodic_t *self)
+static void _dwhc_non_periodic(dwhc_scheduler_t *scheduler)
 {
-    dwhc_scheduler_t *base =(dwhc_scheduler_t *)self;
-
-    base->_scheduler = _dwhc_non_periodic;
-    base->start_split = dwhc_non_periodic_start_split;
-    base->complete_split = dwhc_non_periodic_complete_split;
-    base->transaction_complete = dwhc_non_periodic_transaction_complete;
-#ifndef USE_USB_SOF_INTR
-    base->wait_for_frame = dwhc_non_periodic_wait_for_frame;
-#else
-    base->get_frame_number = dw2_scheduler_nperget_frame_number;
-    base->periodic_delay = dwhc_non_periodic_delay;
-#endif
-    base->is_odd_frame = dwhc_non_periodic_is_odd_frame;
-
-    self->state = scheduler_state_unknown;
-#ifdef USE_USB_SOF_INTR
-    self->offset = 0;
-#endif
+    dwhc_scheduler_free(scheduler);
 }
 
-void _dwhc_non_periodic(dwhc_scheduler_t *base)
+static void dwhc_non_periodic_start_split(dwhc_scheduler_t *scheduler)
 {
-    dwhc_non_periodic_t *self = (dwhc_non_periodic_t *) base;
-    self->state = scheduler_state_unknown;
-}
-
-void dwhc_non_periodic_start_split(dwhc_scheduler_t *base)
-{
-    dwhc_non_periodic_t *self = (dwhc_non_periodic_t *) base;
+    dwhc_non_periodic_t *self = (dwhc_non_periodic_t *) scheduler;
 
 #ifdef USE_USB_SOF_INTR
     if (self->state != scheduler_state_comp_split_failed)
@@ -74,9 +52,9 @@ void dwhc_non_periodic_start_split(dwhc_scheduler_t *base)
     self->state = scheduler_state_start_split;
 }
 
-boolean dwhc_non_periodic_complete_split(dwhc_scheduler_t *base)
+static boolean dwhc_non_periodic_complete_split(dwhc_scheduler_t *scheduler)
 {
-    dwhc_non_periodic_t *self =(dwhc_non_periodic_t *) base;
+    dwhc_non_periodic_t *self =(dwhc_non_periodic_t *) scheduler;
     boolean result = false;
 
 #ifdef USE_USB_SOF_INTR
@@ -112,9 +90,9 @@ boolean dwhc_non_periodic_complete_split(dwhc_scheduler_t *base)
     return result;
 }
 
-void dwhc_non_periodic_transaction_complete(dwhc_scheduler_t *base, uint32_t status)
+static void dwhc_non_periodic_transaction_complete(dwhc_scheduler_t *scheduler, uint32_t status)
 {
-    dwhc_non_periodic_t *self =(dwhc_non_periodic_t *) base;
+    dwhc_non_periodic_t *self =(dwhc_non_periodic_t *) scheduler;
 
     switch(self->state)
     {
@@ -158,16 +136,16 @@ void dwhc_non_periodic_transaction_complete(dwhc_scheduler_t *base, uint32_t sta
 
 #ifndef USE_USB_SOF_INTR
 
-void dwhc_non_periodic_wait_for_frame(dwhc_scheduler_t *base)
+static void dwhc_non_periodic_wait_for_frame(dwhc_scheduler_t *scheduler)
 {
     // nop
 }
 
 #else
 
-uint16_t dwhc_non_periodic_get_frame_number(dwhc_scheduler_t *base)
+static uint16_t dwhc_non_periodic_get_frame_number(dwhc_scheduler_t *scheduler)
 {
-    dwhc_non_periodic_t *self =(dwhc_non_periodic_t *) base;
+    dwhc_non_periodic_t *self =(dwhc_non_periodic_t *) scheduler;
 
     uint32_t framnum = get32(DWHCI_HOST_FRM_NUM);
     uint16_t fnum = DWHCI_HOST_FRM_NUM_NUMBER(framnum);
@@ -176,14 +154,39 @@ uint16_t dwhc_non_periodic_get_frame_number(dwhc_scheduler_t *base)
 	return (fnum + self->ofsser) & DWHCI_MAX_FRAME_NUMBER;
 }
 
-void dwhc_non_periodic_delay(dwhc_scheduler_t *base, uint16_t offset)
+static void dwhc_non_periodic_delay(dwhc_scheduler_t *scheduler, uint16_t offset)
 {
 	assert (0);
 }
 
 #endif
 
-boolean dwhc_non_periodic_is_odd_frame(dwhc_scheduler_t *base)
+static boolean dwhc_non_periodic_is_odd_frame(dwhc_scheduler_t *scheduler)
 {
     return false;
+}
+
+static dwhc_scheduler_ops_t non_periodic_ops = {
+    ._scheduler = _dwhc_non_periodic,
+    .start_split = dwhc_non_periodic_start_split,
+    .complete_split = dwhc_non_periodic_complete_split,
+    .transaction_complete = dwhc_non_periodic_transaction_complete,
+#ifndef USE_USB_SOF_INTR
+    .wait_for_frame = dwhc_non_periodic_wait_for_frame,
+#else
+    .get_frame_number = dwhc_non_periodicget_frame_number,
+    .periodic_delay = w2_scheduler_per_non_periodic_delay,
+#endif
+    .is_odd_frame = dwhc_non_periodic_is_odd_frame,
+};
+
+void dwhc_non_periodic(dwhc_non_periodic_t *self)
+{
+    self->scheduler.ops = &non_periodic_ops;
+    self->scheduler.type = dwhc_scheduler_type_non_periodic;
+    self->state = scheduler_state_unknown;
+    self->tries = 0;
+#ifdef USE_USB_SOF_INTR
+    self->offset = 0;
+#endif
 }

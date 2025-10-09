@@ -25,7 +25,16 @@
 #define FRAME           125        // micro seconds
 #define FRAME_UNSET     8
 
-typedef struct dwhc_scheduler {
+typedef enum dwhc_scheduler_type {
+    dwhc_scheduler_type_periodic,
+    dwhc_scheduler_type_non_periodic,
+    dwhc_scheduler_type_non_split,
+    dwhc_scheduler_type_unknown,
+} dwhc_scheduler_type_t;
+
+struct dwhc_scheduler;
+
+typedef struct dwhc_scheduler_ops {
     void (*_scheduler)(struct dwhc_scheduler *self);
 
     void (*start_split)(struct dwhc_scheduler *self);
@@ -38,6 +47,12 @@ typedef struct dwhc_scheduler {
     void (*periodic_delay)(struct dwhc_scheduler *base, uint16_t offset);
 #endif
     boolean (*is_odd_frame)(struct dwhc_scheduler *self);
+} dwhc_scheduler_ops_t;
+
+
+typedef struct dwhc_scheduler {
+    dwhc_scheduler_type_t   type;
+    dwhc_scheduler_ops_t *  ops;
 } dwhc_scheduler_t;
 
 #endif

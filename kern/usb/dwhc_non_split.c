@@ -20,60 +20,39 @@
 #include <usb/dwhc_scheduler.h>
 #include <usb/dwhc_non_split.h>
 #include <usb/dwhc_regs.h>
+#include <usb/dwhc_xfer_data.h>
 #include <types.h>
 #include <arm.h>
 #include <console.h>
 
 #define FRAME_UNSET_NS (DWHCI_MAX_FRAME_NUMBER+1)
 
-void dwhc_non_split(dwhc_non_split_t *self, boolean peiodic)
+static void _dwhc_non_split(dwhc_scheduler_t *scheduler)
 {
-    assert(self != 0);
-
-    dwhc_scheduler_t *base = (dwhc_scheduler_t *) self;
-
-    base->_scheduler = _dwhc_non_split;
-    base->start_split = dwhc_non_split_start_split;
-    base->complete_split = dwhc_non_split_complete_split;
-    base->transaction_complete = dwhc_non_split_transaction_complete;
-#ifndef USE_USB_SOF_INTR
-    base->wait_for_frame = dwhc_non_split_wait_for_frame;
-#else
-    base->get_frame_number = dwhc_non_split_get_frame_number;
-    base->periodic_delay = dwhc_non_split_periodic_delay;
-#endif
-    base->is_odd_frame = dwhc_non_split_is_odd_frame;
-
-    self->periodic = peiodic;
-    self->next = FRAME_UNSET_NS;
+    dwhc_scheduler_free(scheduler);
 }
 
-void _dwhc_non_split(dwhc_scheduler_t *base)
-{
-    // nop
-}
-
-void dwhc_non_split_start_split(dwhc_scheduler_t *base)
+static void dwhc_non_split_start_split(dwhc_scheduler_t *scheduler)
 {
     assert(0);
 }
 
-boolean dwhc_non_split_complete_split(dwhc_scheduler_t *base)
+static boolean dwhc_non_split_complete_split(dwhc_scheduler_t *scheduler)
 {
     assert(0);
     return false;
 }
 
-void dwhc_non_split_transaction_complete(dwhc_scheduler_t *base, uint32_t status)
+static void dwhc_non_split_transaction_complete(dwhc_scheduler_t *scheduler, uint32_t status)
 {
     assert(0);
 }
 
 #ifndef USE_USB_SOF_INTR
 
-void dwhc_non_split_wait_for_frame(dwhc_scheduler_t *base)
+static void dwhc_non_split_wait_for_frame(dwhc_scheduler_t *scheduler)
 {
-    dwhc_non_split_t *self = (dwhc_non_split_t *) base;
+    dwhc_non_split_t *self = (dwhc_non_split_t *) scheduler;
 
     uint32_t number;
     // 1. 現在のフレーム番号を取得
@@ -89,14 +68,13 @@ void dwhc_non_split_wait_for_frame(dwhc_scheduler_t *base)
             // do nothing
         }
     }
-
 }
 
 #else
 
-uint16_t dwhc_non_split_get_frame_number(dwhc_scheduler_t *base)
+static uint16_t dwhc_non_split_get_frame_number(dwhc_scheduler_t *scheduler)
 {
-    dwhc_non_split_t *self = (dwhc_non_split_t *) base;
+    dwhc_non_split_t *self = (dwhc_non_split_t *) scheduler;
 
     uint32_t framnum = get32(DWHCI_HOST_FRM_NUM);
     self->next = (DWHCI_HOST_FRM_NUM_NUMBER(framnum+1) & DWHCI_MAX_FRAME_NUMBER;
@@ -104,16 +82,37 @@ uint16_t dwhc_non_split_get_frame_number(dwhc_scheduler_t *base)
     return serl->next;
 }
 
-void dwhc_non_split_periodic_delay(dwhc_scheduler_t *base, uint16_t offset)
+static void dwhc_non_split_periodic_delay(dwhc_scheduler_t *scheduler, uint16_t offset)
 {
 	assert (0);
 }
 
 #endif
 
-boolean dwhc_non_split_is_odd_frame(dwhc_scheduler_t *base)
+static boolean dwhc_non_split_is_odd_frame(dwhc_scheduler_t *scheduler)
 {
-    dwhc_non_split_t *self = (dwhc_non_split_t *) base;
+    dwhc_non_split_t *self = (dwhc_non_split_t *) scheduler;
 
     return self->next & 1 ? true : false;
+}
+
+static dwhc_scheduler_ops_t non_split_ops = {
+    ._scheduler = _dwhc_non_split,
+    .start_split = dwhc_non_split_start_split,
+    .complete_split = dwhc_non_split_complete_split,
+    .transaction_complete = dwhc_non_split_transaction_complete,
+#ifndef USE_USB_SOF_INTR
+    .wait_for_frame = dwhc_non_split_wait_for_frame,
+#else
+    .get_frame_number = dwhc_non_split_get_frame_number,
+    .periodic_delay = dwhc_non_split_periodic_delay,
+#endif
+    .is_odd_frame = dwhc_non_split_is_odd_frame,
+};
+
+void dwhc_non_split(dwhc_non_split_t *self)
+{
+    self->scheduler.ops = &non_split_ops;
+    self->scheduler.type = dwhc_scheduler_type_non_split;
+    self->next = FRAME_UNSET_NS;
 }

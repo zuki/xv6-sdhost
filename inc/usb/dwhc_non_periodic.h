@@ -25,27 +25,30 @@
 
 typedef struct dwhc_non_periodic {
     dwhc_scheduler_t    scheduler;
-    unsigned        state;
-    unsigned        tries;
+    unsigned            state;
+    unsigned            tries;
 #ifdef USE_USB_SOF_INTR
     uint16_t        offset;     ///< フレームオフセット
 #endif
 } dwhc_non_periodic_t;
 
 void dwhc_non_periodic(dwhc_non_periodic_t *self);
-void _dwhc_non_periodic(dwhc_scheduler_t *base);
 
-void dwhc_non_periodic_start_split(dwhc_scheduler_t *base);
-boolean dwhc_non_periodic_complete_split(dwhc_scheduler_t *base);
-void dwhc_non_periodic_transaction_complete(dwhc_scheduler_t *base, uint32_t nStatus);
+#if 0
+void _dwhc_non_periodic(dwhc_scheduler_t *scheduler);
+
+void dwhc_non_periodic_start_split(dwhc_scheduler_t *scheduler);
+boolean dwhc_non_periodic_complete_split(dwhc_scheduler_t *scheduler);
+void dwhc_non_periodic_transaction_complete(dwhc_scheduler_t *scheduler, uint32_t nStatus);
 
 #ifndef USE_USB_SOF_INTR
-void dwhc_non_periodic_wait_for_frame(dwhc_scheduler_t *base);
+void dwhc_non_periodic_wait_for_frame(dwhc_scheduler_t *scheduler);
 #else
-uint16_t dwhc_non_periodic_get_frame_number(dwhc_scheduler_t *base);
-void dwhc_non_periodic_delay(dwhc_scheduler_t *base, uint16_t offset);
+uint16_t dwhc_non_periodic_get_frame_number(dwhc_scheduler_t *scheduler);
+void dwhc_non_periodic_delay(dwhc_scheduler_t *scheduler, uint16_t offset);
 #endif
 
-boolean dwhc_non_periodic_is_odd_frame(dwhc_scheduler_t *base);
+boolean dwhc_non_periodic_is_odd_frame(dwhc_scheduler_t *scheduler);
+#endif
 
 #endif

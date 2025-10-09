@@ -34,6 +34,9 @@
 #define BTF(x) ((x) ? "true" : "false")
 
 static struct slab_cache *STDATA;
+static struct slab_cache *PERIODIC;
+static struct slab_cache *NONPERIODIC;
+static struct slab_cache *NONSPLIT;
 
 void
 debug_stdata(dwhc_xfer_data_t *self)
@@ -54,6 +57,9 @@ debug_stdata(dwhc_xfer_data_t *self)
 void dwhc_xfer_data_init(void)
 {
     STDATA = slab_cache_create("stdata", sizeof(dwhc_xfer_data_t), 64);
+    PERIODIC = slab_cache_create("periodic", sizeof(dwhc_periodic_t), 64);
+    NONPERIODIC = slab_cache_create("stdata", sizeof(dwhc_xfer_data_t), 64);
+    NONSPLIT= slab_cache_create("stdata", sizeof(dwhc_xfer_data_t), 64);
 }
 
 
@@ -65,6 +71,38 @@ dwhc_xfer_data_t *dwhc_xfer_data_alloc(void)
 void dwhc_xfer_data_free(dwhc_xfer_data_t *stdata)
 {
     slab_cache_free(STDATA, stdata);
+}
+
+dwhc_scheduler_t *dwhc_scheduler_alloc(dwhc_scheduler_type_t type)
+{
+    dwhc_scheduler_t *scheduler = NULL;
+
+    if (type == dwhc_scheduler_type_periodic) {
+        scheduler = (dwhc_scheduler_t *)slab_cache_alloc(PERIODIC);
+        dwhc_periodic((dwhc_periodic_t *)scheduler);
+    } else if (type == dwhc_scheduler_type_non_periodic) {
+        scheduler = (dwhc_scheduler_t *)slab_cache_alloc(NONPERIODIC);
+        dwhc_non_periodic((dwhc_non_periodic_t *)scheduler);
+    } else if (type == dwhc_scheduler_type_non_split) {
+        scheduler = (dwhc_scheduler_t *)slab_cache_alloc(NONSPLIT);
+        dwhc_non_split((dwhc_non_split_t *)scheduler);
+    } else {
+        error("bad type] %d", type);
+        panic("dwhc_scheduler_alloc");
+    }
+
+    return scheduler;
+}
+
+void dwhc_scheduler_free(dwhc_scheduler_t *self)
+{
+    if (self->type == dwhc_scheduler_type_periodic) {
+        slab_cache_free(PERIODIC, self);
+    } else if (self->type == dwhc_scheduler_type_non_periodic) {
+        slab_cache_free(NONPERIODIC, self);
+    } else if (self->type == dwhc_scheduler_type_non_split) {
+        slab_cache_free(NONSPLIT, self);
+    }
 }
 
 void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb, boolean in, boolean ststatus, unsigned timeout)
@@ -133,20 +171,20 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
 
     if (self->split) {
         if (dwhc_xfer_data_is_periodic(self)) {
-            dwhc_periodic(&self->scheduler.periodic);
-            trace("periodic: 0x%p", &self->scheduler.periodic);
+            self->scheduler = dwhc_scheduler_alloc(dwhc_scheduler_type_periodic);
+            trace("periodic: 0x%p", self->scheduler);
         } else {
-            dwhc_non_periodic(&self->scheduler.nonperiodic);
-            trace("nonperiodic: 0x%p", &self->scheduler.nonperiodic);
+            self->scheduler = dwhc_scheduler_alloc(dwhc_scheduler_type_non_periodic);
+            trace("nonperiodic: 0x%p", self->schedule);
         }
         self->fsused = true;
     } else {
         // バルクは該当
         if (usb_dev_get_hubaddr(self->dev) == 0 && self->speed != usb_speed_high)
         {
-            dwhc_non_split(&self->scheduler.nosplit,
-                            dwhc_xfer_data_is_periodic(self));  // false
-            trace("nosplit: 0x%p", &self->scheduler.nosplit);
+            self->scheduler = dwhc_scheduler_alloc(dwhc_scheduler_type_non_split);
+            ((dwhc_non_split_t *)self->scheduler)->periodic = dwhc_xfer_data_is_periodic(self);  // false
+            trace("nosplit: 0x%p", self->scheduler);
             self->fsused = true;
         } else {
             trace("no use scheduler");
@@ -165,7 +203,7 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
 void _dwhc_xfer_data(dwhc_xfer_data_t *self)
 {
     if (self->fsused) {
-        self->scheduler.base._scheduler(&self->scheduler.base);
+        self->scheduler->ops->_scheduler(self->scheduler);
     }
 
     self->buffp = 0;
@@ -452,7 +490,7 @@ dwhc_scheduler_t *dwhc_xfer_data_get_scheduler(dwhc_xfer_data_t *self)
         return 0;
     }
 
-    return &self->scheduler.base;
+    return self->scheduler;
 }
 
 boolean dwhc_xfer_data_is_retry_ok(dwhc_xfer_data_t *self)

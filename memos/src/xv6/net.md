@@ -1599,3 +1599,146 @@ net0: flags=83<UP|BROADCAST|NEEDARP> mtu 1500
   inet 192.168.10.111 netmask 255.255.255.0 broadcast 192.168.10.255
 $
 ```
+
+```bash
+stagedata: stagedata: 0xffff000000a2b080
+    : channel: 0, in: true, stage: false, fsused: true, split: false
+    : state: 0, substate: 0, trstatus: 0
+    : buffp: 0xffff000000a2f0c0, bpt: 1514, ppt: 24, packets: 24
+```
+
+### scheduler構造体を修正
+
+- 状況変わらず
+
+### 実機でエラー
+
+- `slab_cache_alloc()`
+
+```bash
+[0]rand_init: rand_init ok
+[0]main: cpu 0 init finished
+[2]main: cpu 2 init finished
+[1]main: cpu 1 init finished
+[0]sdhost_probe: firmware sets clock divider
+[3]main: cpu 3 init finished
+[0]sdhost_set_ios: ios clock 400000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
+[0]sdhost_finish_command: error detected: CMD 0x4205, HSTS 0x40, EDM 0x10800
+[0]sdhost_finish_command: command 5 timeout
+[0]emmc_card_reset: OCR: 0xff80, 1.8v support: 0, SDHC support: 1
+[0]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
+[0]emmc_card_reset: card CID: 0x27504853, 0x44333247, 0x506c5d21, 0xcc017421
+[0]emmc_card_reset: RCA: 0x5048
+[1]emmc_card_reset: SCR: version 3.0x, bus_widths 0x5
+[1]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 1, timing 0, vdd 0, drv_type 0
+[1]emmc_card_reset: found valid version 3.0x SD card
+[3]sd_init: partition[0]: TYPE: 12, LBA = 0x800, #SECS = 0x20000
+[3]sd_init: partition[1]: TYPE: 131, LBA = 0x20800, #SECS = 0x1f800
+[3]sd_init: sd_init ok
+
+[2]iinit: sb: size 1000 nblocks 963 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 36
+[2]initlog: not use log
+[1]usb_dev_init: Device ven424-2514, dev9-0-2 found
+[1]usb_function_get_if_name: func name=int9-0-1
+[1]usb_dev_init: Interface int9-0-1 found
+[1]usb_dev_init: Function is not supported
+[1]usb_function_get_if_name: func name=int9-0-2
+[1]usb_dev_init: Interface int9-0-2 found
+[1]usb_dev_factory_get_device: Using device/interface int9-0-2
+[3]usb_dev_init: Device ven424-2514, dev9-0-2 found
+[3]usb_function_get_if_name: func name=int9-0-1
+[3]usb_dev_init: Interface int9-0-1 found
+[3]usb_dev_init: Function is not supported
+[3]usb_function_get_if_name: func name=int9-0-2
+[3]usb_dev_init: Interface int9-0-2 found
+[3]usb_dev_factory_get_device: Using device/interface int9-0-2
+[3]usb_dev_init: Device ven424-7800 found
+[3]usb_dev_factory_get_device: Using device/interface ven424-7800
+[2]lan7800_init_macaddr: MAC address is b8:27:eb:ab:e8:48
+[3]usb_standard_hub_enumerate_ports: Port 1: Device configured
+[3]usb_standard_hub_enumerate_ports: Port 1: Device configured
+[1]dwhc_root_port_init: Device configured
+[1]dwhc_init: dwhc_init ok: intmask: 0x2000010
+[1]usb_init: dwhc initialized
+
+[1]net_device_register: registered, dev=net0, type=0x0002
+[1]usb_init: usb_init ok
+[1]net_protocol_register: registered, type=0x0800 (IP)
+[1]net_protocol_register: registered, type=0x0806 (ARP)
+[1]ip_protocol_register: registered, type=1 (ICMP)
+[0]trap: unknown trap code: 33 at 0x0 with 0x0
+[1]ip_protocol_register: registered, type=17 (UDP)
+[0]exit: exit: pid 3, err 1
+[1]ip_protocol_register: registered, type=6 (TCP)
+[1]trap: unknown trap code: 37 at 0xffff000000080598 with 0xffff000400000094
+[1]exit: exit: pid 1, err 1
+```
+
+- qemuでは違うエラー
+
+```bash
+[0]rand_init: rand_init ok
+[3]main: cpu 3 init finished
+[0]main: cpu 0 init finished
+[1]main: cpu 1 init finished
+[2]main: cpu 2 init finished
+[3]mbox_set_sdhost_clock: unexpected tag resp 0x80000000, normal for qemu
+[3]sdhost_set_ios: ios clock 400000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
+[3]sdhost_finish_command: error detected: CMD 0x4205, HSTS 0x40, EDM 0x10800
+[3]sdhost_finish_command: command 5 timeout
+[3]emmc_card_reset: OCR: 0xffff, 1.8v support: 0, SDHC support: 0
+[3]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
+[3]emmc_card_reset: card CID: 0xaa585951, 0x454d5521, 0x1deadbe, 0xef006219
+[3]emmc_card_reset: RCA: 0x4567
+[2]emmc_card_reset: SCR: version 2.00, bus_widths 0x5
+[2]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 1, timing 0, vdd 0, drv_type 0
+[2]emmc_card_reset: found valid version 2.00 SD card
+[3]sd_init: partition[0]: TYPE: 12, LBA = 0x800, #SECS = 0x20000
+[3]sd_init: partition[1]: TYPE: 131, LBA = 0x20800, #SECS = 0x1f800
+[3]sd_init: sd_init ok
+
+[1]iinit: sb: size 1000 nblocks 963 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 36
+[1]initlog: not use log
+[1]usb_dev_init: Device ven409-55aa, dev9-0-0 found
+[2]usb_dev_init: Product: QEMU QEMU USB Hub
+[2]usb_function_get_if_name: func name=int9-0-0
+[2]usb_dev_init: Interface int9-0-0 found
+[2]usb_dev_factory_get_device: Using device/interface int9-0-0
+[2]usb_dev_init: Device ven525-a4a2, dev2-0-0 found
+[3]usb_dev_init: Product: QEMU RNDIS/QEMU USB Network Device
+[3]usb_function_get_if_name: func name=int2-6-0
+[3]usb_dev_init: Interface int2-6-0 found
+[3]usb_dev_factory_get_device: Using device/interface int2-6-0
+[3]usb_function_get_if_name: func name=inta-0-0
+[3]usb_dev_init: Interface inta-0-0 found
+[3]usb_dev_init: Function is not supported
+[3]usb_function_get_if_name: func name=inta-0-0
+[3]usb_dev_init: Interface inta-0-0 found
+[3]usb_dev_init: Function is not supported
+[3]usb_cdcether_configure: MAC address is 40:54:0:12:34:57
+[3]usb_standard_hub_enumerate_ports: Port 1: Device configured
+[0]dwhc_root_port_init: Device configured
+[0]dwhc_init: dwhc_init ok: intmask: 0x2000010
+[0]usb_init: dwhc initialized
+
+[0]net_device_register: registered, dev=net0, type=0x0002
+[0]usb_init: usb_init ok
+[0]net_protocol_register: registered, type=0x0800 (IP)
+[0]net_protocol_register: registered, type=0x0806 (ARP)
+[0]ip_protocol_register: registered, type=1 (ICMP)
+[0]ip_protocol_register: registered, type=17 (UDP)
+[0]ip_protocol_register: registered, type=6 (TCP)
+[0]netinit: initialized
+[0]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.111 dev=net0
+[0]ip_iface_register: registered: dev=net0, unicast=192.168.10.111, netmask=255.255.255.0, broadcast=192.168.10.255
+[0]net_device_open: dev=net0, state=up
+[0]netrun: running...
+init: starting sh
+sh: argv[0] = 'sh'
+sh: testenv = 'FROM_INIT'
+$ +------+-------------------------------------------------+------------------+
+| 0000 | 88 0f 80 d2 01 00 00 d4                         | ........         |
++------+-------------------------------------------------+------------------+
+kern/usb/dwhc_device.c:961: assertion failed.
+kern/console.c:307: kernel panic at cpu 0.
+```
