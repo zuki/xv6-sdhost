@@ -43,8 +43,12 @@ debug_stdata(dwhc_xfer_data_t *self)
         self->channel, BTF(self->in), BTF(self->ststatus), BTF(self->fsused), BTF(self->split));
     cprintf("    : state: %d, substate: %d, trstatus: %d\n",
         self->state, self->substate, self->trstatus);
-    cprintf("    : buffp: 0x%p, bpt: %d, ppt: %d, packets: %d\n\n",
+    cprintf("    : buffp: 0x%p, bpt: %d, ppt: %d, packets: %d\n",
         self->buffp, self->bpt, self->ppt, self->packets);
+    cprintf("    : speed: %d, xfersize: %d, xpsize: %d\n",
+        self->speed, self->xfersize, self->xpsize);
+    usb_request_debug(self->urb, 1);
+    usb_endpoint_debug(self->ep);
 }
 
 void dwhc_xfer_data_init(void)
@@ -97,7 +101,7 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
             self->xfersize = urb->buflen;
         }
 
-        self->packets =(self->xfersize + self->xpsize - 1) / self->xpsize;
+        self->packets = (self->xfersize + self->xpsize - 1) / self->xpsize;
 
         if (self->split) {
             if (self->xfersize > self->xpsize) {
@@ -112,7 +116,7 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
             self->ppt = self->packets;
         }
     } else {
-        self->buffp = self->buffer;    // TODO: &を取る?
+        self->buffp = self->buffer;
 
         self->xfersize = 0;
         self->bpt = 0;
@@ -137,10 +141,11 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
         }
         self->fsused = true;
     } else {
+        // バルクは該当
         if (usb_dev_get_hubaddr(self->dev) == 0 && self->speed != usb_speed_high)
         {
             dwhc_non_split(&self->scheduler.nosplit,
-                            dwhc_xfer_data_is_periodic(self));
+                            dwhc_xfer_data_is_periodic(self));  // false
             trace("nosplit: 0x%p", &self->scheduler.nosplit);
             self->fsused = true;
         } else {

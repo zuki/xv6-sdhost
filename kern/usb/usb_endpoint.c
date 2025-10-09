@@ -162,3 +162,8 @@ void usb_endpoint_reset_pid(usb_endpoint_t *self)
     assert(self->type == ep_type_bulk);
     self->nextpid = usb_pid_data0;
 }
+
+void usb_endpoint_debug(usb_endpoint_t *self)
+{
+    cprintf("usb_ep [0x%p] usb_dev: 0x%p, num: %u, type: %d, dir: %s, size: %u, interval: %u: next: %d\n", self, self->dev, self->num, self->type, self->in ? "in " : "out", self->xsize, self->interval, self->nextpid);
+}

@@ -61,3 +61,11 @@ void usb_request_call_comp_cb(usb_request_t *self)
 {
     (*self->cb)(self, self->param, self->ctx);
 }
+
+void usb_request_debug(usb_request_t *self, int ba)
+{
+    cprintf("usb_request %d [0x%p] setup: [%c, %c, %u, %u, %u], buf: 0x%p, blen: %u, status: %d, rlen: %u, nak: %d, err: %d\n",
+        ba, self, self->setup_data->reqtype, self->setup_data->req, self->setup_data->value,
+        self->setup_data->index, self->setup_data->length, self->buffer,
+        self->buflen, self->status, self->resultlen, self->onnak, self->error);
+}

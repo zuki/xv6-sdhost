@@ -48,4 +48,6 @@ void usb_reqeust_free(usb_request_t *self);
 void usb_request_set_comp_cb(usb_request_t *self, usb_comp_cb *cb, void *param, void *ctx);
 void usb_request_call_comp_cb(usb_request_t *self);
 
+void usb_request_debug(usb_request_t *self, int ba);
+
 #endif

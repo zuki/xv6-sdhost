@@ -53,4 +53,6 @@ usb_pid_t usb_endpoint_get_nextpid(usb_endpoint_t *self, boolean ststatus);
 void usb_endpoint_skip_pid(usb_endpoint_t *self, unsigned packets, boolean ststatus);
 void usb_endpoint_reset_pid(usb_endpoint_t *self);
 
+void usb_endpoint_debug(usb_endpoint_t *self);
+
 #endif
