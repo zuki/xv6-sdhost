@@ -21,7 +21,7 @@
 #define INC_USB_USB_H
 
 #include <types.h>
-#include <rtc.h>
+#include <config.h>
 
 // プラグアンドプレイとFIQを使用する場合は有国する必要がある
 // 当面、両方とも無効にするのでこれも無効にする

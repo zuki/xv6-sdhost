@@ -3,13 +3,6 @@
 
 #include <linux/time.h>
 
-// 実機用にコンパイルする場合は以下をコメントアウト
-//#define USING_RASPI
-
-// QEMU用にコンパイルする場合は以下をコメントアウト
-#undef  USING_RASPI
-
-
 struct rtc_time {
     int tm_sec;
     int tm_min;

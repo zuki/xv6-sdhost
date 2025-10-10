@@ -1,5 +1,6 @@
 // From https://github.com/pandax381/xv6-riscv-net
 #include <types.h>
+#include <config.h>
 #include <net/util.h>
 #include <net/net.h>
 #include <net/if.h>
@@ -11,6 +12,7 @@
 #include <clock.h>
 #include <console.h>
 #include <string.h>
+
 
 struct net_protocol {
     struct net_protocol *next;

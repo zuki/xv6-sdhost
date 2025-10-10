@@ -1,12 +1,13 @@
-#include <clock.h>
 #include <types.h>
+#include <config.h>
+#include <clock.h>
 #include <arm.h>
 #include <base.h>
 #include <irq.h>
 #include <console.h>
 #include <linux/time.h>
-#include <spinlock.h>
 #include <rtc.h>
+#include <spinlock.h>
 #include <linux/errno.h>
 #include <net/net.h>
 

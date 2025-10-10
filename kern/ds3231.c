@@ -1,11 +1,12 @@
+#include <types.h>
+#include <config.h>
 #include <arm.h>
 #include <base.h>
 #include <i2c.h>
 #include <console.h>
 #include <ds3231.h>
-#include <linux/errno.h>
 #include <rtc.h>
-#include <types.h>
+#include <linux/errno.h>
 
 static inline uint8_t bin2bcd(int value)
 {

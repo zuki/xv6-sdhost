@@ -1,3 +1,5 @@
+#include <types.h>
+#include <config.h>
 #include <timer.h>
 #include <arm.h>
 #include <base.h>
@@ -6,7 +8,6 @@
 #include <mm.h>
 #include <proc.h>
 #include <spinlock.h>
-#include <rtc.h>
 #include <slab.h>
 #include <linux/time.h>
 

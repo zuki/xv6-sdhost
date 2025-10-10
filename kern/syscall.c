@@ -2,6 +2,7 @@
 // #include <unistd.h>
 
 #include <types.h>
+#include <config.h>
 #include <memlayout.h>
 #include <trap.h>
 #include <console.h>

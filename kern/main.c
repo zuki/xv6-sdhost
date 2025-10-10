@@ -1,7 +1,6 @@
 #include <types.h>
-
+#include <config.h>
 #include <string.h>
-
 #include <arm.h>
 #include <console.h>
 #include <vm.h>
@@ -15,7 +14,6 @@
 #include <mbox.h>
 #include <irq.h>
 #include <ds3231.h>
-#include <rtc.h>
 #include <random.h>
 #include <i2c.h>
 #include <usb.h>

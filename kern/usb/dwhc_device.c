@@ -22,6 +22,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
+#include <types.h>
+#include <config.h>
 #include <usb/dwhc_device.h>
 #include <usb/usb.h>
 #include <usb/usb_request.h>
@@ -31,7 +33,6 @@
 #include <usb/usb_dev_ns.h>
 #include <usb/lan7800.h>
 #include <usb/usb_cdcether.h>
-#include <types.h>
 #include <arm.h>
 #include <console.h>
 #include <irq.h>
@@ -42,7 +43,6 @@
 #include <linux/time.h>
 #include <timer.h>
 #include <proc.h>
-#include <rtc.h>
 #include <slab.h>
 
 #define DEVICE_ID_USB_HCD       3           // for SetpowerStateOn()

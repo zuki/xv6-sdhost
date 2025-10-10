@@ -15,7 +15,7 @@
 #include <log.h>
 #include <usb.h>
 #include <net/net.h>
-#include <rtc.h>
+#include <config.h>
 
 extern void trapret();
 extern void swtch(struct context **old, struct context *new);
