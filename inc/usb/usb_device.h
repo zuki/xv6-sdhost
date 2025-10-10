@@ -63,9 +63,9 @@ typedef struct usb_device {
     usb_dev_desc_t     *dev_desc;           ///< デバイスディスクリプタ
     usb_cfg_desc_t     *cfg_desc;           ///< コンフィグレーションディスクリプタ
 
-    usb_usb_cfg_parser_t       *usb_cfg_parser;         ///< コンフィグレーションパーサ
-    usb_string_t          *manufact;           ///< 製造者文字列(uspi)
-    usb_string_t          *product;            ///< 製品名文字列(uspi)
+    usb_usb_cfg_parser_t   *usb_cfg_parser;     ///< コンフィグレーションパーサ
+    usb_string_t           *manufact;           ///< 製造者文字列(uspi)
+    usb_string_t           *product;            ///< 製品名文字列(uspi)
     usb_function_t         *usb_func[USBDEV_MAX_FUNCTIONS]; ///< デバイスクラス
 } usb_dev_t;
 

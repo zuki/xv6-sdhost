@@ -32,9 +32,9 @@ struct usb_endpoint;
 /// @brief デバイス機能クラスを表す構造体
 typedef struct usb_function {
     boolean        (*configure)(struct usb_function *self);
-    struct usb_device  *dev;           ///< デバイス
+    struct usb_device       *dev;               ///< デバイス
     usb_usb_cfg_parser_t    *usb_cfg_parser;    ///< コンフィグレーションパーサ
-    usb_if_desc_t       *if_desc;       ///< インタフェースディスクリプタ
+    usb_if_desc_t           *if_desc;           ///< インタフェースディスクリプタ
 } usb_function_t;
 
 void usb_function(usb_function_t *self, struct usb_device *dev, usb_usb_cfg_parser_t *parser);
