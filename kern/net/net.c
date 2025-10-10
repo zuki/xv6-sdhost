@@ -422,7 +422,7 @@ void net_init(void)
         panic("net_init() failure");
     }
 #if 1
-    struct net_device *dev = net_device_by_index(0);
+    struct net_device *dev = net_device_by_name("net0");
     assert(dev != 0);
     set_ip_config(dev);
 #endif
