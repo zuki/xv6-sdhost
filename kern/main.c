@@ -48,7 +48,7 @@ main()
         net_run();
 #endif
         user_init();
-        kthread_created(kthread_read_ether);
+        //kthread_created(kthread_read_ether);
         binit();
         // Tests
 #if 0
