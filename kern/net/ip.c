@@ -345,12 +345,12 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev)
     }
     hlen = (hdr->vhl & 0x0f) << 2;
     if (len < hlen) {
-        error("header length error: len=%zu < hlen=%u", len, hlen);
+        error("header length error: len=%u < hlen=%u", len, hlen);
         return;
     }
     total = ntoh16(hdr->total);
     if (len < total) {
-        error("total length error: len=%zu < total=%u", len, total);
+        error("total length error: len=%u < total=%u", len, total);
         return;
     }
     if (cksum16((uint16_t *)hdr, hlen, 0) != 0) {
@@ -477,7 +477,7 @@ ssize_t ip_output(uint8_t protocol, const uint8_t *data, size_t len, ip_addr_t s
     }
     nexthop = (route->nexthop != IP_ADDR_ANY) ? route->nexthop : dst;
     if (NET_IFACE(iface)->dev->mtu < IP_HDR_SIZE_MIN + len) {
-        error("too long, dev=%s, mtu=%u < %zu",
+        error("too long, dev=%s, mtu=%u < %u",
             NET_IFACE(iface)->dev->name, NET_IFACE(iface)->dev->mtu, IP_HDR_SIZE_MIN + len);
         return -1;
     }

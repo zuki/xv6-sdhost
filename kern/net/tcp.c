@@ -270,7 +270,7 @@ static ssize_t tcp_output_segment(uint32_t seq, uint32_t ack, uint8_t flg, uint1
     pseudo.len = hton16(total);
     psum = ~cksum16((uint16_t *)&pseudo, sizeof(pseudo), 0);
     hdr->sum = cksum16((uint16_t *)hdr, total, psum);
-    debug("%s => %s, len=%zu (payload=%zu)",
+    debug("%s => %s, len=%u (payload=%u)",
         ip_endpoint_ntop(local, ep1, sizeof(ep1)),
         ip_endpoint_ntop(foreign, ep2, sizeof(ep2)),
         total, len);
@@ -716,7 +716,7 @@ static void tcp_input(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t 
             ip_addr_ntop(src, addr1, sizeof(addr1)), ip_addr_ntop(dst, addr2, sizeof(addr2)));
         return;
     }
-    debug("%s:%d => %s:%d, len=%zu (payload=%zu)",
+    debug("%s:%d => %s:%d, len=%u (payload=%u)",
         ip_addr_ntop(src, addr1, sizeof(addr1)), ntoh16(hdr->src),
         ip_addr_ntop(dst, addr2, sizeof(addr2)), ntoh16(hdr->dst),
         len, len - sizeof(*hdr));

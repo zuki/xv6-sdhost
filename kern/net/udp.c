@@ -155,7 +155,7 @@ static void udp_input(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t 
     }
     hdr = (struct udp_hdr *)data;
     if (len != ntoh16(hdr->len)) { /* just to make sure */
-        error("length error: len=%zu, hdr->len=%u", len, ntoh16(hdr->len));
+        error("length error: len=%u, hdr->len=%u", len, ntoh16(hdr->len));
         return;
     }
     pseudo.src = src;
@@ -168,7 +168,7 @@ static void udp_input(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t 
         error("checksum error: sum=0x%04x, verify=0x%04x", ntoh16(hdr->sum), ntoh16(cksum16((uint16_t *)hdr, len, -hdr->sum + psum)));
         return;
     }
-    debug("%s:%d => %s:%d, len=%zu (payload=%zu)",
+    debug("%s:%d => %s:%d, len=%u (payload=%u)",
         ip_addr_ntop(src, addr1, sizeof(addr1)), ntoh16(hdr->src),
         ip_addr_ntop(dst, addr2, sizeof(addr2)), ntoh16(hdr->dst),
         len, len - sizeof(*hdr));
@@ -233,7 +233,7 @@ ssize_t udp_output(struct ip_endpoint *src, struct ip_endpoint *dst, const  uint
     pseudo.len = hton16(total);
     psum = ~cksum16((uint16_t *)&pseudo, sizeof(pseudo), 0);
     hdr->sum = cksum16((uint16_t *)hdr, total, psum);
-    debug("%s => %s, len=%zu (payload=%zu)",
+    debug("%s => %s, len=%u (payload=%u)",
         ip_endpoint_ntop(src, ep1, sizeof(ep1)), ip_endpoint_ntop(dst, ep2, sizeof(ep2)), total, len);
     udp_dump((uint8_t *)hdr, total);
     if (ip_output(IP_PROTOCOL_UDP, (uint8_t *)hdr, total, src->addr, dst->addr) == -1) {
@@ -386,7 +386,7 @@ ssize_t udp_recvfrom(int id, uint8_t *buf, size_t size, struct ip_endpoint *fore
     struct udp_queue_entry *entry;
     ssize_t len;
     int err;
-    trace("id: %d, buf: 0x%p, size: %ld", id, buf, size);
+    trace("id: %d, buf: 0x%p, size: %lld", id, buf, size);
     mutex_lock(&mutex);
     pcb = udp_pcb_get(id);
     if (!pcb) {

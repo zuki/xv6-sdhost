@@ -418,7 +418,7 @@ bmap(struct inode *ip, uint32_t bn)
             log_write(bp);
             bwrite(bp);
         }
-        trace("bn: %d, addr: 0x%lx", bn, addr);
+        trace("bn: %d, addr: 0x%llx", bn, addr);
         brelse(bp);
         return addr;
     }
@@ -445,7 +445,7 @@ bmap(struct inode *ip, uint32_t bn)
             log_write(bp);
             bwrite(bp);
         }
-        trace("idx1: %d, addr1: 0x%lx", idx1, addr);
+        trace("idx1: %d, addr1: 0x%llx", idx1, addr);
         brelse(bp);
         bp = bread(ip->dev, addr);
         a = (uint32_t*)bp->data;
@@ -457,7 +457,7 @@ bmap(struct inode *ip, uint32_t bn)
             log_write(bp);
             bwrite(bp);
         }
-        trace("idx2: %d, addr2: 0x%lx", idx2, addr);
+        trace("idx2: %d, addr2: 0x%llx", idx2, addr);
         brelse(bp);
         return addr;
     }

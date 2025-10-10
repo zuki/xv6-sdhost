@@ -184,7 +184,7 @@ static int arp_request(struct net_iface *iface, ip_addr_t tpa)
     memcpy(request.spa, &((struct ip_iface *)iface)->unicast, IP_ADDR_LEN);
     memset(request.tha, 0, ETHER_ADDR_LEN);
     memcpy(request.tpa, &tpa, IP_ADDR_LEN);
-    debug("dev=%s, len=%zu", iface->dev->name, sizeof(request));
+    debug("dev=%s, len=%d", iface->dev->name, sizeof(request));
     arp_dump((uint8_t *)&request, sizeof(request));
     return net_device_output(iface->dev, ETHER_TYPE_ARP, (uint8_t *)&request, sizeof(request), iface->dev->broadcast);
 }
@@ -202,7 +202,7 @@ static int arp_reply(struct net_iface *iface, const uint8_t *tha, ip_addr_t tpa,
     memcpy(reply.spa, &((struct ip_iface *)iface)->unicast, IP_ADDR_LEN);
     memcpy(reply.tha, tha, ETHER_ADDR_LEN);
     memcpy(reply.tpa, &tpa, IP_ADDR_LEN);
-    debug("dev=%s, len=%zu", iface->dev->name, sizeof(reply));
+    debug("dev=%s, len=%d", iface->dev->name, sizeof(reply));
     arp_dump((uint8_t *)&reply, sizeof(reply));
     return net_device_output(iface->dev, ETHER_TYPE_ARP, (uint8_t *)&reply, sizeof(reply), dst);
 }
@@ -213,7 +213,7 @@ static void arp_input(const uint8_t *data, size_t len, struct net_device *dev)
     ip_addr_t spa, tpa;
     int marge = 0;
     struct net_iface *iface;
-    debug("data: 0x%p, size: %ld, device: %s", data, len, dev->name);
+    debug("data: 0x%p, size: %d, device: %s", data, len, dev->name);
     if (len < sizeof(*msg)) {
         error("too short");
         return;
@@ -227,7 +227,7 @@ static void arp_input(const uint8_t *data, size_t len, struct net_device *dev)
         error("unsupported protocol address");
         return;
     }
-    debug("dev=%s, len=%zu", dev->name, len);
+    debug("dev=%s, len=%d", dev->name, len);
     arp_dump(data, len);
     memcpy(&spa, msg->spa, sizeof(spa));
     memcpy(&tpa, msg->tpa, sizeof(tpa));
