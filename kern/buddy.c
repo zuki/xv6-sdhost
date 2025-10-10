@@ -151,7 +151,7 @@ void buddy_init(void) {
 
     /* FIXME: PAGE_STARTを固定値で与えているので、カーネル機能が増えるにつれて
      * endがPAGE_STARTを超える可能性がある */
-    trace("end: 0x%llx", end);
+    trace("end: 0x%llx, space: 0x%llx", end, PAGE_START - end);
     if (end > PAGE_START)
         panic("fix PAGE_START");
 
@@ -167,8 +167,8 @@ void buddy_init(void) {
      *     pagesはmm.cで(struct page *)として定義されている */
     pages = (struct page*)(PAGE_START - (sizeof(struct page) * PAGE_NUM));
     memset(pages, 0, sizeof(struct page) * PAGE_NUM);
-    trace("pages: %p, size: 0x%llx, PAGE_START: 0x%llx", pages, sizeof(struct page) * PAGE_NUM, PAGE_START);
-    trace("sizeof(struct page): 0x%lx\n", sizeof(struct page));
+    trace("pages: 0x%p = 0x%llx - 0x%llx * 0x%llx", pages, PAGE_START, sizeof(struct page), PAGE_NUM);
+
 
     // 3. page->indexの設定
     for (i = 0; i < PAGE_NUM; ++i) {

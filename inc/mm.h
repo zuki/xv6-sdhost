@@ -28,18 +28,18 @@ limitations under the License.
  * @brief ページ領域の先頭（仮想）アドレス
  *        pages[0:PAGE_NUM] | page0, page1, ...
  */
-#define PAGE_START ((char*)(0xffff000000660000))
+#define PAGE_START ((char*)(0xffff000000800000))
 
 /**
  * @ingroup mm
  * @def PAGE_NUM
  * @brief 総ページ数.
  *        ページに使用できるのは実機で 0x3b9c0 (244160) * 0x1000 (4096) = 953MB
- *        テスト環境では 64MB = 0x4000 = 16,384 pages
+ *        テスト環境では 64MB = 0x4000 = 16,384 pages : これは勘違い。QEMUもメモリは1GB
  *
  */
-/* #define PAGE_NUM  0x3b9c0 */
-#define PAGE_NUM    0x4000
+#define PAGE_NUM  0x3b9c0
+//#define PAGE_NUM    0x4000
 
 /**
  * @ingroup mm
