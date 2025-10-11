@@ -21,6 +21,7 @@
 #include <types.h>
 #include <console.h>
 #include <slab.h>
+#include <string.h>
 
 struct slab_cache *ENDPOINT;
 
@@ -32,6 +33,7 @@ void usb_endpoint_init(void)
 usb_endpoint_t *usb_endpoint_alloc(usb_dev_t *dev, const usb_ep_desc_t *desc)
 {
     usb_endpoint_t *ep = (usb_endpoint_t *)slab_cache_alloc(ENDPOINT);
+    memset(ep, 0, sizeof(usb_request_t));
     ep->dev = dev;
     ep->interval = 1;
     if (desc != 0) {
@@ -124,6 +126,7 @@ usb_pid_t usb_endpoint_get_nextpid(usb_endpoint_t *self, boolean ststatus)
         return usb_pid_data1;
     }
 
+    trace("nextpid: %d", self->nextpid);
     return self->nextpid;
 }
 

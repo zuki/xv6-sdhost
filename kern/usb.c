@@ -21,6 +21,7 @@
 #include <console.h>
 #include <mm.h>
 #include <slab.h>
+#include <string.h>
 #include <usb.h>
 #include <usb/usb.h>
 #include <usb/usb_device.h>
@@ -87,7 +88,9 @@ void usb_init(void)
 
 usb_dev_desc_t *usb_dev_desc_alloc(void)
 {
-    return (usb_dev_desc_t *)slab_cache_alloc(USB_DEV_DESC);
+    usb_dev_desc_t *desc = (usb_dev_desc_t *)slab_cache_alloc(USB_DEV_DESC);
+    memset(desc, 0, sizeof(usb_dev_desc_t));
+    return desc;
 }
 
 void usb_dev_desc_free(usb_dev_desc_t *self)
@@ -97,7 +100,9 @@ void usb_dev_desc_free(usb_dev_desc_t *self)
 
 usb_cfg_desc_t *usb_cfg_desc_alloc(void)
 {
-    return (usb_cfg_desc_t *)slab_cache_alloc(USB_CFG_DESC);
+    usb_cfg_desc_t *desc = (usb_cfg_desc_t *)slab_cache_alloc(USB_CFG_DESC);
+    memset(desc, 0, sizeof(usb_cfg_desc_t));
+    return desc;
 }
 
 void usb_cfg_desc_free(usb_cfg_desc_t *self)
@@ -107,7 +112,9 @@ void usb_cfg_desc_free(usb_cfg_desc_t *self)
 
 usb_if_desc_t *usb_if_desc_alloc(void)
 {
-    return (usb_if_desc_t *)slab_cache_alloc(USB_IF_DESC);
+    usb_if_desc_t *desc = (usb_if_desc_t *)slab_cache_alloc(USB_IF_DESC);
+    memset(desc, 0, sizeof(usb_if_desc_t));
+    return desc;
 }
 
 void usb_if_desc_free(usb_if_desc_t *self)
@@ -117,7 +124,9 @@ void usb_if_desc_free(usb_if_desc_t *self)
 
 usb_ep_desc_t *usb_ep_desc_alloc(void)
 {
-    return (usb_ep_desc_t *)slab_cache_alloc(USB_EP_DESC);
+    usb_ep_desc_t *desc = (usb_ep_desc_t *)slab_cache_alloc(USB_EP_DESC);
+    memset(desc, 0, sizeof(usb_ep_desc_t));
+    return desc;
 }
 
 void usb_ep_desc_free(usb_ep_desc_t *self)
@@ -127,7 +136,9 @@ void usb_ep_desc_free(usb_ep_desc_t *self)
 
 usb_str_desc_t *usb_str_desc_alloc(void)
 {
-    return (usb_str_desc_t *)slab_cache_alloc(USB_STR_DESC);
+    usb_str_desc_t *desc = (usb_str_desc_t *)slab_cache_alloc(USB_STR_DESC);
+    memset(desc, 0, sizeof(usb_str_desc_t));
+    return desc;
 }
 
 void usb_str_desc_free(usb_str_desc_t *self)
@@ -137,7 +148,9 @@ void usb_str_desc_free(usb_str_desc_t *self)
 
 hub_desc_t *hub_desc_alloc(void)
 {
-    return (hub_desc_t *)slab_cache_alloc(HUB_DESC);
+    hub_desc_t *desc = (hub_desc_t *)slab_cache_alloc(HUB_DESC);
+    memset(desc, 0, sizeof(hub_desc_t));
+    return desc;
 }
 
 void hub_desc_free(hub_desc_t *self)
@@ -147,7 +160,9 @@ void hub_desc_free(hub_desc_t *self)
 
 void *usb_4byte_alloc(void)
 {
-    return slab_cache_alloc(USB_4BYTE);
+    void *bytes = slab_cache_alloc(USB_4BYTE);
+    memset(bytes, 0, 4);
+    return bytes;
 }
 
 void usb_4byte_free(void *self)

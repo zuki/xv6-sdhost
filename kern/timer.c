@@ -10,6 +10,7 @@
 #include <spinlock.h>
 #include <slab.h>
 #include <linux/time.h>
+#include <string.h>
 
 /* コア(n)割り込み制御レジスタ : 0x4000_0040 + (4 * n) */
 #define CORE_TIMER_CTRL(i)      (LOCAL_BASE + 0x40 + 4*(i))
@@ -113,6 +114,7 @@ static void update_proc_time(int user_mode)
 struct timer_list *alloc_timer(void)
 {
     struct timer_list *timer = (struct timer_list *)slab_cache_alloc(TIMERS);
+    memset(timer, 0, sizeof(struct timer_list));
     timer->list.next = timer->list.prev = NULL;
     return timer;
 }

@@ -26,6 +26,7 @@
 #include <fs.h>
 #include <sd.h>
 #include <slab.h>
+#include <string.h>
 
 #define DMA_MINALIGN   64
 
@@ -93,6 +94,7 @@ bget(uint32_t dev, uint32_t bno)
             b->refcnt = 1;
             if (b->data == NULL) {
                 b->data = (uint8_t *)slab_cache_alloc(BUFDATA);
+                memset(b->data, 0, BSIZE);
                 trace("b->data: 0x%p", b->data);
             }
             release(&bcache.lock);

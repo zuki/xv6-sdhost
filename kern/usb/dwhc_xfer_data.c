@@ -28,6 +28,7 @@
 #include <debug.h>
 #include <slab.h>
 #include <linux/time.h>
+#include <string.h>
 
 #define MAX_BULK_TRIES      8
 
@@ -58,14 +59,16 @@ void dwhc_xfer_data_init(void)
 {
     STDATA = slab_cache_create("stdata", sizeof(dwhc_xfer_data_t), 64);
     PERIODIC = slab_cache_create("periodic", sizeof(dwhc_periodic_t), 64);
-    NONPERIODIC = slab_cache_create("stdata", sizeof(dwhc_xfer_data_t), 64);
-    NONSPLIT= slab_cache_create("stdata", sizeof(dwhc_xfer_data_t), 64);
+    NONPERIODIC = slab_cache_create("stdata", sizeof(dwhc_non_periodic_t), 64);
+    NONSPLIT= slab_cache_create("stdata", sizeof(dwhc_non_split_t), 64);
 }
 
 
 dwhc_xfer_data_t *dwhc_xfer_data_alloc(void)
 {
-    return (dwhc_xfer_data_t *)slab_cache_alloc(STDATA);
+    dwhc_xfer_data_t *data = (dwhc_xfer_data_t *)slab_cache_alloc(STDATA);
+    memset(data, 0, sizeof(dwhc_xfer_data_t));
+    return data;
 }
 
 void dwhc_xfer_data_free(dwhc_xfer_data_t *stdata)
@@ -79,12 +82,15 @@ dwhc_scheduler_t *dwhc_scheduler_alloc(dwhc_scheduler_type_t type)
 
     if (type == dwhc_scheduler_type_periodic) {
         scheduler = (dwhc_scheduler_t *)slab_cache_alloc(PERIODIC);
+        memset(scheduler, 0, sizeof(dwhc_periodic_t));
         dwhc_periodic((dwhc_periodic_t *)scheduler);
     } else if (type == dwhc_scheduler_type_non_periodic) {
         scheduler = (dwhc_scheduler_t *)slab_cache_alloc(NONPERIODIC);
+        memset(scheduler, 0, sizeof(dwhc_non_periodic_t));
         dwhc_non_periodic((dwhc_non_periodic_t *)scheduler);
     } else if (type == dwhc_scheduler_type_non_split) {
         scheduler = (dwhc_scheduler_t *)slab_cache_alloc(NONSPLIT);
+        memset(scheduler, 0, sizeof(dwhc_non_split_t));
         dwhc_non_split((dwhc_non_split_t *)scheduler);
     } else {
         error("bad type] %d", type);
@@ -125,7 +131,7 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
 
     self->ep = urb->ep;
     self->dev = self->ep->dev;
-    self->speed = usb_dev_get_speed(self->dev);
+    self->speed = self->dev->speed;
     self->xpsize = self->ep->xsize;
 
     self->split = self->dev->hubaddr != 0 && self->speed != usb_speed_high;
@@ -180,7 +186,7 @@ void dwhc_xfer_data(dwhc_xfer_data_t *self, unsigned channel, usb_request_t *urb
         self->fsused = true;
     } else {
         // バルクは該当
-        if (usb_dev_get_hubaddr(self->dev) == 0 && self->speed != usb_speed_high)
+        if (self->dev->hubaddr == 0 && self->speed != usb_speed_high)
         {
             self->scheduler = dwhc_scheduler_alloc(dwhc_scheduler_type_non_split);
             ((dwhc_non_split_t *)self->scheduler)->periodic = dwhc_xfer_data_is_periodic(self);  // false
@@ -386,6 +392,7 @@ uint8_t dwhc_xfer_data_get_pid(dwhc_xfer_data_t *self)
         break;
     }
 
+    trace("pid: %d", pid);
     return pid;
 }
 
