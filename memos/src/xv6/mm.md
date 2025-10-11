@@ -25,10 +25,10 @@
 [1]dev_init: LBA of 1st block 0x20800, 0x1f800 blocks totally
 [1]iinit: sb: size 1000 nblocks 941 ninodes 200 nlog 30 logstart 2 inodestart 38
 init: starting sh
-sh: argv[0] = 'sh'                                   
-sh: testenv = 'FROM_INIT'                            
-$ ls                                                 
-.              4000 1 512                            
+sh: argv[0] = 'sh'
+sh: testenv = 'FROM_INIT'
+$ ls
+.              4000 1 512
 ..             4000 1 512
 cat            8000 2 38568
 init           8000 3 22400
@@ -88,9 +88,9 @@ SPSel: 0x1
 SPSR_EL1: 0x800003c5
 SP: 0xffff000000a4cda0
 SP_EL0: 0x0
-ELR_EL1: 0xffff00000008c914, EC: 0x25, ISS: 0x46. 
+ELR_EL1: 0xffff00000008c914, EC: 0x25, ISS: 0x46.
 FAR_EL1: 0xa30080
-irq of type 4 unimplemented. 
+irq of type 4 unimplemented.
 kern/console.c:286: kernel panic at cpu 0.
 QEMU: Terminated
 ```
@@ -160,7 +160,7 @@ qemu-system-aarch64 -M raspi3b -nographic -serial null -serial mon:stdio -drive 
 
 - ブロックサイズの変更に合わせてログシステムの修正も必要がある（x86版xv6で実施）と思われたが
   ログシステム自体あまり意味がなく、最近は使用しないようにしていたのでここでも使用しないことにした
- 
+
 ```bash
 [3]iinit: sb: size 1000 nblocks 963 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 36
 [3]namex: path: /init
@@ -184,7 +184,7 @@ QEMU: Terminated
 
 ```c
 int sys_mknodat() {
-	
+
     if ((ip = create(path, T_DEV, major, minor)) == 0) {
         end_op();
         return -1;
@@ -225,4 +225,17 @@ abc
 
 ```bash
 [0]mbox_test: memory: 0x3b400000		// 948 MB
+```
+
+## usb/net機能追加にともないPAGE_STARTとPAGE_NUMを修正
+
+```c
+#define PAGE_START ((char*)(0xffff000000800000))
+#define PAGE_NUM  0x3b9c0
+// pages: 0xffff000000269600 = PAGE_START - sizeof(struct page) * PAGE_NUM
+```
+
+```bash
+[0]buddy_init: end: 0xffff0000001bf208, space: 0x640df8
+[0]buddy_init: pages: 0xffff000000269600 = 0xffff000000800000 - 0x18 * 0x3b9c0
 ```
