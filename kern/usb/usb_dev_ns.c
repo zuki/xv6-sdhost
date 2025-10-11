@@ -46,7 +46,7 @@ void _usb_device_ns(usb_device_ns_t *self)
 
 void usb_device_ns_add_dev(usb_device_ns_t *self, const char *name, void *dev, boolean blkdev)
 {
-    trace("called with %s", name);
+    trace("name: %s, dev: 0x%p", name, dev);
     usb_dev_info_t *info = (usb_dev_info_t *) kmalloc(sizeof(usb_dev_info_t));
     info->name = (char *) kmalloc(strlen(name)+1);
     safestrcpy(info->name, name, strlen(name)+1);

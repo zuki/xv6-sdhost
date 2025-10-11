@@ -52,6 +52,7 @@ char *ether_addr_ntop(const uint8_t *n, char *p, size_t size)
 
 static void ether_dump(const uint8_t *frame, size_t flen)
 {
+#ifdef LOG_TRACE
     struct ether_hdr *hdr;
     char addr[ETHER_ADDR_STR_LEN];
 
@@ -59,7 +60,7 @@ static void ether_dump(const uint8_t *frame, size_t flen)
     cprintf("        src: %s\n", ether_addr_ntop(hdr->src, addr, sizeof(addr)));
     cprintf("        dst: %s\n", ether_addr_ntop(hdr->dst, addr, sizeof(addr)));
     cprintf("       type: 0x%04x\n", ntoh16(hdr->type));
-#ifdef LOG_TRACE
+
     hexdump(frame, flen);
 #endif
 }
@@ -67,10 +68,11 @@ static void ether_dump(const uint8_t *frame, size_t flen)
 int ether_transmit_helper(struct net_device *dev, uint16_t type,
     const uint8_t *data, size_t len, const void *dst, ether_transmit_func_t callback)
 {
+    trace("called with callback: 0x%p, len: %d", callback, len);
     uint8_t *frame;
     struct ether_hdr *hdr;
     size_t flen, pad = 0;
-    int ret;
+    //ssize_t ret;
 
     frame = memory_alloc(ETHER_FRAME_SIZE_MAX);
     if (!frame) {
@@ -85,10 +87,11 @@ int ether_transmit_helper(struct net_device *dev, uint16_t type,
         pad = ETHER_PAYLOAD_SIZE_MIN - len;
     }
     flen = sizeof(*hdr) + len + pad;
-    debug("dev=%s, type=0x%04x, len=%u", dev->name, type, flen);
+    trace("flen: %d = hdr: %d + len: %d + pad: %d", flen, sizeof(*hdr), len, pad)
+    trace("dev=%s, type=0x%04x, flen=%u", dev->name, type, flen);
     ether_dump(frame, flen);
-    ret = callback(dev, frame, flen) == (ssize_t)flen ? 0 : -1;
-    return ret;
+    return callback(dev, frame, flen);
+    trace("ret: %d, flen: %d", ret, flen);
 }
 
 int ether_input_helper(struct net_device *dev, ether_input_func_t callback)
@@ -114,7 +117,7 @@ int ether_input_helper(struct net_device *dev, ether_input_func_t callback)
         memory_free(frame);
         return -1;
     }
-    debug("flen: %d");
+    trace("flen: %d", flen);
     hdr = (struct ether_hdr *)frame;
     if (memcmp(dev->addr, hdr->dst, ETHER_ADDR_LEN) != 0) {
         if (memcmp(ETHER_ADDR_BROADCAST, hdr->dst, ETHER_ADDR_LEN) != 0) {
@@ -124,7 +127,7 @@ int ether_input_helper(struct net_device *dev, ether_input_func_t callback)
         }
     }
     type = ntoh16(hdr->type);
-    debug("dev=%s, type=0x%04x, len=%zd", dev->name, type, flen);
+    trace("dev=%s, type=0x%04x, len=%d", dev->name, type, flen);
     ether_dump(frame, flen);
     return net_input_handler(type, (uint8_t *)(hdr+1), flen - sizeof(*hdr), dev);
 }

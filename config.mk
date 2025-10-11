@@ -8,4 +8,5 @@ OBJDUMP := $(CROSS)objdump
 OBJCOPY := $(CROSS)objcopy
 STRIP := $(CROSS)strip
 
-QEMU := qemu-system-aarch64
+QEMU := /Users/dspace/raspi_os/qemu/build/qemu-system-aarch64
+# QEMU := qemu-system-aarch64

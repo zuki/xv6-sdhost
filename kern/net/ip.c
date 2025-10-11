@@ -126,6 +126,7 @@ char *ip_endpoint_ntop(const struct ip_endpoint *n, char *p, size_t size)
 
 static void ip_dump(const uint8_t *data, size_t len)
 {
+#ifdef LOG_TRACE
     struct ip_hdr *hdr;
     uint8_t v, hl, hlen;
     uint16_t total, offset;
@@ -147,7 +148,7 @@ static void ip_dump(const uint8_t *data, size_t len)
     cprintf("        sum: 0x%04x\n", ntoh16(hdr->sum));
     cprintf("        src: %s\n", ip_addr_ntop(hdr->src, addr, sizeof(addr)));
     cprintf("        dst: %s\n", ip_addr_ntop(hdr->dst, addr, sizeof(addr)));
-#ifdef LOG_TRACE
+
     hexdump(data, len);
 #endif
 }
@@ -373,7 +374,7 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev)
             return;
         }
     }
-    debug("dev=%s, iface=%s, protocol=%u, total=%u",
+    trace("dev=%s, iface=%s, protocol=%u, total=%u",
         dev->name, ip_addr_ntop(iface->unicast, addr, sizeof(addr)), hdr->protocol, total);
     ip_dump(data, total);
     for (proto = protocols; proto; proto = proto->next) {
@@ -432,7 +433,7 @@ static ssize_t ip_output_core(struct ip_iface *iface, uint8_t protocol,
     hdr->dst = dst;
     hdr->sum = cksum16((uint16_t *)hdr, hlen, 0); /* don't convert byteoder */
     memcpy(hdr+1, data, len);
-    debug("dev=%s, dst=%s, protocol=%u, len=%u",
+    trace("dev=%s, dst=%s, protocol=%u, len=%u",
         NET_IFACE(iface)->dev->name, ip_addr_ntop(dst, addr, sizeof(addr)), protocol, total);
     ip_dump(buf, total);
     ret = ip_output_device(iface, buf, total, nexthop);

@@ -25,7 +25,7 @@ static void softintr(void)
     release(&pendinglock);
 
     if (irqs) {
-        debug("irqs: 0x%x", irqs);
+        trace("irqs: 0x%x", irqs);
     } else {
         return;
     }

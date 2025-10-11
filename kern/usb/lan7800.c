@@ -216,16 +216,23 @@ boolean lan7800_configure(usb_function_t *super)
 
 static ssize_t lan7800_send_frame(struct net_device *dev, const uint8_t *buf, size_t size)
 {
+    trace("called: buf: 0x%p, size: %lld", buf, size);
     if (size > FRAME_BUFFER_SIZE)
         return false;
 
     lan7800_t *self = PRIV(dev);
+    assert(self->tx_buffer != 0);
     memmove(self->tx_buffer+TX_HEADER_SIZE, buf, size);
-    *(uint32_t *)&self->tx_buffer[0] = (size & TX_CMD_A_LEN_MASK) | TX_CMD_A_FCS;
-    *(uint32_t *)&self->tx_buffer[4] = 0;
+    uint32_t *tx_header = (uint32_t *)self->tx_buffer;
+    tx_header[0] = (size & TX_CMD_A_LEN_MASK) | TX_CMD_A_FCS;
+    tx_header[1] = 0;
 
     // USB転送（バルク）
-    return dwhc_xfer(usb_function_get_host(&self->usb_func), self->bulk_out, self->tx_buffer, size+TX_HEADER_SIZE);
+    assert(self->bulk_out != 0);
+    ssize_t result = dwhc_xfer(usb_function_get_host(&self->usb_func), self->bulk_out, self->tx_buffer, size+TX_HEADER_SIZE);
+    trace("dwhr_xfer result: %d", result);
+    return result;
+    //return dwhc_xfer(usb_function_get_host(&self->usb_func), self->bulk_out, self->tx_buffer, size+TX_HEADER_SIZE);
 }
 
 static ssize_t lan7800_receive_frame(struct net_device *dev, uint8_t *buf, size_t size)
@@ -261,7 +268,7 @@ static ssize_t lan7800_receive_frame(struct net_device *dev, uint8_t *buf, size_
     }
     framelen -= 4;    // FCSは無視する
 
-    debug("Frame received (status 0x%X)", status);
+    trace("Frame received (status 0x%x)", status);
 
     memmove(buf, (uint8_t *)buf + RX_HEADER_SIZE, framelen); // RX コマンドA..Cを上書き
 
@@ -535,6 +542,7 @@ static int lan7800_net_close(struct net_device *dev)
 
 static int lan7800_net_transmit(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst)
 {
+    trace("called");
     return ether_transmit_helper(dev, type, data, len, dst, lan7800_send_frame);
 }
 

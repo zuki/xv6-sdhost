@@ -133,6 +133,7 @@ static char *tcp_flg_ntoa(uint8_t flg)
 
 static void tcp_dump(const uint8_t *data, size_t len)
 {
+#ifdef LOG_TRACE
     struct tcp_hdr *hdr;
 
     hdr = (struct tcp_hdr *)data;
@@ -145,7 +146,7 @@ static void tcp_dump(const uint8_t *data, size_t len)
     cprintf("        wnd: %u\n", ntoh16(hdr->wnd));
     cprintf("        sum: 0x%04x\n", ntoh16(hdr->sum));
     cprintf("         up: %u\n", ntoh16(hdr->up));
-#ifdef LOG_TRACE
+
     hexdump(stderr, data, len);
 #endif
 }
@@ -187,7 +188,7 @@ static void tcp_pcb_release(struct tcp_pcb *pcb)
     while ((est = queue_pop(&pcb->backlog)) != NULL) {
         tcp_pcb_release(est);
     }
-    debug("released, local=%s, foreign=%s",
+    trace("released, local=%s, foreign=%s",
         ip_endpoint_ntop(&pcb->local, ep1, sizeof(ep1)),
         ip_endpoint_ntop(&pcb->foreign, ep2, sizeof(ep2)));
     memset(pcb, 0, sizeof(*pcb)); /* pcb->state is set to TCP_PCB_STATE_FREE (0) */
@@ -270,7 +271,7 @@ static ssize_t tcp_output_segment(uint32_t seq, uint32_t ack, uint8_t flg, uint1
     pseudo.len = hton16(total);
     psum = ~cksum16((uint16_t *)&pseudo, sizeof(pseudo), 0);
     hdr->sum = cksum16((uint16_t *)hdr, total, psum);
-    debug("%s => %s, len=%u (payload=%u)",
+    trace("%s => %s, len=%u (payload=%u)",
         ip_endpoint_ntop(local, ep1, sizeof(ep1)),
         ip_endpoint_ntop(foreign, ep2, sizeof(ep2)),
         total, len);
@@ -326,7 +327,7 @@ static void tcp_retransmit_queue_cleanup(struct tcp_pcb *pcb)
             break;
         }
         entry = queue_pop(&pcb->queue);
-        debug("remove, seq=%u, flags=%s, len=%u", entry->seq, tcp_flg_ntoa(entry->flg), entry->len);
+        trace("remove, seq=%u, flags=%s, len=%u", entry->seq, tcp_flg_ntoa(entry->flg), entry->len);
         memory_free(entry);
     }
     return;
@@ -716,7 +717,7 @@ static void tcp_input(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t 
             ip_addr_ntop(src, addr1, sizeof(addr1)), ip_addr_ntop(dst, addr2, sizeof(addr2)));
         return;
     }
-    debug("%s:%d => %s:%d, len=%u (payload=%u)",
+    trace("%s:%d => %s:%d, len=%u (payload=%u)",
         ip_addr_ntop(src, addr1, sizeof(addr1)), ntoh16(hdr->src),
         ip_addr_ntop(dst, addr2, sizeof(addr2)), ntoh16(hdr->dst),
         len, len - sizeof(*hdr));
@@ -804,7 +805,7 @@ int tcp_open_rfc793(struct ip_endpoint *local, struct ip_endpoint *foreign, int 
         return -1;
     }
     if (active) {
-        debug("active open: local=%s, foreign=%s, connecting...",
+        trace("active open: local=%s, foreign=%s, connecting...",
             ip_endpoint_ntop(local, ep1, sizeof(ep1)), ip_endpoint_ntop(foreign, ep2, sizeof(ep2)));
         pcb->local = *local;
         pcb->foreign = *foreign;
@@ -821,7 +822,7 @@ int tcp_open_rfc793(struct ip_endpoint *local, struct ip_endpoint *foreign, int 
         pcb->snd.nxt = pcb->iss + 1;
         pcb->state = TCP_PCB_STATE_SYN_SENT;
     } else {
-        debug("passive open: local=%s, waiting for connection...", ip_endpoint_ntop(local, ep1, sizeof(ep1)));
+        trace("passive open: local=%s, waiting for connection...", ip_endpoint_ntop(local, ep1, sizeof(ep1)));
         pcb->local = *local;
         if (foreign) {
             pcb->foreign = *foreign;
@@ -833,7 +834,7 @@ AGAIN:
     /* waiting for state changed */
     while (pcb->state == state) {
         if (sched_sleep(&pcb->ctx, &mutex, NULL) == -1) {
-            debug("interrupted");
+            trace("interrupted");
             pcb->state = TCP_PCB_STATE_CLOSED;
             tcp_pcb_release(pcb);
             mutex_unlock(&mutex);
@@ -851,7 +852,7 @@ AGAIN:
         return -1;
     }
     id = tcp_pcb_id(pcb);
-    debug("connection established: local=%s, foreign=%s",
+    trace("connection established: local=%s, foreign=%s",
         ip_endpoint_ntop(&pcb->local, ep1, sizeof(ep1)), ip_endpoint_ntop(&pcb->foreign, ep2, sizeof(ep2)));
     mutex_unlock(&mutex);
     return id;
@@ -949,20 +950,20 @@ int tcp_connect(int id, struct ip_endpoint *foreign)
             mutex_unlock(&mutex);
             return -1;
         }
-        debug("select source address: %s", ip_addr_ntop(iface->unicast, addr, sizeof(addr)));
+        trace("select source address: %s", ip_addr_ntop(iface->unicast, addr, sizeof(addr)));
         local.addr = iface->unicast;
     }
     if (!local.port) {
         for (p = TCP_SOURCE_PORT_MIN; p <= TCP_SOURCE_PORT_MAX; p++) {
             local.port = p;
             if (!tcp_pcb_select(&local, foreign)) {
-                debug("dynamic assign source port: %d", ntoh16(local.port));
+                trace("dynamic assign source port: %d", ntoh16(local.port));
                 pcb->local.port = local.port;
                 break;
             }
         }
         if (!local.port) {
-            debug("failed to dynamic assign source port");
+            trace("failed to dynamic assign source port");
             mutex_unlock(&mutex);
             return -1;
         }
@@ -988,7 +989,7 @@ AGAIN:
     // waiting for state changed
     while (pcb->state == state) {
         if (sched_sleep(&pcb->ctx, &mutex, NULL) == -1) {
-            debug("interrupted");
+            trace("interrupted");
             pcb->state = TCP_PCB_STATE_CLOSED;
             tcp_pcb_release(pcb);
             mutex_unlock(&mutex);
@@ -1034,7 +1035,7 @@ int tcp_bind(int id, struct ip_endpoint *local)
         return -1;
     }
     pcb->local = *local;
-    debug("success: local=%s", ip_endpoint_ntop(&pcb->local, ep, sizeof(ep)));
+    trace("success: local=%s", ip_endpoint_ntop(&pcb->local, ep, sizeof(ep)));
     mutex_unlock(&mutex);
     return 0;
 }
@@ -1085,12 +1086,12 @@ int tcp_accept(int id, struct ip_endpoint *foreign)
     }
     while (!(new_pcb = queue_pop(&pcb->backlog))) {
         if (sched_sleep(&pcb->ctx, &mutex, NULL) == -1) {
-            debug("interrupted");
+            trace("interrupted");
             mutex_unlock(&mutex);
             return -EINTR;
         }
         if (pcb->state == TCP_PCB_STATE_CLOSED) {
-            debug("closed");
+            trace("closed");
             tcp_pcb_release(pcb);
             mutex_unlock(&mutex);
             return -1;
@@ -1133,7 +1134,7 @@ RETRY:
             cap = pcb->snd.wnd - (pcb->snd.nxt - pcb->snd.una);
             if (!cap) {
                 if (sched_sleep(&pcb->ctx, &mutex, NULL) == -1) {
-                    debug("interrupted");
+                    trace("interrupted");
                     if (!sent) {
                         mutex_unlock(&mutex);
                         return -EINTR;
@@ -1185,7 +1186,7 @@ RETRY:
         remain = sizeof(pcb->buf) - pcb->rcv.wnd;
         if (!remain) {
             if (sched_sleep(&pcb->ctx, &mutex, NULL) == -1) {
-                debug("interrupted");
+                trace("interrupted");
                 mutex_unlock(&mutex);
                 return -EINTR;
             }
@@ -1197,7 +1198,7 @@ RETRY:
         if (remain) {
             break;
         }
-        debug("connection closing");
+        trace("connection closing");
         mutex_unlock(&mutex);
         return 0;
     default:

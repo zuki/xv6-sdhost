@@ -67,6 +67,7 @@ static char *arp_opcode_ntoa(uint16_t opcode)
 
 static void arp_dump(const uint8_t *data, size_t len)
 {
+#ifdef LOG_TRACE
     struct arp_ether_ip *message;
     ip_addr_t spa, tpa;
     char addr[128];
@@ -83,7 +84,8 @@ static void arp_dump(const uint8_t *data, size_t len)
     cprintf("        tha: %s\n", ether_addr_ntop(message->tha, addr, sizeof(addr)));
     memcpy(&tpa, message->tpa, sizeof(tpa));
     cprintf("        tpa: %s\n", ip_addr_ntop(tpa, addr, sizeof(addr)));
-#ifdef LOG_TRACE
+
+    cprintf("arp_dump\n");
     hexdump(data, len);
 #endif
 }
@@ -184,7 +186,7 @@ static int arp_request(struct net_iface *iface, ip_addr_t tpa)
     memcpy(request.spa, &((struct ip_iface *)iface)->unicast, IP_ADDR_LEN);
     memset(request.tha, 0, ETHER_ADDR_LEN);
     memcpy(request.tpa, &tpa, IP_ADDR_LEN);
-    debug("dev=%s, len=%d", iface->dev->name, sizeof(request));
+    trace("dev=%s, len=%d", iface->dev->name, sizeof(request));
     arp_dump((uint8_t *)&request, sizeof(request));
     return net_device_output(iface->dev, ETHER_TYPE_ARP, (uint8_t *)&request, sizeof(request), iface->dev->broadcast);
 }
@@ -202,7 +204,7 @@ static int arp_reply(struct net_iface *iface, const uint8_t *tha, ip_addr_t tpa,
     memcpy(reply.spa, &((struct ip_iface *)iface)->unicast, IP_ADDR_LEN);
     memcpy(reply.tha, tha, ETHER_ADDR_LEN);
     memcpy(reply.tpa, &tpa, IP_ADDR_LEN);
-    debug("dev=%s, len=%d", iface->dev->name, sizeof(reply));
+    trace("dev=%s, len=%d", iface->dev->name, sizeof(reply));
     arp_dump((uint8_t *)&reply, sizeof(reply));
     return net_device_output(iface->dev, ETHER_TYPE_ARP, (uint8_t *)&reply, sizeof(reply), dst);
 }
@@ -213,7 +215,7 @@ static void arp_input(const uint8_t *data, size_t len, struct net_device *dev)
     ip_addr_t spa, tpa;
     int marge = 0;
     struct net_iface *iface;
-    debug("data: 0x%p, size: %d, device: %s", data, len, dev->name);
+    trace("data: 0x%p, size: %d, device: %s", data, len, dev->name);
     if (len < sizeof(*msg)) {
         error("too short");
         return;
@@ -227,7 +229,7 @@ static void arp_input(const uint8_t *data, size_t len, struct net_device *dev)
         error("unsupported protocol address");
         return;
     }
-    debug("dev=%s, len=%d", dev->name, len);
+    trace("dev=%s, len=%d", dev->name, len);
     arp_dump(data, len);
     memcpy(&spa, msg->spa, sizeof(spa));
     memcpy(&tpa, msg->tpa, sizeof(tpa));
@@ -288,7 +290,7 @@ int arp_resolve(struct net_iface *iface, ip_addr_t pa, uint8_t *ha)
     }
     memcpy(ha, cache->ha, ETHER_ADDR_LEN);
     mutex_unlock(&mutex);
-    debug("resolved, pa=%s, ha=%s",
+    trace("resolved, pa=%s, ha=%s",
         ip_addr_ntop(pa, addr1, sizeof(addr1)), ether_addr_ntop(ha, addr2, sizeof(addr2)));
     return ARP_RESOLVE_FOUND;
 }

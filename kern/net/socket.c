@@ -310,7 +310,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
                 if (!iface) {
                     return -1;
                 }
-                debug("register iface");
+                trace("register iface");
                 ip_iface_register(dev, iface);
             }
             break;

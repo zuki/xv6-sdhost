@@ -126,7 +126,7 @@ struct net_device *net_device_by_name(const char *name)
         if (strcmp(entry->name, name) == 0) {
             break;
         } else {
-            debug("name: %s, dev->name: %s", name, entry->name);
+            trace("name: %s, dev->name: %s", name, entry->name);
         }
     }
     return entry;
@@ -136,7 +136,7 @@ struct net_device *net_device_by_name(const char *name)
 int net_device_add_iface(struct net_device *dev, struct net_iface *iface)
 {
     struct net_iface *entry;
-    debug("dev->ifaces: 0x%p", dev->ifaces);
+    trace("dev->ifaces: 0x%p", dev->ifaces);
     for (entry = dev->ifaces; entry; entry = entry->next) {
         if (entry->family == iface->family) {
             /* NOTE: For simplicity, only one iface can be added per family. */
@@ -172,8 +172,9 @@ int net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data
         error("too long, dev=%s, mtu=%u, len=%llu", dev->name, dev->mtu, len);
         return -1;
     }
-    debug("dev=%s, type=0x%04x, len=%llu", dev->name, type, len);
+    trace("dev=%s, type=0x%04x, len=%llu", dev->name, type, len);
     debugdump(data, len);
+    trace("transmit: 0x%p, len: %d", dev->ops->transmit, len);
     if (dev->ops->transmit(dev, type, data, len, dst) == -1) {
         error("device transmit failure, dev=%s, len=%u", dev->name, len);
         return -1;
@@ -275,7 +276,7 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
                 memory_free(entry);
                 return -1;
             }
-            debug("queue pushed (num:%u), dev=%s, type=0x%04x, len=%llu", proto->queue.num, dev->name, type, len);
+            trace("queue pushed (num:%u), dev=%s, type=0x%04x, len=%llu", proto->queue.num, dev->name, type, len);
             debugdump(data, len);
             intr_raise_irq(INTR_IRQ_SOFTIRQ);
             return 0;
@@ -296,7 +297,7 @@ int net_softirq_handler(void)
             if (!entry) {
                 break;
             }
-            debug("queue popped (num:%u), dev=%s, type=0x%04x, len=%llu", proto->queue.num, entry->dev->name, proto->type, entry->len);
+            trace("queue popped (num:%u), dev=%s, type=0x%04x, len=%llu", proto->queue.num, entry->dev->name, proto->type, entry->len);
             debugdump(entry->data, entry->len);
             proto->handler(entry->data, entry->len, entry->dev);
             memory_free(entry);
@@ -415,7 +416,7 @@ static void set_ip_config(struct net_device *dev)
 #endif
     struct ip_iface *iface = ip_iface_alloc(ipaddr, "255.255.255.0");
     assert(iface != 0);
-    debug("dev: 0x%p, iface: 0x%p, unicast: %s, netmask: %s, broadcast: %s",
+    trace("dev: 0x%p, iface: 0x%p, unicast: %s, netmask: %s, broadcast: %s",
         dev, iface, ip_addr_ntop(iface->unicast, addr, 256), ip_addr_ntop(iface->netmask, addr, 256), ip_addr_ntop(iface->broadcast, addr, 256));
     ip_iface_register(dev, iface);
 }

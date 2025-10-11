@@ -52,6 +52,7 @@ static struct udp_pcb pcbs[UDP_PCB_SIZE];
 
 static void udp_dump(const uint8_t *data, size_t len)
 {
+#ifdef LOG_TRACE
     struct udp_hdr *hdr;
 
     hdr = (struct udp_hdr *)data;
@@ -59,7 +60,7 @@ static void udp_dump(const uint8_t *data, size_t len)
     cprintf("        dst: %u\n", ntoh16(hdr->dst));
     cprintf("        len: %u\n", ntoh16(hdr->len));
     cprintf("        sum: 0x%04x\n", ntoh16(hdr->sum));
-#ifdef LOG_TRACE
+
     hexdump(stderr, data, len);
 #endif
 }
@@ -168,7 +169,7 @@ static void udp_input(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t 
         error("checksum error: sum=0x%04x, verify=0x%04x", ntoh16(hdr->sum), ntoh16(cksum16((uint16_t *)hdr, len, -hdr->sum + psum)));
         return;
     }
-    debug("%s:%d => %s:%d, len=%u (payload=%u)",
+    trace("%s:%d => %s:%d, len=%u (payload=%u)",
         ip_addr_ntop(src, addr1, sizeof(addr1)), ntoh16(hdr->src),
         ip_addr_ntop(dst, addr2, sizeof(addr2)), ntoh16(hdr->dst),
         len, len - sizeof(*hdr));
@@ -195,7 +196,7 @@ static void udp_input(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t 
         error("queue_push() failure");
         return;
     }
-    debug("queue pushed: id=%d, num=%d", udp_pcb_id(pcb), pcb->queue.num);
+    trace("queue pushed: id=%d, num=%d", udp_pcb_id(pcb), pcb->queue.num);
     sched_wakeup(&pcb->ctx);
     mutex_unlock(&mutex);
 }
@@ -233,7 +234,7 @@ ssize_t udp_output(struct ip_endpoint *src, struct ip_endpoint *dst, const  uint
     pseudo.len = hton16(total);
     psum = ~cksum16((uint16_t *)&pseudo, sizeof(pseudo), 0);
     hdr->sum = cksum16((uint16_t *)hdr, total, psum);
-    debug("%s => %s, len=%u (payload=%u)",
+    trace("%s => %s, len=%u (payload=%u)",
         ip_endpoint_ntop(src, ep1, sizeof(ep1)), ip_endpoint_ntop(dst, ep2, sizeof(ep2)), total, len);
     udp_dump((uint8_t *)hdr, total);
     if (ip_output(IP_PROTOCOL_UDP, (uint8_t *)hdr, total, src->addr, dst->addr) == -1) {
@@ -329,7 +330,7 @@ int udp_bind(int id, struct ip_endpoint *local)
         return -1;
     }
     pcb->local = *local;
-    debug("bound, id=%d, local=%s", id, ip_endpoint_ntop(&pcb->local, ep1, sizeof(ep1)));
+    trace("bound, id=%d, local=%s", id, ip_endpoint_ntop(&pcb->local, ep1, sizeof(ep1)));
     mutex_unlock(&mutex);
     return 0;
 }
@@ -359,18 +360,18 @@ ssize_t udp_sendto(int id, uint8_t *data, size_t len, struct ip_endpoint *foreig
             return -1;
         }
         local.addr = iface->unicast;
-        debug("select local address, addr=%s", ip_addr_ntop(local.addr, addr, sizeof(addr)));
+        trace("select local address, addr=%s", ip_addr_ntop(local.addr, addr, sizeof(addr)));
     }
     if (!pcb->local.port) {
         for (p = UDP_SOURCE_PORT_MIN; p <= UDP_SOURCE_PORT_MAX; p++) {
             if (!udp_pcb_select(local.addr, hton16(p))) {
                 pcb->local.port = hton16(p);
-                debug("dinamic assign local port, port=%d", p);
+                trace("dinamic assign local port, port=%d", p);
                 break;
             }
         }
         if (!pcb->local.port) {
-            debug("failed to dinamic assign local port, addr=%s", ip_addr_ntop(local.addr, addr, sizeof(addr)));
+            trace("failed to dinamic assign local port, addr=%s", ip_addr_ntop(local.addr, addr, sizeof(addr)));
             mutex_unlock(&mutex);
             return -1;
         }
@@ -402,12 +403,12 @@ ssize_t udp_recvfrom(int id, uint8_t *buf, size_t size, struct ip_endpoint *fore
         /* Wait to be woken up by sched_wakeup() or shced_interrupt() */
         err = sched_sleep(&pcb->ctx, &mutex, NULL);
         if (err) {
-            debug("interrupted");
+            trace("interrupted");
             mutex_unlock(&mutex);
             return -EINTR;
         }
         if (pcb->state == UDP_PCB_STATE_CLOSING) {
-            debug("closed");
+            trace("closed");
             udp_pcb_release(pcb);
             mutex_unlock(&mutex);
             return -1;
@@ -416,7 +417,7 @@ ssize_t udp_recvfrom(int id, uint8_t *buf, size_t size, struct ip_endpoint *fore
     mutex_unlock(&mutex);
     if (foreign) {
         *foreign = entry->foreign;
-        debug("foreign addr: 0x%x, port: %d", entry->foreign.addr, entry->foreign.port);
+        trace("foreign addr: 0x%x, port: %d", entry->foreign.addr, entry->foreign.port);
     }
     len = MIN(size, entry->len); /* truncate */
     memcpy(buf, entry->data, len);
