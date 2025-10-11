@@ -38,14 +38,13 @@ void lan7800(lan7800_t *self, usb_function_t *func)
     self->usb_func.configure = lan7800_configure;
     self->bulk_in = 0;
     self->bulk_out = 0;
-    self->tx_buffer = 0;
-    self->tx_buffer = (uint8_t *)kmalloc(FRAME_BUFFER_SIZE);
+    self->tx_buffer = (uint8_t *)kalloc(FRAME_BUFFER_SIZE+TX_HEADER_SIZE);
 }
 
 void _lan7800(lan7800_t *self)
 {
     if (self->tx_buffer != 0) {
-        kmfree(self->tx_buffer);
+        kfree(self->tx_buffer);
         self->tx_buffer = 0;
     }
 
@@ -207,7 +206,7 @@ boolean lan7800_configure(usb_function_t *super)
     }
 
     // USBデバイスとして登録
-    usb_device_ns_add_dev(usb_device_ns_get(), "eth01", self, false);
+    usb_device_ns_add_dev(usb_device_ns_get(), "eth00", self, false);
 
     // FIXME: ネットデバイスとして登録
     //netdev_add_dev(self->net_dev);
