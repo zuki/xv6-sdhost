@@ -51,8 +51,8 @@ usb_endpoint_t *usb_endpoint_alloc(usb_dev_t *dev, const usb_ep_desc_t *desc)
             break;
 
         default:
-            assert(0);  // エンドポイントコンフィグレーションは
-            return NULL;      // 属性クラスのドライバでチェックする
+            assert(0);      // アイソクロナスは未実装。エンドポイント
+            return NULL;    // コンフィグレーションは属性クラスのドライバでチェックする
         }
 
         ep->num       = desc->addr & 0x0F;
@@ -162,8 +162,8 @@ void usb_endpoint_skip_pid(usb_endpoint_t *self, unsigned packets, boolean ststa
 
 void usb_endpoint_reset_pid(usb_endpoint_t *self)
 {
-    assert(self->type == ep_type_bulk);
-    self->nextpid = usb_pid_data0;
+    assert(self->type == ep_type_control || self->type == ep_type_bulk);
+    self->nextpid = (self->type == ep_type_control) ? usb_pid_setup : usb_pid_data0;
 }
 
 void usb_endpoint_debug(usb_endpoint_t *self)
