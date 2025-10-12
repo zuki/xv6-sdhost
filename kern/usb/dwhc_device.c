@@ -1048,10 +1048,11 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
             dwhc_queue_trans(self, stdata);
 #endif
             break;
+        // 0x432: [10, 5, 1, 0], 0x421: [10, 5, 0], 0x400: [10]
         } else if (status & DWHCI_HOST_CHAN_INT_ERROR_MASK) {
-            warn("Transaction failed 1 (status 0x%x)", status);
             urb->status = 0;
             urb->error = dw2_xter_dtagedata_get_usb_err(stdata);
+            trace("Transaction failed 1 (status 0x%x, error: %d)", status, urb->error);
         } else if ((status & (DWHCI_HOST_CHAN_INT_NAK | DWHCI_HOST_CHAN_INT_NYET))
                  && dwhc_xfer_data_is_periodic(stdata)) {
             if (dwhc_xfer_data_is_timeout(stdata)) {

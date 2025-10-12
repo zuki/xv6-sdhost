@@ -101,7 +101,7 @@ static void arp_cache_delete(struct arp_cache *cache)
     char addr1[IP_ADDR_STR_LEN];
     char addr2[ETHER_ADDR_STR_LEN];
 
-    debug("DELETE: pa=%s, ha=%s", ip_addr_ntop(cache->pa, addr1, sizeof(addr1)), ether_addr_ntop(cache->ha, addr2, sizeof(addr2)));
+    trace("DELETE: pa=%s, ha=%s", ip_addr_ntop(cache->pa, addr1, sizeof(addr1)), ether_addr_ntop(cache->ha, addr2, sizeof(addr2)));
     cache->state = ARP_CACHE_STATE_FREE;
     cache->pa = 0;
     memset(cache->ha, 0, ETHER_ADDR_LEN);
@@ -150,7 +150,7 @@ static struct arp_cache *arp_cache_update(ip_addr_t pa, const uint8_t *ha)
     cache->state = ARP_CACHE_STATE_RESOLVED;
     memcpy(cache->ha, ha, ETHER_ADDR_LEN);
     gettimeofday(&cache->timestamp, NULL);
-    debug("UPDATE: pa=%s, ha=%s", ip_addr_ntop(pa, addr1, sizeof(addr1)), ether_addr_ntop(ha, addr2, sizeof(addr2)));
+    trace("UPDATE: pa=%s, ha=%s", ip_addr_ntop(pa, addr1, sizeof(addr1)), ether_addr_ntop(ha, addr2, sizeof(addr2)));
     return cache;
 }
 
@@ -169,7 +169,7 @@ static struct arp_cache *arp_cache_insert(ip_addr_t pa, const uint8_t *ha)
     cache->pa = pa;
     memcpy(cache->ha, ha, ETHER_ADDR_LEN);
     gettimeofday(&cache->timestamp, NULL);
-    debug("INSERT: pa=%s, ha=%s", ip_addr_ntop(pa, addr1, sizeof(addr1)), ether_addr_ntop(ha, addr2, sizeof(addr2)));
+    trace("INSERT: pa=%s, ha=%s", ip_addr_ntop(pa, addr1, sizeof(addr1)), ether_addr_ntop(ha, addr2, sizeof(addr2)));
     return cache;
 }
 
@@ -259,17 +259,17 @@ int arp_resolve(struct net_iface *iface, ip_addr_t pa, uint8_t *ha)
     char addr2[ETHER_ADDR_STR_LEN];
 
     if (iface->dev->type != NET_DEVICE_TYPE_ETHERNET) {
-        debug("unsupported hardware address type");
+        error("unsupported hardware address type");
         return ARP_RESOLVE_ERROR;
     }
     if (iface->family != NET_IFACE_FAMILY_IP) {
-        debug("unsupported protocol address type");
+        error("unsupported protocol address type");
         return ARP_RESOLVE_ERROR;
     }
     mutex_lock(&mutex);
     cache = arp_cache_select(pa);
     if (!cache) {
-        debug("cache not found, pa=%s", ip_addr_ntop(pa, addr1, sizeof(addr1)));
+        trace("cache not found, pa=%s", ip_addr_ntop(pa, addr1, sizeof(addr1)));
         cache = arp_cache_alloc();
         if (!cache) {
             mutex_unlock(&mutex);
