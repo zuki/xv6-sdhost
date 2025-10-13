@@ -33,12 +33,13 @@ long sys_bind(void)
 
     if (argfd(0, 0, &f) < 0)
         return -EBADF;
+
     if (f->type != FD_SOCKET)
         return -ENOTSOCK;
 
     if (argptr(1, (void **)&addr, sizeof(struct sockaddr)) < 0)
         return -EFAULT;
-    if (argint(2, &addrlen) <0)
+    if (argint(2, &addrlen) < 0)
         return -EINVAL;
 
     return socket_bind(f->socket, addr, addrlen);
@@ -49,7 +50,8 @@ long sys_recvfrom(void)
 {
     struct file *f;
     char *buf;
-    int len, flags;
+    int flags;
+    size_t len;
     struct sockaddr *addr;
     int *addrlen;
 
@@ -58,13 +60,13 @@ long sys_recvfrom(void)
     if (f->type != FD_SOCKET)
         return -ENOTSOCK;
 
-    if (argint(2, &len) <0)
+    if (argu64(2, &len) < 0)
         return -EINVAL;
 
     if (argptr(1, (void **)&buf, len) < 0)
         return -EFAULT;
 
-    if (argint(3, &flags) <0)
+    if (argint(3, &flags) < 0)
         return -EINVAL;
 
     if (argptr(4, (void **)&addr, sizeof(struct sockaddr)) < 0)
@@ -90,7 +92,8 @@ long sys_sendto(void)
 {
     struct file *f;
     char *buf;
-    int len, flags;
+    int flags;
+    size_t len;
     struct sockaddr *addr;
     int addrlen;
 
@@ -99,7 +102,7 @@ long sys_sendto(void)
     if (f->type != FD_SOCKET)
         return -ENOTSOCK;
 
-    if (argint(2, &len) <0)
+    if (argu64(2, &len) < 0)
         return -EINVAL;
 
     if (argptr(1, (void **)&buf, len) < 0)
@@ -110,7 +113,7 @@ long sys_sendto(void)
 
     if (argptr(4, (void **)&addr, sizeof(struct sockaddr)) < 0)
         return -EFAULT;
-    if (argptr(5, (void **)&addrlen, sizeof(int)) <0)
+    if (argint(5, &addrlen) < 0)
         return -EFAULT;
 
     if (flags) {
@@ -181,62 +184,4 @@ long sys_accept(void)
         return -EFAULT;
 
     return socket_accept(f->socket, addr, addrlen);
-}
-
-// ssize_t recv(int sockfd, void *buf, size_t len, int flags);
-long sys_recv(void)
-{
-    struct file *f;
-    char *buf;
-    int len, flags;
-
-    if (argfd(0, 0, &f) < 0)
-        return -EBADF;
-    if (f->type != FD_SOCKET)
-        return -ENOTSOCK;
-
-    if (argint(2, &len) <0)
-        return -EINVAL;
-
-    if (argptr(1, (void **)&buf, len) < 0)
-        return -EFAULT;
-
-    if (argint(3, &flags) <0)
-        return -EINVAL;
-
-    if (flags) {
-        warn("flags: 0x%x not supported", flags);
-        return -EINVAL;
-    }
-
-    return socket_read(f->socket, buf, len);
-}
-
-// ssize_t send(int sockfd, const void *buf, size_t len, int flags);
-long sys_send(void)
-{
-    struct file *f;
-    char *buf;
-    int len, flags;
-
-    if (argfd(0, 0, &f) < 0)
-        return -EBADF;
-    if (f->type != FD_SOCKET)
-        return -ENOTSOCK;
-
-    if (argint(2, &len) <0)
-        return -EINVAL;
-
-    if (argptr(1, (void **)&buf, len) < 0)
-        return -EFAULT;
-
-    if (argint(3, &flags) <0)
-        return -EINVAL;
-
-    if (flags) {
-        warn("flags: 0x%x not supported", flags);
-        return -EINVAL;
-    }
-
-    return socket_write(f->socket, buf, len);
 }

@@ -49,6 +49,11 @@ int main (int argc, char *argv[])
         addr = (unsigned char *)&peer.sin_addr.s_addr;
         printf("recvfrom: %d bytes data received, peer=%d.%d.%d.%d:%d\n",
             ret, addr[0], addr[1], addr[2], addr[3], ntohs(peer.sin_port));
+#if 0
+        for (int i=0; i < ret; i++)
+            printf("%02x", buf[i]);
+        printf("\n");
+#endif
         sendto(soc, buf, ret, 0, (struct sockaddr *)&peer, peerlen);
     }
     close(soc);

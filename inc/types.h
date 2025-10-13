@@ -56,6 +56,7 @@ typedef unsigned        wint_t;
 typedef uint16_t        kdev_t;
 typedef uint16_t        wchar_t;        // muslでは4バイトだが、fatでは2バイト
 typedef uint64_t        handler_t;
+typedef uint32_t        socklen_t;
 
 typedef int             boolean;
 #define true            1

@@ -61,7 +61,7 @@ static void udp_dump(const uint8_t *data, size_t len)
     cprintf("        len: %u\n", ntoh16(hdr->len));
     cprintf("        sum: 0x%04x\n", ntoh16(hdr->sum));
 
-    hexdump(stderr, data, len);
+    hexdump(data, len);
 #endif
 }
 
