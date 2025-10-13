@@ -112,6 +112,10 @@ long argptr(int n, void **pp, size_t size)
     if (argu64(n, &i) < 0) {
         return -1;
     }
+    if (i == 0) {
+        *pp = 0;
+        return 0;
+    }
     if (in_user((void *)i, size)) {
         *pp = (char *)i;
         return 0;
