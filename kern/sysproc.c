@@ -17,7 +17,7 @@ size_t sys_brk(void)
     struct proc *p = thisproc();
     size_t sz, newsz, oldsz = p->sz;
 
-    panic("sys_brk: unimplemented. ");
+    //panic("sys_brk: unimplemented. ");
 
     if (argu64(0, &newsz) < 0)
         return oldsz;
@@ -68,8 +68,8 @@ long sys_mmap(void)
             warn("non-rw unimplemented");
             return -1;
         }
-        panic("unimplemented. ");
-        return -1;
+        error("addr: 0x%x, len: %d, prot: 0x%x, flags: 0x%x", addr, len, prot, flags);
+        return -ENODEV;
     }
 }
 

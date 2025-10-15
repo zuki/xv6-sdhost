@@ -961,7 +961,7 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
     usb_request_t *urb = stdata->urb;
     trace("urb=0x%p, root_port_enabled=0x%x", urb, self->root_port_enabled);
     if (urb == 0)
-        hexdump(stdata, sizeof(stdata));
+        debugdump(stdata, sizeof(stdata), "stdata");
     assert(urb != 0);
 
     if (!self->root_port_enabled) {
@@ -982,7 +982,7 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
     case stage_substate_wait_for_channel_disaable:
         if (stdata->channel >= self->channels) {
             trace("substate: wait_for_channel_disaable, channel: %d, st->ch: %d", channel, stdata->channel);
-            hexdump((const void *)stdata, sizeof(*stdata));
+            debugdump((const void *)stdata, sizeof(*stdata), "stdata");
         }
         dwhc_start_channel(self, stdata);
         trace("ok 1");

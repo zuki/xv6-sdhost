@@ -57,11 +57,13 @@ static void ether_dump(const uint8_t *frame, size_t flen)
     char addr[ETHER_ADDR_STR_LEN];
 
     hdr = (struct ether_hdr *)frame;
+    cprintf("=== Ether dump ===\n");
     cprintf("        src: %s\n", ether_addr_ntop(hdr->src, addr, sizeof(addr)));
     cprintf("        dst: %s\n", ether_addr_ntop(hdr->dst, addr, sizeof(addr)));
     cprintf("       type: 0x%04x\n", ntoh16(hdr->type));
 
-    hexdump(frame, flen);
+    hexdump(frame, flen, "Ether");
+    cprintf("\n");
 #endif
 }
 

@@ -81,7 +81,7 @@ void panic(const char *fmt, ...);
 
 #endif  // #ifdef LOG_ERROR
 
-void hexdump(const void *data, size_t size);
+void hexdump(const void *data, size_t size, const char *name);
 
 #ifdef LOG_TRACE
 #define debugdump(...) hexdump(__VA_ARGS__)

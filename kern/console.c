@@ -309,12 +309,13 @@ panic(const char *fmt, ...)
     while (1) ;
 }
 
-void hexdump(const void *data, size_t size)
+void hexdump(const void *data, size_t size, const char *name)
 {
     unsigned char *src;
     int offset, index;
 
     src = (unsigned char *)data;
+    cprintf("=== %s dump ===\n", name ? name : "");
     cprintf("+------+-------------------------------------------------+------------------+\n");
     for (offset = 0; offset < (int)size; offset += 16) {
         cprintf("| %04x | ", offset);
@@ -339,6 +340,6 @@ void hexdump(const void *data, size_t size)
         }
         cprintf(" |\n");
     }
-    cprintf("+------+-------------------------------------------------+------------------+\n");
+    cprintf("+------+-------------------------------------------------+------------------+\n\n");
 
 }

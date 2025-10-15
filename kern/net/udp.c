@@ -56,12 +56,14 @@ static void udp_dump(const uint8_t *data, size_t len)
     struct udp_hdr *hdr;
 
     hdr = (struct udp_hdr *)data;
+    cprintf("=== UDP dump ===\n");
     cprintf("        src: %u\n", ntoh16(hdr->src));
     cprintf("        dst: %u\n", ntoh16(hdr->dst));
     cprintf("        len: %u\n", ntoh16(hdr->len));
     cprintf("        sum: 0x%04x\n", ntoh16(hdr->sum));
 
-    hexdump(data, len);
+    hexdump(data, len, "UDP");
+    cprintf("\n");
 #endif
 }
 
@@ -371,7 +373,7 @@ ssize_t udp_sendto(int id, uint8_t *data, size_t len, struct ip_endpoint *foreig
             }
         }
         if (!pcb->local.port) {
-            trace("failed to dinamic assign local port, addr=%s", ip_addr_ntop(local.addr, addr, sizeof(addr)));
+            error("failed to dinamic assign local port, addr=%s", ip_addr_ntop(local.addr, addr, sizeof(addr)));
             mutex_unlock(&mutex);
             return -1;
         }
@@ -403,12 +405,12 @@ ssize_t udp_recvfrom(int id, uint8_t *buf, size_t size, struct ip_endpoint *fore
         /* Wait to be woken up by sched_wakeup() or shced_interrupt() */
         err = sched_sleep(&pcb->ctx, &mutex, NULL);
         if (err) {
-            trace("interrupted");
+            error("interrupted");
             mutex_unlock(&mutex);
             return -EINTR;
         }
         if (pcb->state == UDP_PCB_STATE_CLOSING) {
-            trace("closed");
+            error("closed");
             udp_pcb_release(pcb);
             mutex_unlock(&mutex);
             return -1;

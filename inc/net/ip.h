@@ -23,6 +23,8 @@
 #define IP_PROTOCOL_TCP     6
 #define IP_PROTOCOL_UDP     17
 
+#define MSG_DONTWAIT        0x40
+
 typedef uint32_t ip_addr_t;
 
 struct ip_endpoint {

@@ -63,6 +63,9 @@ uint16_t ntoh16(uint16_t n);
 uint32_t hton32(uint32_t h);
 uint32_t ntoh32(uint32_t n);
 
+// big endian (to be used for constants only)
+#define BE(value)	((((value) & 0xFF00) >> 8) | (((value) & 0x00FF) << 8))
+
 /*
  * Checksum
  */

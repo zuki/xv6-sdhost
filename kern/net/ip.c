@@ -136,6 +136,7 @@ static void ip_dump(const uint8_t *data, size_t len)
     v = (hdr->vhl & 0xf0) >> 4;
     hl = hdr->vhl & 0x0f;
     hlen = hl << 2;
+    cprintf("=== IP dump ===\n");
     cprintf("        vhl: 0x%02x [v: %u, hl: %u (%u)]\n", hdr->vhl, v, hl, hlen);
     cprintf("        tos: 0x%02x\n", hdr->tos);
     total = ntoh16(hdr->total);
@@ -149,7 +150,8 @@ static void ip_dump(const uint8_t *data, size_t len)
     cprintf("        src: %s\n", ip_addr_ntop(hdr->src, addr, sizeof(addr)));
     cprintf("        dst: %s\n", ip_addr_ntop(hdr->dst, addr, sizeof(addr)));
 
-    hexdump(data, len);
+    hexdump(data, len, "IP");
+    cprintf("\n");
 #endif
 }
 
@@ -386,21 +388,24 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev)
     /* unsupported protocol */
 }
 
+#include <net/ether.h>
 static int ip_output_device(struct ip_iface *iface, const uint8_t *data, size_t len, ip_addr_t dst)
 {
     uint8_t hwaddr[NET_DEVICE_ADDR_LEN] = {};
     int ret;
+    char addr2[ETHER_ADDR_STR_LEN];
 
     if (NET_IFACE(iface)->dev->flags & IFF_NOARP) {
         if (dst == iface->broadcast || dst == IP_ADDR_BROADCAST) {
             memcpy(hwaddr, NET_IFACE(iface)->dev->broadcast, NET_IFACE(iface)->dev->alen);
         } else {
-            ret = arp_resolve(NET_IFACE(iface), dst, hwaddr);
-            if (ret != ARP_RESOLVE_FOUND) {
                 return ret;
             }
         }
     }
+ok:
+    trace("hwaddr: %s", ether_addr_ntop(hwaddr, addr2, sizeof(addr2)));
+    debugdump(data, len, "IP output data");
     return net_device_output(NET_IFACE(iface)->dev, NET_PROTOCOL_TYPE_IP, data, len, hwaddr);
 }
 

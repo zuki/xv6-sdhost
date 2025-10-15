@@ -60,6 +60,7 @@ static void icmp_dump(const uint8_t *data, size_t len)
     struct icmp_echo *echo;
 
     hdr = (struct icmp_hdr *)data;
+    cprintf("=== ICMP dump ===\n");
     cprintf("       type: %u (%s)\n", hdr->type, icmp_type_ntoa(hdr->type));
     cprintf("       code: %u\n", hdr->code);
     cprintf("        sum: 0x%04x\n", ntoh16(hdr->sum));
@@ -75,7 +76,8 @@ static void icmp_dump(const uint8_t *data, size_t len)
         break;
     }
 
-    hexdump(data, len);
+    hexdump(data, len, "ICMP");
+    cprintf("\n");
 #endif
 
 }

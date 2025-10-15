@@ -87,7 +87,7 @@ static struct slab_header *slab_new(const struct slab_cache *cache) {
 
     trace("[0x%p] name: %s, obj_num: %d", cache, cache->name, max_object_num);
     trace("  header: 0x%p, free: 0x%p, object: 0x%p", header, header->free, header->object);
-    //hexdump(header, sizeof(struct slab_header)+4*(max_object_num+1)+8);
+    //debugdump(header, sizeof(struct slab_header)+4*(max_object_num+1)+8, "SLAB header");
 
     return header;
 }
@@ -328,7 +328,7 @@ void slab_cache_free(struct slab_cache *cache, void *obj) {
     struct page *page = page_find_head(page_find_by_address(obj));
     struct slab_header *header = (void*)page_address(page), *h, **hp;
     trace("header: 0x%p", header);
-    //hexdump(header, sizeof(*header));
+    //debugdump(header, sizeof(*header), "SLAB cache header");
     /* 1. lockを取得する */
     acquire(&cache->lock);
 

@@ -137,6 +137,7 @@ static void tcp_dump(const uint8_t *data, size_t len)
     struct tcp_hdr *hdr;
 
     hdr = (struct tcp_hdr *)data;
+    cprintf("=== TCP dump ===\n");
     cprintf("        src: %u\n", ntoh16(hdr->src));
     cprintf("        dst: %u\n", ntoh16(hdr->dst));
     cprintf("        seq: %u\n", ntoh32(hdr->seq));
@@ -147,7 +148,8 @@ static void tcp_dump(const uint8_t *data, size_t len)
     cprintf("        sum: 0x%04x\n", ntoh16(hdr->sum));
     cprintf("         up: %u\n", ntoh16(hdr->up));
 
-    hexdump(stderr, data, len);
+    hexdump(data, len, "TCP");
+    cprintf("\n");
 #endif
 }
 

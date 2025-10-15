@@ -65,6 +65,20 @@ static char *arp_opcode_ntoa(uint16_t opcode)
     return "Unknown";
 }
 
+static void arp_cache_dump(void)
+{
+#ifdef LOG_TRACE
+    char addr[128];
+
+    cprintf("arp_cache:\n");
+    for (int i = 0; i < ARP_CACHE_SIZE; i++) {
+        if (caches[i].state != ARP_CACHE_STATE_FREE) {
+            cprintf("  [%d] state: %d, ip: %s, mac: %s\n", i, caches[i].state, ip_addr_ntop(caches[i].pa, addr, sizeof(addr)), ether_addr_ntop(caches[i].ha, addr, sizeof(addr)));
+        }
+    }
+#endif
+}
+
 static void arp_dump(const uint8_t *data, size_t len)
 {
 #ifdef LOG_TRACE
@@ -73,6 +87,7 @@ static void arp_dump(const uint8_t *data, size_t len)
     char addr[128];
 
     message = (struct arp_ether_ip *)data;
+    cprintf("=== ARP dump ===\n");
     cprintf("        hrd: 0x%04x\n", ntoh16(message->hdr.hrd));
     cprintf("        pro: 0x%04x\n", ntoh16(message->hdr.pro));
     cprintf("        hln: %u\n", message->hdr.hln);
@@ -85,8 +100,8 @@ static void arp_dump(const uint8_t *data, size_t len)
     memcpy(&tpa, message->tpa, sizeof(tpa));
     cprintf("        tpa: %s\n", ip_addr_ntop(tpa, addr, sizeof(addr)));
 
-    cprintf("arp_dump\n");
-    hexdump(data, len);
+    hexdump(data, len, "ARP");
+    cprintf("\n");
 #endif
 }
 
@@ -151,6 +166,7 @@ static struct arp_cache *arp_cache_update(ip_addr_t pa, const uint8_t *ha)
     memcpy(cache->ha, ha, ETHER_ADDR_LEN);
     gettimeofday(&cache->timestamp, NULL);
     trace("UPDATE: pa=%s, ha=%s", ip_addr_ntop(pa, addr1, sizeof(addr1)), ether_addr_ntop(ha, addr2, sizeof(addr2)));
+    arp_cache_dump();
     return cache;
 }
 
@@ -170,6 +186,7 @@ static struct arp_cache *arp_cache_insert(ip_addr_t pa, const uint8_t *ha)
     memcpy(cache->ha, ha, ETHER_ADDR_LEN);
     gettimeofday(&cache->timestamp, NULL);
     trace("INSERT: pa=%s, ha=%s", ip_addr_ntop(pa, addr1, sizeof(addr1)), ether_addr_ntop(ha, addr2, sizeof(addr2)));
+    arp_cache_dump();
     return cache;
 }
 

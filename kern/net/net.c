@@ -173,7 +173,7 @@ int net_device_output(struct net_device *dev, uint16_t type, const uint8_t *data
         return -1;
     }
     trace("dev=%s, type=0x%04x, len=%llu", dev->name, type, len);
-    debugdump(data, len);
+    debugdump(data, len, "net_device_output");
     trace("transmit: 0x%p, len: %d", dev->ops->transmit, len);
     if (dev->ops->transmit(dev, type, data, len, dst) == -1) {
         error("device transmit failure, dev=%s, len=%u", dev->name, len);
@@ -277,7 +277,7 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
                 return -1;
             }
             trace("queue pushed (num:%u), dev=%s, type=0x%04x, len=%llu", proto->queue.num, dev->name, type, len);
-            debugdump(data, len);
+            //debugdump(data, len, "net_input_data");
             intr_raise_irq(INTR_IRQ_SOFTIRQ);
             return 0;
         }
@@ -298,7 +298,7 @@ int net_softirq_handler(void)
                 break;
             }
             trace("queue popped (num:%u), dev=%s, type=0x%04x, len=%llu", proto->queue.num, entry->dev->name, proto->type, entry->len);
-            debugdump(entry->data, entry->len);
+            debugdump(entry->data, entry->len, "queue entry");
             proto->handler(entry->data, entry->len, entry->dev);
             memory_free(entry);
         }

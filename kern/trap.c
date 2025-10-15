@@ -85,5 +85,6 @@ void
 trap_error(uint64_t type)
 {
     debug_reg();
-    panic("irq of type %d unimplemented. \n", type);
+    error("irq of type %d unimplemented. \n", type);
+    panic("trap_error");
 }
