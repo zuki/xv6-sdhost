@@ -10,6 +10,7 @@
 #include <console.h>
 #include <net/socket.h>
 #include <linux/errno.h>
+#include <net/dns.h>
 
 // socket(int domain, int type, int protocol);
 // TODO: アクセス権限チェック
@@ -184,4 +185,12 @@ long sys_accept(void)
         return -EFAULT;
 
     return socket_accept(f->socket, addr, addrlen);
+}
+
+long sys_dns(void)
+{
+    trace("called");
+    ip_addr_t addr;
+    dns_resolve("www.google.com", &addr);
+    return 0;
 }

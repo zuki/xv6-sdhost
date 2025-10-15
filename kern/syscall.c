@@ -269,6 +269,7 @@ static func syscalls[] = {
     //[SYS_renameat2] = sys_renameat2,            // 276
     //[SYS_getrandom] = sys_getrandom,            // 278
     //[SYS_faccessat2] = sys_faccessat2,          // 439
+    [SYS_dns] = sys_dns,          // 900
 };
 
 __attribute__((unused)) static char *syscall_names[] = {
@@ -371,6 +372,7 @@ __attribute__((unused)) static char *syscall_names[] = {
     [SYS_renameat2] = "sys_renameat2",            // 276
     [SYS_getrandom] = "sys_getrandom",            // 278
     [SYS_faccessat2] = "sys_faccessat2",          // 439
+    [SYS_dns] = "sys_dns",          // 900
 };
 
 long syscall1(struct trapframe *tf)

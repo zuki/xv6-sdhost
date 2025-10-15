@@ -1,6 +1,7 @@
 #include <types.h>
 #include <string.h>
 #include <linux/errno.h>
+#include <console.h>
 
 static void sprintint(int64_t x, int base, int sign, int zero, int col, char **p)
 {
@@ -191,4 +192,38 @@ long strtol(const char *s, char **endptr, int base)
     if (endptr)
         *endptr = (char *) s;
     return (neg ? -val : val);
+}
+
+char *strtok_r1(char *s, char delim, char **save_ptr)
+{
+    char *end;
+
+    if (s == 0)
+        s = *save_ptr;
+
+    if (*s == '\0') {
+        *save_ptr = s;
+        return 0;
+    }
+
+    /* Scan leading delimiters.  */
+    s += strspn1(s, delim);
+    trace("s: 0x%p, s[0]: 0x%02x", s, *s);
+    if (*s == '\0') {
+        *save_ptr = s;
+        return 0;
+    }
+    /* Find the end of the token.  */
+    end = s + strcspn1(s, delim);
+    trace("end: 0x%p, end[0]: 0x%02x", end, *end);
+    if (*end == '\0')
+    {
+        *save_ptr = end;
+        return s;
+    }
+    /* Terminate the token and make *SAVE_PTR point past it.  */
+    *end = '\0';
+    *save_ptr = end + 1;
+    trace("*save_ptr: 0x%p, s: %s", *save_ptr, s);
+    return s;
 }

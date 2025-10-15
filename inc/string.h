@@ -9,7 +9,7 @@ memset(void *str, int c, size_t n)
 {
     char *l = (char *)str, *r = l + n;
     for (; l != r; l ++)
-        *l = c & 0xff;
+        *l = (char)(c & 0xff);
     return str;
 }
 
@@ -55,14 +55,20 @@ strncmp(const char *p, const char *q, size_t n)
 }
 
 static inline char *
-strncpy(char *s, const char *t, size_t n)
+strncpy(char *dst, const char *src, size_t n)
 {
-    char *os = s;
-    while (n-- > 0 && (*s++ = *t++) != 0)
-        ;
-    while (n-- > 0)
-        *s++ = 0;
-    return os;
+    if (n != 0) {
+        char *d = dst;
+        const char *s = src;
+        do {
+            if ((*d++ = *s++) == 0) {
+                while (--n != 0)
+                    *d++ = 0;
+                break;
+            }
+        } while (--n != 0);
+    }
+    return (dst);
 }
 
 // Like strncpy but guaranteed to NUL-terminate.
@@ -88,6 +94,19 @@ strlen(const char *s)
 }
 
 static inline char *
+strchr(const char *s, char c)
+{
+    if (s == 0)
+        return 0;
+
+    char *p = (char *)s;
+    while (*p != '\0' && *p != c)
+        p++;
+
+    return *p == c ? p : 0;
+}
+
+static inline char *
 strrchr(const char *s, char c)
 {
     char *p = (char *)((uint64_t)s + strlen(s) - 1);
@@ -96,6 +115,32 @@ strrchr(const char *s, char c)
             return (char *)p;
     }
     return 0;
+}
+
+static inline int
+strspn1(const char *s, char c)
+{
+    if (s == 0)
+        return 0;
+
+    char *p = (char *)s;
+    while(*p == c)
+        p++;
+
+    return (int)(p - s);
+}
+
+static inline int
+strcspn1(const char *s, char c)
+{
+    if (s == 0)
+        return 0;
+
+    char *p = (char *)s;
+    while(*p != c && *p != '\0')
+        p++;
+
+    return (int)(p - s);
 }
 
 static inline int
@@ -146,5 +191,6 @@ static __inline int __isspace(int _c)
 long strtol(const char *s, char **endptr, int base);
 int sprintf(char *buf, const char *fmt, ...);
 int snprintf(char *buf, size_t n, const char *fmt, ...);
+char *strtok_r1(char *s, char delim, char **save_ptr);
 
 #endif

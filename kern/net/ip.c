@@ -394,13 +394,21 @@ static int ip_output_device(struct ip_iface *iface, const uint8_t *data, size_t 
     uint8_t hwaddr[NET_DEVICE_ADDR_LEN] = {};
     int ret;
     char addr2[ETHER_ADDR_STR_LEN];
+    static int try = 0;
 
     if (NET_IFACE(iface)->dev->flags & IFF_NOARP) {
         if (dst == iface->broadcast || dst == IP_ADDR_BROADCAST) {
             memcpy(hwaddr, NET_IFACE(iface)->dev->broadcast, NET_IFACE(iface)->dev->alen);
         } else {
-                return ret;
-            }
+            do {
+                ret = arp_resolve(NET_IFACE(iface), dst, hwaddr);
+                if (ret == ARP_RESOLVE_FOUND) {
+                    goto ok;
+                }
+                delayus(10000);
+            } while (++try < 3);
+            error("arp not resolved");
+            return ret;
         }
     }
 ok:

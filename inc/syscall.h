@@ -134,4 +134,6 @@ long sys_recv(void);
 long sys_send(void);
 long sys_recvfrom(void);
 long sys_sendto(void);
+long sys_dns(void);
+
 #endif

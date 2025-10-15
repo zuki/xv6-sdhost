@@ -591,4 +591,6 @@
 #define SYS_pidfd_getfd	438
 #define SYS_faccessat2		439
 
+#define SYS_dns     900
+
 #endif
