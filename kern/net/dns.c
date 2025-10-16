@@ -68,12 +68,38 @@ static void dns_dump(const uint8_t *data, size_t len, size_t dist_len)
 #endif
 }
 
+static ssize_t make_query_name(char *query, const char *host) {
+    char name[MAX_HOSTNAME_SIZE];
+
+    memset(name, 0, MAX_HOSTNAME_SIZE);
+    strncpy(name, host, strlen(host));
+
+    char *save;
+    size_t length, dist_len = 0;
+    char *label = strtok_r1(name, '.', &save);
+    while (label != 0) {
+        length = strlen(label);
+        if (length > 255) {
+            error("too long label %s, length: %d", label, length);
+            return -1;
+        }
+        trace("label: %s, len: %d", label, length);
+        *query++ = (char)length;
+        strncpy((char *)query, label, length);
+        query += length;
+        dist_len += length + 1;
+        label = strtok_r1(0, '.', &save);
+    }
+    *query++ = '\0';
+    dist_len += 1;
+    return dist_len;
+}
+
 int dns_resolve(const char *host, ip_addr_t *ipaddr)
 {
     struct ip_endpoint local, peer;
     int errnum = -1;
     char *buffer = 0;
-    char *name = 0;
     char *recvbuf = 0;
 
     assert(host != 0);
@@ -113,29 +139,12 @@ int dns_resolve(const char *host, ip_addr_t *ipaddr)
     //dns_dump((const uint8_t *)dns_hdr, sizeof(dns_hdr_t), 0);
 
     char *query = (char *)(buffer + sizeof(dns_hdr_t));
-    name = (char *)kmalloc(MAX_HOSTNAME_SIZE);
-    assert(name != 0);
-    memset(name, 0, MAX_HOSTNAME_SIZE);
-    strncpy(name, host, strlen(host));
 
-    char *save;
-    size_t length, dist_len = 0;
-    char *label = strtok_r1(name, '.', &save);
-    while (label != 0) {
-        length = strlen(label);
-        if (length > 255) {
-            error("too long label %s, length: %d", label, length);
-            goto err;
-        }
-        trace("label: %s, len: %d", label, length);
-        *query++ = (char)length;
-        strncpy((char *)query, label, length);
-        query += length;
-        dist_len += length + 1;
-        label = strtok_r1(0, '.', &save);
-    }
-    *query++ = '\0';
-    dist_len += 1;
+    ssize_t dist_len = make_query_name(query, host);
+    if (dist_len < 0)
+        goto err;
+    else
+        query += dist_len;
 
     dns_query_t *dns_query = (dns_query_t *)query;
     dns_query->qtype = BE(DNS_QTYPE_A);
@@ -144,8 +153,8 @@ int dns_resolve(const char *host, ip_addr_t *ipaddr)
 
     int size = (int)(query - buffer);
     assert(size <= DNS_MAX_MESSAGE_SIZE);
-    dns_dump((const uint8_t *)buffer, size, dist_len);
-#if 1
+    dns_dump((const uint8_t *)buffer, size, (size_t)dist_len);
+
     recvbuf = (char *)kmalloc(DNS_MAX_MESSAGE_SIZE);
     assert(recvbuf != 0);
     ssize_t recvlen;
@@ -176,6 +185,7 @@ int dns_resolve(const char *host, ip_addr_t *ipaddr)
 
     char *response = recvbuf + sizeof(dns_hdr_t);
     dns_dump((const char *)recvbuf, DNS_MAX_MESSAGE_SIZE, dist_len);
+    size_t length;
 
     while ((length = *response++) > 0) {
         response += length;
@@ -227,9 +237,9 @@ int dns_resolve(const char *host, ip_addr_t *ipaddr)
 
     assert(ipaddr != 0);
     *ipaddr = *((ip_addr_t *)rr.rdata);
+    char name[64];
     ip_addr_ntop(*ipaddr, name, 64);
     debug("resolved addr is %s", name);
-#endif
     errnum = 0;
 
 err:
@@ -238,8 +248,7 @@ err:
         kmfree(buffer);
     if (recvbuf != 0)
         kmfree(recvbuf);
-    if (name != 0)
-        kmfree(name);
-
+    //if (name != 0)
+    //    kmfree(name);
     return errnum;
 }
