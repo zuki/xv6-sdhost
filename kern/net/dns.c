@@ -13,32 +13,57 @@
 static uint16_t next_id = 1;
 static uint16_t port = 53000;
 
-static void dns_dump(const uint8_t *data, size_t len, size_t dst_len)
+static void dns_dump(const uint8_t *data, size_t len, size_t dist_len)
 {
 #ifdef LOG_DEBUG
     dns_hdr_t *message;
     dns_query_t *query;
+    dns_rr_t *response;
+    char addr[64];
+    size_t size = 0;
 
     message = (dns_hdr_t *)data;
-    cprintf("=== DNS dump ===\n");
+    cprintf("=== DNS Packet ===\n");
     cprintf("        id: %u\n", ntoh16(message->id));
-    cprintf("      flag: 0x%08x\n", ntoh16(message->flag));
+    cprintf("      flag: 0x%04x\n", message->flag);
     cprintf("   qdcount: %u\n", ntoh16(message->qdcount));
     cprintf("   ancount: %u\n", ntoh16(message->ancount));
     cprintf("   nscount: %u\n", ntoh16(message->nscount));
     cprintf("   arcount: %u\n", ntoh16(message->arcount));
-    if (dst_len > 0) {
+    if (dist_len > 0) {
         cprintf("      dist: ");
-        for (int i = 0; i < dst_len; i++) {
+        for (int i = 0; i < dist_len; i++) {
             cprintf("%02x ", data[sizeof(dns_hdr_t) + i]);
         }
         cprintf("\n");
-        query = (dns_query_t *)((size_t)data + sizeof(dns_hdr_t) + dst_len);
+        query = (dns_query_t *)((size_t)data + sizeof(dns_hdr_t) + dist_len);
         cprintf("     qtype: %u\n", ntoh16(query->qtype));
         cprintf("    qclass: %u\n", ntoh16(query->qclass));
     }
 
-    hexdump(data, len, "DNS");
+    size_t req_len = sizeof(dns_hdr_t) + dist_len + sizeof(dns_query_t);
+    size += req_len;
+
+    if (len > req_len) {
+        size_t rr_len = 0;
+        for (int i = 0; i < ntoh16(message->ancount); i++) {
+            if ((data[req_len] & DNS_NAME_FLAG) == DNS_NAME_FLAG_PACKED) {
+                cprintf("      name: 0x%04x\n", *((uint16_t *)(data + req_len)));
+                response = (dns_rr_t *)(data + size + 2);
+                size += 2 + sizeof(dns_rr_t);
+            } else {
+                response = (dns_rr_t *)(data + size + dist_len);
+                size += dist_len + sizeof(dns_rr_t);
+            }
+            cprintf("      type: %u\n", ntoh16(response->type));
+            cprintf("     class: %u\n", ntoh16(response->class));
+            cprintf("       ttl: %u\n", ntoh32(response->ttl));
+            cprintf("       len: %u\n", ntoh16(response->rdlength));
+            cprintf("        ip: %s\n", ip_addr_ntop(*(ip_addr_t *)(response->rdata), addr, 64));
+        }
+    }
+
+    hexdump(data, size, "DNS");
     cprintf("\n");
 #endif
 }
@@ -150,7 +175,7 @@ int dns_resolve(const char *host, ip_addr_t *ipaddr)
     }
 
     char *response = recvbuf + sizeof(dns_hdr_t);
-    hexdump((const char *)recvbuf, DNS_MAX_MESSAGE_SIZE, "DNS Response");
+    dns_dump((const char *)recvbuf, DNS_MAX_MESSAGE_SIZE, dist_len);
 
     while ((length = *response++) > 0) {
         response += length;
