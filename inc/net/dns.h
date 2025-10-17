@@ -24,6 +24,7 @@
     #define DNS_RCODE_NOT_IMPLEMENTED   0x0004
     #define DNS_RCODE_REFUSED           0x0005
 #define DNS_NAME_FLAG       0xC0
+    #define DNS_NAME_FLAG_UNPACK        0x00
     #define DNS_NAME_FLAG_PACKED        0xC0
 
 #define DNS_FLAGS_QUERY_MASK      (DNS_FLAGS_QR | DNS_FLAGS_OPCODE | DNS_FLAGS_TC | DNS_FLAGS_RCODE)
