@@ -108,6 +108,14 @@ static uint32_t byteswap32(uint32_t v)
     return (v & 0x000000ff) << 24 | (v & 0x0000ff00) << 8 | (v & 0x00ff0000) >> 8 | (v & 0xff000000) >> 24;
 }
 
+static uint64_t byteswap64(uint64_t v)
+{
+    uint32_t vu, vl;
+    vu = (uint32_t)((v & 0xffffffff00000000) >> 32);
+    vl = (uint32_t)((v & 0xffffffff));
+    return ((uint64_t)(byteswap32(vu)) | ((uint64_t)(byteswap32(vl)) << 32));
+}
+
 // host order to network order
 uint16_t hton16(uint16_t h)
 {
@@ -142,6 +150,23 @@ ntoh32(uint32_t n)
     }
     return endian == __LITTLE_ENDIAN ? byteswap32(n) : n;
 }
+
+uint64_t hton64(uint64_t h)
+{
+    if (!endian) {
+        endian = byteorder();
+    }
+    return endian == __LITTLE_ENDIAN ? byteswap64(h) : h;
+}
+
+uint64_t ntoh64(uint64_t n)
+{
+    if (!endian) {
+        endian = byteorder();
+    }
+    return endian == __LITTLE_ENDIAN ? byteswap64(n) : n;
+}
+
 
 /*
  * Checksum

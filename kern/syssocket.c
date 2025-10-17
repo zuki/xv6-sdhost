@@ -189,8 +189,8 @@ long sys_accept(void)
 
 long sys_dns(void)
 {
-    trace("called");
-    ip_addr_t addr;
-    dns_resolve("www.google.com", &addr);
+    //ip_addr_t addr;
+    //dns_resolve("www.google.com", &addr);
+    ntp_get_time();
     return 0;
 }
