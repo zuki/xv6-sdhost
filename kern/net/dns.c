@@ -1,4 +1,5 @@
 #include <types.h>
+#include <config.h>
 #include <net/dns.h>
 #include <net/ip.h>
 #include <net/net.h>

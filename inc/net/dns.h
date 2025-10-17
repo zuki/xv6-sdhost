@@ -33,7 +33,6 @@
 #define DNS_QCLASS_IN       1
 #define DNS_RDLENGTH_AIN    4
 
-#define DNS_SERVER  "192.168.10.1"
 #define DNS_PORT    53
 
 // |--+--------+--+--+--+--+--+--+--+--------|

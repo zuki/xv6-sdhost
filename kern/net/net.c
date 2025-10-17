@@ -46,6 +46,14 @@ static struct net_protocol *protocols;
 //static struct net_timer *timers;
 static struct net_event *events;
 
+static char *net_dev_type_str[5] = {
+    "DUMMY",
+    "LOOPBAC",
+    "ETHERNET",
+    "WLAN",
+    "ANY"
+};
+
 struct net_device *net_device_alloc(void)
 {
     struct net_device *dev;
@@ -68,7 +76,7 @@ int net_device_register(struct net_device *dev)
     snprintf(dev->name, sizeof(dev->name), "net%d", dev->index);
     dev->next = devices;
     devices = dev;
-    info("registered, dev=%s, type=0x%04x", dev->name, dev->type);
+    info("dev=%s, type=%d (%s)", dev->name, dev->type, net_dev_type_str[dev->type]);
     return 0;
 }
 
@@ -202,7 +210,7 @@ int net_protocol_register(uint16_t type, void (*handler)(const uint8_t *data, si
     proto->handler = handler;
     proto->next = protocols;
     protocols = proto;
-    info("registered, type=0x%04x (%s)", type, type == 0x0800 ? "IP" : type == 0x0806 ? "ARP" : "IPv6");
+    info("type=0x%04x (%s)", type, type == 0x0800 ? "IP" : type == 0x0806 ? "ARP" : "IPv6");
     return 0;
 }
 
@@ -402,23 +410,22 @@ static int netinit(void)
         error("tcp_init() failure");
         return -1;
     }
-    info("initialized");
+
     return 0;
 }
 
 static void set_ip_config(struct net_device *dev)
 {
     char addr[256];
-#ifdef USING_RASPI
-    const char * ipaddr = "192.168.10.110";
-#else
-    const char * ipaddr = "192.168.10.111";
-#endif
-    struct ip_iface *iface = ip_iface_alloc(ipaddr, "255.255.255.0");
+
+    struct ip_iface *iface = ip_iface_alloc(LOCAL_IP_ADDR, NETMASK);
     assert(iface != 0);
+
     trace("dev: 0x%p, iface: 0x%p, unicast: %s, netmask: %s, broadcast: %s",
-        dev, iface, ip_addr_ntop(iface->unicast, addr, 256), ip_addr_ntop(iface->netmask, addr, 256), ip_addr_ntop(iface->broadcast, addr, 256));
+        dev, iface, ip_addr_ntop(iface->unicast, addr, 256), ip_addr_ntop(iface->netmask, addr, 256),
+        ip_addr_ntop(iface->broadcast, addr, 256));
     ip_iface_register(dev, iface);
+    ip_route_set_default_gateway(iface, DEFAULT_GATEWAY);
 }
 
 void net_init(void)
@@ -426,11 +433,10 @@ void net_init(void)
     if (netinit() == -1) {
         panic("net_init() failure");
     }
-#if 1
     struct net_device *dev = net_device_by_name("net0");
     assert(dev != 0);
     set_ip_config(dev);
-#endif
+    info("net_init ok");
 }
 
 void net_run(void)

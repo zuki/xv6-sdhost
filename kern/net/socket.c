@@ -1,4 +1,5 @@
 #include <types.h>
+#include <config.h>
 #include <net/socket.h>
 #include <net/sockio.h>
 #include <net/if.h>
@@ -306,7 +307,7 @@ int socket_ioctl(struct socket *s, int req, void *arg)
                     return -1;
                 }
             } else {
-                iface = ip_iface_alloc(ip_addr_ntop(((struct sockaddr_in *)&ifreq->ifr_addr)->sin_addr.s_addr, addr, sizeof(addr)), "255.255.255.0");
+                iface = ip_iface_alloc(ip_addr_ntop(((struct sockaddr_in *)&ifreq->ifr_addr)->sin_addr.s_addr, addr, sizeof(addr)), NETMASK);
                 if (!iface) {
                     return -1;
                 }

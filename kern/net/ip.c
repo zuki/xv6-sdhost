@@ -323,7 +323,7 @@ int ip_protocol_register(uint8_t type, void (*handler)(const uint8_t *data, size
     entry->handler = handler;
     entry->next = protocols;
     protocols = entry;
-    info("registered, type=%u (%s)", entry->type, PROTOCOL_NAME(entry->type));
+    info("type=%u (%s)", entry->type, PROTOCOL_NAME(entry->type));
     return 0;
 }
 
