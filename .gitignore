@@ -12,3 +12,4 @@ memos/src/xv6/*.txt
 kmalloc_uniq.txt
 memos/src/xv6/logs
 inc/config.h
+memos/src/work/*
