@@ -6,15 +6,12 @@
 #include <fcntl.h>
 #include <assert.h>
 
-typedef uint8_t uchar;
-typedef uint16_t ushort;
-typedef uint32_t uint;
+#include "types.h"
 
 // this file should be compiled with normal gcc...
-
 #define stat xv6_stat           // avoid clash with host struct stat
 #define sleep xv6_sleep
-#include <usr_fs.h>
+#include "usr_fs.h"
 
 #ifndef static_assert
 #define static_assert(a, b) do { switch (0) case 0: case (a): ; } while (0)

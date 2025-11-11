@@ -15,6 +15,8 @@ BOOT_SECTORS= 128*1024
 FS_OFFSET := $$(($(BOOT_OFFSET)+$(BOOT_SECTORS)))
 FS_SECTORS := $$(($(SECTORS)-$(FS_OFFSET)))
 
+USR_FILES := $(shell find obj/usr/bin -type f)
+
 .DELETE_ON_ERROR: $(BOOT_IMG) $(SD_IMG)
 
 # TODO: Detect img size automatically
@@ -26,10 +28,12 @@ $(BOOT_IMG): $(KERN_IMG) $(shell find boot/*)
 	# Copy files into boot partition
 	$(foreach x, $^, mcopy -i $@ $(x) ::$(notdir $(x));)
 
-$(FS_IMG): $(shell find obj/usr/bin -type f)
+mkfs/mkfs: mkfs/mkfs.c
+	cc -o mkfs/mkfs -Imkfs/ mkfs/mkfs.c
+
+$(FS_IMG): mkfs/mkfs $(USR_FILES)
 	echo $^
-	cc $(shell find usr/src/mkfs/ -name "*.c") -o obj/mkfs -Iusr/inc
-	./obj/mkfs $@ $^
+	./mkfs/mkfs $@ $(USR_FILES)
 
 $(SD_IMG): $(BOOT_IMG) $(FS_IMG)
 	dd if=/dev/zero of=$@ seek=$$(($(SECTORS) - 1)) bs=$(SECTOR_SIZE) count=1
