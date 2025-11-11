@@ -6,7 +6,7 @@
 .global _start
 _start:
     /*
-     * Wake up other processors.
+     * コア1-3をunparkさせる.
      * See https://github.com/raspberrypi/tools/blob/master/armstubs/armstub8.S
      * which has been incorporated in start.elf (or bootcode.bin ?)
      */
@@ -25,7 +25,7 @@ _start:
 
     sev
 
-
+/* コア0はもちろん、コア1-3もunparkされたら、ここから実行する */
 mp_start:
     /* Get current exception level by CurrentEL[3:2]. */
     mrs     x9, CurrentEL
@@ -52,7 +52,7 @@ el2:
     mov     x9, #HCR_VALUE
     msr     hcr_el2, x9
 
-    /* Setup SCTLR access. */
+    /* Setup SCTLR access. : MMUを使える設定をした上でMMU無効にする */
     ldr     x9, =SCTLR_VALUE_MMU_DISABLED
     msr     sctlr_el1, x9
 
@@ -82,7 +82,8 @@ el1:
 
     isb
 
-    /* Enable MMU. */
+    /* MMUを有効にする. I/DキャッシュはON設定になっているので */
+    /* SCTLR_MMU_ENABLEDフラグを立てるだけ */
     mrs     x9, sctlr_el1
     orr     x9, x9, #SCTLR_MMU_ENABLED
     msr     sctlr_el1, x9
