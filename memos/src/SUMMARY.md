@@ -12,6 +12,9 @@
         - [Circleのnetサブシステムを調査](xv6/circle_net.md)
         - [xv6-netのnetサブシステムを調査](xv6/xv6_net.md)
         - [linuxのdw2ドライバを調査](xv6/dw2.md)
+    - [VFS機能を導入](xv6/vfs.md)
+        - [SVR4のvfsシステムの調査](xv6/svr4_vfs.md)
+        - [SVR5のs5ファイルシステムの関数](xv6/s5functions.md)
 
 - [その他のメモ](others/README.md)
     - [デフォルトで使用されるリンカスクリプト](others/lds.md)
