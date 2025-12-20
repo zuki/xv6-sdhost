@@ -3,22 +3,24 @@
 #include <linux/auxvec.h>
 #include <trap.h>
 
-#include <file.h>
-#include <log.h>
 #include <string.h>
-
 #include <console.h>
 #include <vm.h>
 #include <proc.h>
 #include <mm.h>
 #include <memlayout.h>
 #include <syscall.h>
+#include <vfs.h>
 
 static uint64_t auxv[][2] = { { AT_PAGESZ, PGSIZE } };
 
 int
 execve(const char *path, char *const argv[], char *const envp[])
 {
+    struct vnode *vnode;
+    struct vfile *file;
+    int err;
+
     char *s;
     if (fetchstr((uint64_t) path, &s) < 0)
         return -1;
@@ -26,7 +28,6 @@ execve(const char *path, char *const argv[], char *const envp[])
     // Save previous page table.
     struct proc *curproc = thisproc();
     void *oldpgdir = curproc->pgdir, *pgdir = vm_init();
-    struct inode *ip = 0;
 
     if (pgdir == 0) {
         debug("vm init failed");
@@ -35,22 +36,20 @@ execve(const char *path, char *const argv[], char *const envp[])
 
     trace("path='%s', argv=0x%p, envp=0x%p", s, argv, envp);
 
-    begin_op();
-    ip = namei(path);
-    if (ip == 0) {
-        end_op();
+    if ((err = vfs_lookup(curproc->cwd, path, VLOOKUP_NORMAL, curproc->uid, &vnode)) < 0) {
         debug("namei bad");
         goto bad;
     }
-    ilock(ip);
+    file = get_vnode(curproc->fd_table, vnode);
 
     Elf64_Ehdr elf;
-    if (readi(ip, (char *)&elf, 0, sizeof(elf)) != sizeof(elf)) {
+    if (vfs_read(file, (char *)&elf, sizeof(elf)) < 0) {
         debug("readelf bad");
         goto bad;
     }
-    if (!
-        (elf.e_ident[EI_MAG0] == ELFMAG0 && elf.e_ident[EI_MAG1] == ELFMAG1
+
+    if (!(  elf.e_ident[EI_MAG0] == ELFMAG0
+         && elf.e_ident[EI_MAG1] == ELFMAG1
          && elf.e_ident[EI_MAG2] == ELFMAG2
          && elf.e_ident[EI_MAG3] == ELFMAG3)) {
         debug("elf header magic invalid");
@@ -63,17 +62,17 @@ execve(const char *path, char *const argv[], char *const envp[])
     trace("check elf header finish");
 
     int i;
-    uint64_t off;
     Elf64_Phdr ph;
 
     curproc->pgdir = pgdir;     // Required since readi(sdrw) involves context switch(switch page table).
 
     // Load program into memory.
-    size_t sz = 0, base = 0, stksz = 0;
+    size_t sz = 0, base = 0, stksz = 0, offset;
     int first = 1;
-    for (i = 0, off = elf.e_phoff; i < elf.e_phnum; i++, off += sizeof(ph)) {
-        if (readi(ip, (char *)&ph, off, sizeof(ph)) != sizeof(ph)) {
-            debug("readi bad");
+
+    for (i = 0; i < elf.e_phnum; i++) {
+        if (vfs_read(file, (char *)&ph, sizeof(ph)) < 0) {
+            debug("read bad");
             goto bad;
         }
 
@@ -110,11 +109,20 @@ execve(const char *path, char *const argv[], char *const envp[])
 
         uvm_switch(pgdir);
 
-        if (readi(ip, (char *)ph.p_vaddr, ph.p_offset, ph.p_filesz) !=
-            ph.p_filesz) {
+        offset = file->offset;
+        if (vfs_seek(file, ph.p_offset, SEEK_SET) < 0) {
+            debug("failed seek");
+            goto bad;
+        }
+        if (vfs_read(file, (char *)ph.p_vaddr, ph.p_filesz) < 0) {
             debug("read section bad");
             goto bad;
         }
+        if ((offset = vfs_seek(file, offset, SEEK_SET)) < 0) {
+            debug("failed seek");
+            goto bad;
+        }
+
         // Initialize BSS.
         memset((void *)ph.p_vaddr + ph.p_filesz, 0,
                ph.p_memsz - ph.p_filesz);
@@ -126,9 +134,7 @@ execve(const char *path, char *const argv[], char *const envp[])
               ph.p_vaddr + ph.p_memsz);
     }
 
-    iunlockput(ip);
-    end_op();
-    ip = 0;
+    vfs_release_vnode(vnode);
 
     // Push argument strings, prepare rest of stack in ustack.
     uvm_switch(oldpgdir);
@@ -231,8 +237,8 @@ execve(const char *path, char *const argv[], char *const envp[])
   bad:
     if (pgdir)
         vm_free(pgdir);
-    if (ip)
-        iunlockput(ip), end_op();
+    if (vnode)
+        vfs_release_vnode(vnode);
     thisproc()->pgdir = oldpgdir;
     debug("bad");
     return -1;

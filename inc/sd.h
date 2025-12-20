@@ -1,11 +1,12 @@
 #ifndef INC_SD_H
 #define INC_SD_H
 
-#include <buf.h>
+#include <fs/bufcache.h>
 #include <types.h>
 
 #define PARTITIONS      4       // 最大パーティション数
 #define SECTOR_SIZE     512     // セクタサイズ（バイト）
+#define BSIZE           4096
 
 // FIXME: vfsを実装したらvfs.hに移動
 #define SDMAJOR         0       // SD card major block device
@@ -54,16 +55,21 @@ static inline uint8_t blksize_bits(uint32_t size)
 
 extern struct partition_info ptinfo[PARTITIONS];
 
-static inline uint32_t fs_lba(int  dev)
+static inline uint32_t fs_lba(int minor)
 {
-    return ptinfo[dev].lba;
+    return ptinfo[minor].lba;
 }
 
-struct buf;
-
-void sd_init(void);
 void sd_intr(void *params);
-void sd_rw(struct buf *);
-void sd_flush(void);
+
+int sd_init(void);
+int sd_open(minor_t minor, int access);
+int sd_close(minor_t minor);
+int sd_read(minor_t minor, char *buffer, off_t offset, size_t size);
+int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size);
+int sd_ioctl(minor_t minor, unsigned int request, void *argp, uid_t uid);
+int sd_poll(minor_t minor, int events);
+off_t sd_seek(minor_t minor, off_t position, int whence, off_t offset);
+
 
 #endif

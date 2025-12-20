@@ -2,6 +2,7 @@
 #define INC_SDHOST_H
 
 #include <types.h>
+#include <linux/errno.h>
 
 #if RASPI == 3
 // FIXME: Use sdhost and reserve sdhci for wifi.
@@ -104,11 +105,12 @@ struct mmc_request
 };
 
 /* MMC errors. */
-#define EINVAL      1
+#if 0
+#define EINVALSD    1
 #define ETIMEDOUT   2
 #define EILSEQ      3
 #define ENOTSUP     4
-
+#endif
 
 struct bcm2835_host
 {

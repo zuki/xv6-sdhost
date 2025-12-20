@@ -32,6 +32,9 @@ typedef unsigned long   uint64_t;
 typedef int64_t         ssize_t;
 typedef uint64_t        size_t;
 typedef uint64_t        dev_t;
+typedef uint32_t        device_t;
+typedef uint32_t        major_t;
+typedef uint32_t        minor_t;
 typedef uint64_t        ino_t;
 typedef uint32_t        mode_t;
 typedef uint32_t        nlink_t;
@@ -53,7 +56,6 @@ typedef uint32_t        kernel_cap_t;
 typedef uint64_t        uintptr_t;
 typedef int64_t         intptr_t;
 typedef unsigned        wint_t;
-typedef uint16_t        kdev_t;
 typedef uint16_t        wchar_t;        // muslでは4バイトだが、fatでは2バイト
 typedef uint64_t        handler_t;
 typedef uint32_t        socklen_t;
@@ -102,6 +104,10 @@ typedef int             boolean;
     (type *)((char *)__mptr - offsetof(type,member));   \
 })
 
+#define bit_add(p, n) ((p) |= (1U << (n)))
+#define bit_remove(p, n) ((p) &= ~(1U << (n)))
+#define bit_test(p, n) ((p) & (1U << (n)))
+
 typedef __builtin_va_list va_list;
 
 #define va_start(v,l)   __builtin_va_start(v,l)
@@ -116,5 +122,11 @@ typedef __builtin_va_list va_list;
 #define STDOPT		__attribute__ ((optimize (2)))
 #define MAXOPT		__attribute__ ((optimize (3)))
 #define WEAK		__attribute__ ((weak))
+
+#define major(x) (((x)>>8) & 0xff)
+#define minor(x) ((x) & 0xff)
+
+#define makedev(x,y) ((((x) & 0xff) << 8) | \
+        ((y) & 0xff))
 
 #endif

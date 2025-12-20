@@ -8,14 +8,14 @@
 #include <mm.h>
 #include <vm.h>
 #include <spinlock.h>
-
-#include <sd.h>
+#include <vfs.h>
+#include <filedesc.h>
 #include <debug.h>
-#include <file.h>
-#include <log.h>
 #include <usb.h>
 #include <net/net.h>
 #include <config.h>
+
+extern int sd_init(void);
 
 extern void trapret();
 extern void swtch(struct context **old, struct context *new);
@@ -121,6 +121,10 @@ proc_initx(char *name, char *code, size_t len)
     p->sz = PGSIZE;
     p->base = 0;
 
+    p->uid = p->gid = 0;
+    p->fdflag = 0;
+    p->umask = 0002;
+
     p->tf->elr = 0;
 
     safestrcpy(p->name, name, sizeof(p->name));
@@ -135,13 +139,14 @@ idle_init(void)
     thiscpu()->idle = proc_initx("idle", ispin, (size_t)(eicode - ispin));
 }
 
+// TODO: 12/19はここから
 /* Set up the first user process. */
 void
 user_init(void)
 {
     extern char icode[], eicode[];
     struct proc *p = proc_initx("icode", icode, (size_t)(eicode - icode));
-    p->cwd = namei("/");
+    vfs_lookup(NULL, "/", VLOOKUP_NORMAL, 0, &p->cwd);
     assert(p->cwd);
 
     acquire(&ptable.lock);
@@ -186,14 +191,16 @@ scheduler(void)
 static void
 forkret(void)
 {
+    #include <fs/v6/file.h>
+
     static int first = 1;
     if (first && thisproc() != thiscpu()->idle) {
         first = 0;
         release(&ptable.lock);
 
         sd_init();
-        iinit(ROOTDEV);
-        initlog(ROOTDEV);
+        v6_init();
+        //initlog(ROOTDEV);
 #if 1
         usb_init();
         net_init();
@@ -319,10 +326,11 @@ fork(void)
     // Fork returns 0 in the child.
     np->tf->x[0] = 0;
 
-    for (int i = 0; i < NOFILE; i++)
-        if (cp->ofile[i])
-            np->ofile[i] = filedup(cp->ofile[i]);
-    np->cwd = idup(cp->cwd);
+    dup_fd_table(np->fd_table, cp->fd_table);
+    np->cwd = vfs_clone_vnode(cp->cwd);
+    np->uid = cp->uid;
+    np->gid = cp->gid;
+    np->fdflag = cp->fdflag;
 
     int pid = np->pid;
 
@@ -390,16 +398,9 @@ exit(int err)
     }
 
     // Close all open files.
-    for (int fd = 0; fd < NOFILE; fd++) {
-        if (cp->ofile[fd]) {
-            fileclose(cp->ofile[fd]);
-            cp->ofile[fd] = 0;
-        }
-    }
+    release_fd_table(cp->fd_table);
 
-    begin_op();
-    iput(cp->cwd);
-    end_op();
+    vfs_release_vnode(cp->cwd);
     cp->cwd = 0;
 
     acquire(&ptable.lock);

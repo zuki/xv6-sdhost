@@ -1,97 +1,72 @@
 #include <console.h>
 
 #include <types.h>
-
+#include <driver.h>
 #include <arm.h>
 #include <uart.h>
 #include <irq.h>
 #include <spinlock.h>
-#include <file.h>
 #include <mm.h>
 #include <string.h>
-
-#define CONSOLE 1
+#include <vfs.h>
 
 struct spinlock dbglock;
-static struct spinlock conslock;
 static int panicked = -1;
 
+// Driver Definition
+int console_init(void);
+int console_open(minor_t minor, int mode);
+int console_close(minor_t minor);
+int console_read(minor_t minor, char *buffer, off_t offset, size_t size);
+int console_write(minor_t minor, const char *buffer, off_t offset, size_t size);
+int console_ioctl(minor_t minor, unsigned int request, void *argp, uid_t uid);
+int console_poll(minor_t minor, int events);
+off_t console_seek(minor_t minor, off_t position, int whence, off_t offset);
+
+struct driver console_driver = {
+	console_init,
+	console_open,
+	console_close,
+	console_read,
+	console_write,
+	console_ioctl,
+	console_poll,
+	console_seek,
+};
+
 #define INPUT_BUF 128
-struct {
+struct serial_channel {
     char buf[INPUT_BUF];
     size_t r;                   // Read index
     size_t w;                   // Write index
     size_t e;                   // Edit index
-} input;
+    int opens;
+    int open_mode;
+    struct spinlock lock;
+} channel;
+
 #define C(x)  ((x)-'@')         // Control-x
 #define BACKSPACE 0x100
 
-static void
-consputc(int c)
+static void consputc(int c)
 {
     if (c == BACKSPACE) {
         uart_putchar('\b');
         uart_putchar(' ');
         uart_putchar('\b');
-    } else
+    } else {
         uart_putchar(c);
-}
-
-static ssize_t
-console_write(struct inode *ip, char *buf, ssize_t n)
-{
-    iunlock(ip);
-    acquire(&conslock);
-    for (size_t i = 0; i < n; i++)
-        consputc(buf[i] & 0xff);
-    release(&conslock);
-    ilock(ip);
-    return n;
-}
-
-static ssize_t
-console_read(struct inode *ip, char *dst, ssize_t n)
-{
-    iunlock(ip);
-    size_t target = n;
-    acquire(&conslock);
-    while (n > 0) {
-        while (input.r == input.w) {
-            if (thisproc()->killed) {
-                release(&conslock);
-                ilock(ip);
-                return -1;
-            }
-            sleep(&input.r, &conslock);
-        }
-        int c = input.buf[input.r++ % INPUT_BUF];
-        if (c == C('D')) {      // EOF
-            if (n < target) {
-                // Save ^D for next time, to make sure
-                // caller gets a 0-byte result.
-                input.r--;
-            }
-            break;
-        }
-        *dst++ = c;
-        --n;
-        if (c == '\n')
-            break;
     }
-    release(&conslock);
-    ilock(ip);
-
-    return target - n;
 }
 
-static void
-console_intr1(int (*getc)())
+
+static void console_intr1(int (*getc)())
 {
     int c, prof = 0;
 
-    acquire(&conslock);
+    acquire(&channel.lock);
     if (panicked >= 0) {
-        release(&conslock);
+        release(&channel.lock);
         while (1) ;
     }
 
@@ -101,34 +76,34 @@ console_intr1(int (*getc)())
             prof = 1;
             break;
         case C('U'):           // Kill line.
-            while (input.e != input.w
-                   && input.buf[(input.e - 1) % INPUT_BUF] != '\n') {
-                input.e--;
+            while (channel.e != channel.w
+                   && channel.buf[(channel.e - 1) % INPUT_BUF] != '\n') {
+                channel.e--;
                 consputc(BACKSPACE);
             }
             break;
         case C('H'):
         case '\x7f':           // Backspace
-            if (input.e != input.w) {
-                input.e--;
+            if (channel.e != channel.w) {
+                channel.e--;
                 consputc(BACKSPACE);
             }
             break;
         default:
-            if (c != 0 && input.e - input.r < INPUT_BUF) {
+            if (c != 0 && channel.e - channel.r < INPUT_BUF) {
                 c = (c == '\r') ? '\n' : c;
-                input.buf[input.e++ % INPUT_BUF] = c;
+                channel.buf[channel.e++ % INPUT_BUF] = c;
                 consputc(c);
                 if (c == '\n' || c == C('D')
-                    || input.e == input.r + INPUT_BUF) {
-                    input.w = input.e;
-                    wakeup(&input.r);
+                    || channel.e == channel.r + INPUT_BUF) {
+                    channel.w = channel.e;
+                    wakeup(&channel.r);
                 }
             }
             break;
         }
     }
-    release(&conslock);
+    release(&channel.lock);
 
     if (prof) {
         //mm_dump();
@@ -142,20 +117,7 @@ console_intr()
     console_intr1(uart_getchar);
 }
 
-void
-console_init()
-{
-    uart_init();
-
-    irq_enable(IRQ_AUX);
-    irq_register(IRQ_AUX, console_intr, 0);
-
-    devsw[CONSOLE].read = console_read;
-    devsw[CONSOLE].write = console_write;
-}
-
-static void
-printint(int64_t x, int base, int sign, int zero, int col)
+static void printint(int64_t x, int base, int sign, int zero, int col)
 {
     static char digit[] = "0123456789abcdef";
     static char buf[64];
@@ -182,14 +144,13 @@ printint(int64_t x, int base, int sign, int zero, int col)
         uart_putchar(buf[i]);
 }
 
-void
-vprintfmt(void (*putch)(int), const char *fmt, va_list ap)
+void vprintfmt(void (*putch)(int), const char *fmt, va_list ap)
 {
     int i, c;
     char *s;
 
     if (panicked >= 0 && panicked != cpuid()) {
-        release(&conslock);
+        release(&channel.lock);
         while (1) ;
     }
 
@@ -264,21 +225,19 @@ vprintfmt(void (*putch)(int), const char *fmt, va_list ap)
 }
 
 /* Print to the console. */
-void
-cprintf(const char *fmt, ...)
+void cprintf(const char *fmt, ...)
 {
     va_list ap;
 
-    acquire(&conslock);
+    acquire(&channel.lock);
     va_start(ap, fmt);
     vprintfmt(uart_putchar, fmt, ap);
     va_end(ap);
-    release(&conslock);
+    release(&channel.lock);
 }
 
-/* Caller should hold conslock. */
-void
-cprintf1(const char *fmt, ...)
+/* Caller should hold channel.lock. */
+void cprintf1(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -287,22 +246,21 @@ cprintf1(const char *fmt, ...)
 }
 
 
-void
-panic(const char *fmt, ...)
+void panic(const char *fmt, ...)
 {
     va_list ap;
 
-    acquire(&conslock);
+    acquire(&channel.lock);
     if (panicked < 0)
         panicked = cpuid();
     else {
-        release(&conslock);
+        release(&channel.lock);
         while (1) ;
     }
     va_start(ap, fmt);
     vprintfmt(uart_putchar, fmt, ap);
     va_end(ap);
-    release(&conslock);
+    release(&channel.lock);
 
     cprintf("%s:%d: kernel panic at cpu %d.\n", __FILE__, __LINE__,
             cpuid());
@@ -342,4 +300,84 @@ void hexdump(const void *data, size_t size, const char *name)
     }
     cprintf("+------+-------------------------------------------------+------------------+\n\n");
 
+}
+
+int console_init(void)
+{
+    // mini UARTを使用
+    uart_init();
+
+    irq_enable(IRQ_AUX);
+    irq_register(IRQ_AUX, console_intr, 0);
+
+    return register_driver(DEVMAJOR_CONSOLE, &console_driver);
+}
+
+int console_open(minor_t minor, int mode)
+{
+    channel.opens++;
+    channel.open_mode = mode;
+    return 0;
+}
+
+int console_close(minor_t minor)
+{
+    channel.opens--;
+    channel.open_mode = 0;
+    return 0;
+}
+
+int console_read(minor_t minor, char *buffer, off_t offset, size_t size)
+{
+    acquire(&channel.lock);
+    while (size > 0) {
+        while (channel.r == channel.w) {
+            if (thisproc()->killed) {
+                release(&channel.lock);
+                return -1;
+            }
+            sleep(&channel.r, &channel.lock);
+        }
+        int c = channel.buf[channel.r++ % INPUT_BUF];
+        if (c == C('D')) {      // EOF
+            if (size < (size_t)buffer) {
+                // Save ^D for next time, to make sure
+                // caller gets a 0-byte result.
+                channel.r--;
+            }
+            break;
+        }
+        *buffer++ = c;
+        --size;
+        if (c == '\n')
+            break;
+    }
+    release(&channel.lock);
+
+    return (size_t)buffer - size;
+}
+
+int console_write(minor_t minor, const char *buffer, off_t offset, size_t size)
+{
+    acquire(&channel.lock);
+    for (size_t i = 0; i < size; i++)
+        consputc(buffer[i] & 0xff);
+    release(&channel.lock);
+
+    return size;
+}
+
+int console_ioctl(minor_t minor, uint32_t request, void *argp, uid_t uid)
+{
+    return 0;
+}
+
+int console_poll(minor_t minor, int events)
+{
+    return 0;
+}
+
+off_t console_seek(minor_t minor, off_t position, int whence, off_t offset)
+{
+    return 0;
 }

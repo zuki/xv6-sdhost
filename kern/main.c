@@ -10,7 +10,6 @@
 #include <trap.h>
 #include <proc.h>
 #include <emmc.h>
-#include <buf.h>
 #include <mbox.h>
 #include <irq.h>
 #include <ds3231.h>
@@ -18,6 +17,7 @@
 #include <i2c.h>
 #include <usb.h>
 #include <net/net.h>
+#include <vfs.h>
 
 /*
  * Keep it in data segment by explicitly initializing by zero,
@@ -42,6 +42,7 @@ main()
         clock_init();
         rand_init();
         proc_init();
+        init_vfs();
 #if 0
         usb_init();
         net_init();
@@ -49,7 +50,7 @@ main()
 #endif
         user_init();
         //kthread_created(kthread_read_ether);
-        binit();
+
         // Tests
 #if 0
         mbox_test();

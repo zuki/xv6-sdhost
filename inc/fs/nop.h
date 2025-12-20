@@ -1,0 +1,31 @@
+#ifndef INC_FS_NOPFS_H
+#define INC_FS_NOPFS_H
+
+#include <types.h>
+#include <vfs.h>
+#include <linux/stat.h>
+
+int nop_sync(struct mount *mp);
+int nop_create(struct vnode *vnode, const char *filename, mode_t mode, uid_t uid, struct vnode **result);
+int nop_mknod(struct vnode *vnode, const char *name, mode_t mode, device_t dev, uid_t uid, struct vnode **result);
+int nop_lookup(struct vnode *vnode, const char *name, struct vnode **result);
+int nop_link(struct vnode *oldvnode, struct vnode *newparent, const char *filename);
+int nop_symlink(struct vnode *parent, const char *target, const char *filename);
+int nop_unlink(struct vnode *parent, struct vnode *vnode, const char *filename);
+int nop_rename(struct vnode *vnode, struct vnode *oldparent, const char *oldname, struct vnode *newparent, const char *newname);
+int nop_truncate(struct vnode *vnode);
+int nop_update(struct vnode *vnode);
+int nop_release(struct vnode *vnode);
+int nop_rmdir(struct vnode *vnode);
+
+int nop_open(struct vfile *file, int flags);
+int nop_close(struct vfile *file);
+int nop_read(struct vfile *file, char *buf, size_t nbytes);
+int nop_write(struct vfile *file, const char *buf, size_t nbytes);
+int nop_ioctl(struct vfile *file, unsigned int request, void *argp, uid_t uid);
+int nop_poll(struct vfile *file, int events);
+off_t nop_seek(struct vfile *file, off_t offset, int whence);
+int nop_readdir(struct vfile *file, struct dirent *dir);
+int nop_getdents(struct vfile *file, void *buffer, size_t size);
+
+#endif

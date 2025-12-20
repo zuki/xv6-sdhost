@@ -11,14 +11,15 @@
 #include <sleeplock.h>
 #include <string.h>
 #include <console.h>
-#include <log.h>
-#include <fs.h>
-#include <file.h>
+#include <vfs.h>
+#include <fs/vfile.h>
+#include <filedesc.h>
 #include <linux/fcntl.h>
 #include <linux/errno.h>
 #include <syscall.h>
 #include <net/sockio.h>
 #include <linux/ioctl.h>
+#include <linux/stat.h>
 
 extern int execve(const char *, char *const, char *const);
 
@@ -27,53 +28,129 @@ struct iovec {
     size_t iov_len;             /* Number of bytes to transfer. */
 };
 
+long check_fdcwd(char *path, int dirfd, struct vnode **cwd)
+{
+    struct vfile *f = NULL;
+    struct proc *p = thisproc();
+
+    if (*path != '/') {
+        if (dirfd != AT_FDCWD) {
+            if ((f = get_fd(p->fd_table, dirfd)) == NULL) {
+                error("pid[%d] path: %s (ofile[%d]) is not open", p->pid, path, dirfd);
+                return -EBADF;
+            }
+
+            if (!S_ISDIR(f->vnode->mode)) {
+                error("pid[%d] path: %s, dirfd: %d, mode: 0x%x is not dir", p->pid, path, dirfd, f->vnode->mode);
+                return -ENOTDIR;
+            }
+            if (cwd)
+                *cwd = f->vnode;
+        } else if (dirfd == AT_FDCWD) {
+            if (cwd)
+                *cwd = thisproc()->cwd;
+        }
+    }
+
+    return 0;
+}
+
+
+/* int dup(int oldfd); */
 long sys_dup(void)
 {
-    struct file *f;
+    struct vfile *f;
     int fd;
+    struct proc *p = thisproc();
+    long error;
 
-    if (argfd(0, 0, &f) < 0)
-        return -1;
-    if ((fd = fdalloc(f)) < 0)
-        return -1;
-    trace("fd %d", fd);
-    filedup(f);
+    if ((error = argfd(0, 0, &f)) < 0)
+        return error;
+    if ((fd = find_unused_fd(p->fd_table, 0)) < 0)
+        return fd;
+
+    set_fd(p->fd_table, fd, f);
     return fd;
 }
 
+/* int dup3(int oldfd, int newfd, int flags); */
+long sys_dup3(void)
+{
+    int fd1, fd2, flags;
+    struct vfile *f1;
+    struct proc *p = thisproc();
+    long error;
+
+    if ((error = argfd(0, &fd1, &f1)) < 0)
+        return error;
+    if (argint(1, &fd2) < 0 || argint(2, &flags) < 0)
+        return -EINVAL;
+
+    if (flags & ~O_CLOEXEC) return -EINVAL;
+
+    if (fd1 == fd2) return fd1;
+
+    if ((fd2 = find_unused_fd(p->fd_table, fd2)) < 0)
+        return fd2;
+
+    if (flags & O_CLOEXEC)
+        bit_add(p->fdflag, fd2);
+
+    dup_fd(p->fd_table, fd2, f1);
+
+    return fd2;
+}
+
+/* ssize_t read(int fd, void *buf, size_t count); */
 ssize_t sys_read(void)
 {
-    struct file *f;
-    ssize_t n;
-    char *p;
+    struct vfile *f;
+    size_t count;
+    char *buf;
+    long error;
 
-    if (argfd(0, 0, &f) < 0 || argu64(2, (uint64_t *)&n) < 0 || argptr(1, (void **)&p, n) < 0)
-        return -1;
-    return fileread(f, p, n);
+    if ((error = argfd(0, 0, &f)) < 0)
+        return error;
+    if ((argu64(2, (uint64_t *)&count)) < 0)
+        return error;
+    if ((error = argptr(1, (void **)&buf, count)) < 0)
+        return error;
+    return vfs_read(f, buf, count);
 }
 
+/*  ssize_t write(int fd, const void *buf, size_t count);  */
 ssize_t sys_write(void)
 {
-    struct file *f;
-    ssize_t n;
-    char *p;
+    struct vfile *f;
+    size_t count;
+    char *buf;
+    long error;
 
-    if (argfd(0, 0, &f) < 0 || argu64(2, (uint64_t *)&n) < 0 || argptr(1, (void **)&p, n) < 0)
-        return -1;
-    return filewrite(f, p, n);
+    if ((error = argfd(0, 0, &f)) < 0)
+        return error;
+    if ((error = argu64(2, (uint64_t *)&count)) < 0)
+         return error;
+    if ((error = argptr(1, (void **)&buf, count)) < 0)
+        return error;
+
+    return vfs_write(f, buf, count);
 }
 
-
+/* ssize_t writev(int fd, const struct iovec *iov, int iovcnt); */
 ssize_t sys_writev(void)
 {
-    struct file *f;
+    struct vfile *f;
     int fd, iovcnt;
     struct iovec *iov, *p;
-    if (argfd(0, &fd, &f) < 0 ||
-        argint(2, &iovcnt) < 0 ||
-        argptr(1, (void **)&iov, iovcnt * sizeof(struct iovec)) < 0) {
-        return -1;
-    }
+    long error;
+
+    if ((error =argfd(0, &fd, &f)) < 0)
+        return error;
+    if ((error = argint(2, &iovcnt)) < 0)
+        return error;
+    if ((error = argptr(1, (void **)&iov, iovcnt * sizeof(struct iovec))) < 0)
+        return error;
+
 #if 0
     debug("fd %d, iovcnt: %d", fd, iovcnt);
     for (int i=0; i < iovcnt; i++) {
@@ -81,443 +158,471 @@ ssize_t sys_writev(void)
     }
 #endif
 
-    size_t tot = 0;
+    int tot = 0;
     for (p = iov; p < iov + iovcnt; p++) {
         if (!in_user(p->iov_base, p->iov_len))
-            return -1;
-        tot += filewrite(f, p->iov_base, p->iov_len);
+            return -EFAULT;
+        tot += vfs_write(f, p->iov_base, p->iov_len);
     }
     return tot;
 }
 
+/* int close(int fd); */
 long sys_close(void)
 {
     int fd;
-    struct file *f;
+    struct vfile *f;
+    long error;
 
-    if (argfd(0, &fd, &f) < 0)
-        return -1;
-    thisproc()->ofile[fd] = 0;
-    fileclose(f);
+    if ((error = argfd(0, &fd, &f)) < 0)
+        return error;
+
+    vfs_close(f);
+    unset_fd(thisproc()->fd_table, fd);
+    bit_remove(thisproc()->fdflag, fd);
     return 0;
 }
 
+/* int fstat(int fd, struct stat *sb); */
 long sys_fstat(void)
 {
-    int fd;
-    struct file *f;
+    struct vfile *file;
     struct stat *st;
+    long error;
 
-    if (argfd(0, &fd, &f) < 0 || argptr(1, (void *)&st, sizeof(*st)) < 0)
-        return -1;
-    trace("fd %d", fd);
-    return filestat(f, st);
+    if ((error = argfd(0, 0, &file)) < 0)
+        return error;
+    if ((error = argptr(1, (void *)&st, sizeof(*st))) < 0)
+        return error;
+
+    st->st_dev = 0;
+    st->st_ino = file->vnode->ino;
+    st->st_mode = file->vnode->mode;
+    st->st_nlink = file->vnode->nlink;
+    st->st_uid = file->vnode->uid;
+    st->st_gid = file->vnode->gid;
+    st->st_rdev = file->vnode->rdev;
+    st->st_size = file->vnode->size;
+    memmove(&st->st_atime, &file->vnode->atime, sizeof(struct timespec));
+    memmove(&st->st_mtime, &file->vnode->mtime, sizeof(struct timespec));
+    memmove(&st->st_ctime, &file->vnode->ctime, sizeof(struct timespec));
+
+    return 0;
 }
 
+/* int fstatat(int dirfd, const char *pathname, struct stat *buf, int flags); */
 long sys_fstatat(void)
 {
     int dirfd, flags;
     char *path;
     struct stat *st;
+    struct vnode *vnode, *cwd = NULL;
+    long error;
 
-    if (argint(0, &dirfd) < 0 ||
-        argstr(1, &path) < 0 ||
-        argptr(2, (void *)&st, sizeof(*st)) < 0 || argint(3, &flags) < 0)
-        return -1;
+    if ((error = argint(0, &dirfd)) < 0)
+        return error;
+    if ((error = argstr(1, &path)) < 0)
+        return error;
+    if ((error = argptr(2, (void *)&st, sizeof(*st))) < 0)
+        return error;
+    if ((error = argint(3, &flags)) < 0)
+        return error;
 
-    if (dirfd != AT_FDCWD) {
-        warn("dirfd unimplemented");
-        return -1;
+    if (flags != 0 && (flags & ~AT_SYMLINK_NOFOLLOW) != 0) {
+        warn("unimplemented flags=0x%x", flags);
+        return -EINVAL;
     }
-    if (flags != 0) {
-        warn("flags unimplemented");
-        return -1;
-    }
 
-    struct inode *ip;
-    begin_op();
-    if ((ip = namei(path)) == 0) {
-        end_op();
-        return -1;
-    }
-    ilock(ip);
-    stati(ip, st);
-    iunlockput(ip);
-    end_op();
+    if ((error = check_fdcwd(path, dirfd, &cwd)) < 0)
+        return error;
 
+    if ((error = vfs_lookup(cwd, path, flags, thisproc()->uid, &vnode)) < 0)
+        return error;
+
+    st->st_dev = vnode->mp->dev;
+    st->st_ino = vnode->ino;
+    st->st_mode = vnode->mode;
+    st->st_nlink = vnode->nlink;
+    st->st_uid = vnode->uid;
+    st->st_gid = vnode->gid;
+    st->st_rdev = vnode->rdev;
+    st->st_size = vnode->size;
+    memmove(&st->st_atime, &vnode->atime, sizeof(struct timespec));
+    memmove(&st->st_mtime, &vnode->mtime, sizeof(struct timespec));
+    memmove(&st->st_ctime, &vnode->ctime, sizeof(struct timespec));
+
+    vfs_release_vnode(vnode);
     return 0;
 }
 
-/* Create the path new as a link to the same inode as old. */
-long sys_link(void)
+/* int linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags);  */
+long sys_linkat(void)
 {
-    char name[DIRSIZ], *new, *old;
-    struct inode *dp, *ip;
+    char *newpath, *oldpath;
+    int olddirfd, newdirfd, flags;
+    struct vnode *oldv = NULL, *newv = NULL, *vnode;
+    long error;
+    uid_t uid = thisproc()->uid;
 
-    if (argstr(0, &old) < 0 || argstr(1, &new) < 0)
-        return -1;
+    if ((error = argint(0, &olddirfd)) < 0) return error;
+    if ((error = argint(2, &newdirfd)) < 0) return error;
+    if ((error = argint(4, &flags)) < 0) return error;
+    if ((error = argstr(1, &oldpath)) < 0) return error;
+    if ((error = argstr(3, &newpath)) < 0) return error;
 
-    begin_op();
-    if ((ip = namei(old)) == 0) {
-        end_op();
-        return -1;
+    if ((error = check_fdcwd(oldpath, olddirfd, &oldv)) < 0) return error;
+    if ((error = check_fdcwd(newpath, newdirfd, &newv)) < 0) return error;
+
+    if (flags & ~AT_SYMLINK_FOLLOW)
+        return -EINVAL;
+
+    if ((error = vfs_lookup(oldv, oldpath, VLOOKUP_NORMAL, uid, &vnode)) < 0)
+        return error;
+
+    if (S_ISLNK(vnode->mode) && flags & AT_SYMLINK_FOLLOW) {
+        char linkpath[512];
+        char *name = path_last_component(oldpath);
+        vfs_release_vnode(oldv);
+        if ((error = vfs_readlink(vnode, name, linkpath, 512, uid)) < 0) {
+            vfs_release_vnode(vnode);
+            return error;
+        }
+        linkpath[strlen(linkpath)] = '\0';
+        memmove(oldpath, linkpath, strlen(linkpath) + 1);
+        oldv = vnode;
+        flags &= ~AT_SYMLINK_FOLLOW;
     }
 
-    ilock(ip);
-    if (ip->type == T_DIR) {
-        iunlockput(ip);
-        end_op();
-        return -1;
-    }
-
-    ip->nlink++;
-    iupdate(ip);
-    iunlock(ip);
-
-    if ((dp = nameiparent(new, name)) == 0)
-        goto bad;
-    ilock(dp);
-    if (dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0) {
-        iunlockput(dp);
-        goto bad;
-    }
-    iunlockput(dp);
-    iput(ip);
-
-    end_op();
-
-    return 0;
-
-  bad:
-    ilock(ip);
-    ip->nlink--;
-    iupdate(ip);
-    iunlockput(ip);
-    end_op();
-    return -1;
+    return vfs_link(oldv, oldpath, newv, newpath, uid);
 }
 
-/* Is the directory dp empty except for "." and ".." ? */
-static int
-isdirempty(struct inode *dp)
+//int symlinkat(const char *oldpath, int newdirfd, const char *newpath);
+ssize_t sys_symlinkat(void)
 {
-    struct dirent de;
+    char *oldpath, *newpath;
+    int dirfd;
+    struct vnode *cwd = NULL;
+    long error;
 
-    for (ssize_t off = 2 * sizeof(de); off < dp->size; off += sizeof(de)) {
-        if (readi(dp, (char *)&de, off, sizeof(de)) != sizeof(de))
-            panic("isdirempty: readi");
-        if (de.inum != 0)
-            return 0;
-    }
-    return 1;
+    if ((error = argint(1, &dirfd)) < 0) return error;
+    if ((error = argstr(0, &oldpath)) < 0) return error;
+    if ((error = argstr(2, &newpath)) < 0) return error;
+
+    if (strlen(oldpath) == 0 || strlen(newpath) == 0)
+        return -ENOENT;
+
+    if ((error = check_fdcwd(newpath, dirfd, &cwd)) < 0) return error;
+
+    return vfs_symlink(cwd, oldpath, newpath);
+
 }
 
-long sys_unlink(void)
+/* int unlinkat(int dirfd, const char *pathname, int flags); */
+long sys_unlinkat(void)
 {
-    struct inode *ip, *dp;
-    struct dirent de;
-    char name[DIRSIZ], *path;
-    size_t off;
+    char *pathname;
+    int dirfd, flags;
+    struct vnode *cwd;
+    long error;
 
-    if (argstr(0, &path) < 0)
-        return -1;
+    if ((error = argstr(1, &pathname)) < 0) return error;
+    if ((error = argint(0, &dirfd)) < 0) return error;
+    if ((error = argint(2, &flags)) < 0) return error;
+    if ((error = check_fdcwd(pathname, dirfd, &cwd)) < 0) return error;
 
-    begin_op();
-    if ((dp = nameiparent(path, name)) == 0) {
-        end_op();
-        return -1;
-    }
+    if (flags & ~AT_REMOVEDIR)
+        return -EINVAL;
 
-    ilock(dp);
-
-    /* Cannot unlink "." or "..". */
-    if (namecmp(name, ".") == 0 || namecmp(name, "..") == 0)
-        goto bad;
-
-    if ((ip = dirlookup(dp, name, &off)) == 0)
-        goto bad;
-    ilock(ip);
-
-    if (ip->nlink < 1)
-        panic("unlink: nlink < 1");
-    if (ip->type == T_DIR && !isdirempty(ip)) {
-        iunlockput(ip);
-        goto bad;
-    }
-
-    memset(&de, 0, sizeof(de));
-    if (writei(dp, (char *)&de, off, sizeof(de)) != sizeof(de))
-        panic("unlink: writei");
-    if (ip->type == T_DIR) {
-        dp->nlink--;
-        iupdate(dp);
-    }
-    iunlockput(dp);
-
-    ip->nlink--;
-    iupdate(ip);
-    iunlockput(ip);
-
-    end_op();
-
-    return 0;
-
-  bad:
-    iunlockput(dp);
-    end_op();
-    return -1;
+    return vfs_unlink(cwd, pathname, flags, thisproc()->uid);
 }
 
-static struct inode *
-create(char *path, short type, short major, short minor)
+/* ssize_t readlinkat(int dirfd, const char *pathname, char *buf, size_t bufsiz); */
+long sys_readlinkat(void)
 {
-    struct inode *ip, *dp;
-    char name[DIRSIZ];
+    char *pathname, *buf;
+    int dirfd;
+    size_t bufsize;
+    struct vnode *cwd;
+    long error;
 
-    if ((dp = nameiparent(path, name)) == 0)
-        return 0;
-    ilock(dp);
+    if ((error = argint(0, &dirfd)) < 0) return error;
+    if ((error = argstr(1, &pathname)) < 0) return error;
+    if ((error = argu64(3, &bufsize)) < 0) return error;
+    if ((error = argptr(2, (void **)&buf, bufsize)) < 0) return error;
 
-    if ((ip = dirlookup(dp, name, 0)) != 0) {
-        iunlockput(dp);
-        ilock(ip);
-        if (type == T_FILE && ip->type == T_FILE)
-            return ip;
-        iunlockput(ip);
-        return 0;
-    }
+    if ((error = check_fdcwd(pathname, dirfd, &cwd)) < 0) return error;
 
-    if ((ip = ialloc(dp->dev, type)) == 0)
-        panic("create: ialloc");
-
-    ilock(ip);
-    ip->major = major;
-    ip->minor = minor;
-    ip->nlink = 1;
-    iupdate(ip);
-
-    if (type == T_DIR) {        // Create . and .. entries.
-        dp->nlink++;            // for ".."
-        iupdate(dp);
-        // No ip->nlink++ for ".": avoid cyclic ref count.
-        if (dirlink(ip, ".", ip->inum) < 0
-            || dirlink(ip, "..", dp->inum) < 0)
-            panic("create dots");
-    }
-
-    if (dirlink(dp, name, ip->inum) < 0)
-        panic("create: dirlink");
-
-    iunlockput(dp);
-
-    return ip;
+    return vfs_readlink(cwd, pathname, buf, bufsize, thisproc()->uid);
 }
 
+/* int renameat2(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags); */
+long sys_renameat2(void)
+{
+    char *newpath, *oldpath;
+    int olddirfd, newdirfd, flags;
+    struct vnode *oldv = NULL, *newv = NULL;
+    long error;
+
+    if ((error = argint(0, &olddirfd)) < 0) return error;
+    if ((error = argint(2, &newdirfd)) < 0) return error;
+    if ((error = argint(4, &flags)) < 0) return error;
+    if ((error = argstr(1, &oldpath)) < 0) return error;
+    if ((error = argstr(3, &newpath)) < 0) return error;
+
+    /* muslでは RENAME_NOREPLACEもRENAME_EXCHANGEも対応していない */
+    if (flags)
+        return -EINVAL;
+
+    if ((error = check_fdcwd(oldpath, olddirfd, &oldv)) < 0) return error;
+    if ((error = check_fdcwd(newpath, newdirfd, &newv)) < 0) return error;
+
+    return vfs_rename(oldv, oldpath, newv, newpath, thisproc()->uid);
+}
+
+/* int renameat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath); */
+long sys_renameat(void)
+{
+    char *newpath, *oldpath;
+    int olddirfd, newdirfd;
+    struct vnode *oldv = NULL, *newv = NULL;
+    long error;
+
+    if ((error = argint(0, &olddirfd)) < 0) return error;
+    if ((error = argint(2, &newdirfd)) < 0) return error;
+    if ((error = argstr(1, &oldpath)) < 0) return error;
+    if ((error = argstr(3, &newpath)) < 0) return error;
+
+    if ((error = check_fdcwd(oldpath, olddirfd, &oldv)) < 0) return error;
+    if ((error = check_fdcwd(newpath, newdirfd, &newv)) < 0) return error;
+
+    return vfs_rename(oldv, oldpath, newv, newpath, thisproc()->uid);
+}
+
+/* int openat(int dirfd, const char *pathname, int flags, mode_t mode); */
 long sys_openat(void)
 {
     char *path;
-    int dirfd, fd, omode;
-    struct file *f;
-    struct inode *ip;
+    int dirfd, flags, fd;
+    mode_t mode;
+    struct vnode *vnode;
+    struct vfile *file;
+    long error;
 
-    if (argint(0, &dirfd) < 0 || argstr(1, &path) < 0
-        || argint(2, &omode) < 0)
-        return -1;
+    if ((error = argint(0, &dirfd)) < 0) return error;
+    if ((error = argstr(1, &path)) < 0) return error;
+    if ((error = argint(2, &flags)) < 0) return error;
+    if ((error = argint(3, (int *)&mode)) < 0) return error;
 
-    if (dirfd != AT_FDCWD) {
-        warn("dirfd unimplemented");
-        return -1;
-    }
-    if ((omode & O_LARGEFILE) == 0) {
-        warn("expect O_LARGEFILE in open flags");
-        return -1;
-    }
-    trace("dirfd %d, path '%s', flag 0x%x", dirfd, path, omode);
+    if ((error = check_fdcwd(path, dirfd, &vnode)) < 0) return error;
 
-    begin_op();
-    if (omode & O_CREAT) {
-        // FIXME: acl mode are ignored.
-        ip = create(path, T_FILE, 0, 0);
-        if (ip == 0) {
-            end_op();
-            return -1;
-        }
-    } else {
-        if ((ip = namei(path)) == 0) {
-            end_op();
-            return -1;
-        }
-        ilock(ip);
-        if (ip->type == T_DIR && omode != (O_RDONLY | O_LARGEFILE)) {
-            iunlockput(ip);
-            end_op();
-            return -1;
-        }
-    }
+    fd = find_unused_fd(thisproc()->fd_table, 0);
+    mode = (mode & ~(thisproc()->umask)) & 0777;
+    if ((error = vfs_open(vnode, path, flags, mode, thisproc()->uid, &file)) < 0)
+        return error;
 
-    if ((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0) {
-        if (f)
-            fileclose(f);
-        iunlockput(ip);
-        end_op();
-        return -1;
-    }
-    iunlock(ip);
-    end_op();
-
-    f->type = FD_INODE;
-    f->ip = ip;
-    f->off = 0;
-    f->readable = !(omode & O_WRONLY);
-    f->writable = (omode & O_WRONLY) || (omode & O_RDWR);
+    set_fd(thisproc()->fd_table, fd, file);
+    if (flags & O_CLOEXEC)
+        bit_add(thisproc()->fdflag, fd);
     return fd;
 }
 
+int mkdirat(int dirfd, const char *pathname, mode_t mode);
 long sys_mkdirat(void)
 {
-    int dirfd, mode;
     char *path;
-    struct inode *ip;
+    int dirfd;
+    mode_t mode;
+    struct vnode *vnode;
+    struct vfile *file;
+    long error;
 
-    if (argint(0, &dirfd) < 0 || argstr(1, &path) < 0
-        || argint(2, &mode) < 0)
-        return -1;
-    if (dirfd != AT_FDCWD) {
-        warn("dirfd unimplemented");
-        return -1;
-    }
-    if (mode != 0) {
-        warn("mode unimplemented");
-        return -1;
-    }
-    trace("path '%s', mode 0x%x", path, mode);
+    if ((error = argint(0, &dirfd)) < 0) return error;
+    if ((error = argstr(1, &path)) < 0) return error;
+    if ((error = argint(2, (int *)&mode)) < 0) return error;
 
-    begin_op();
-    if ((ip = create(path, T_DIR, 0, 0)) == 0) {
-        end_op();
-        return -1;
-    }
-    iunlockput(ip);
-    end_op();
+    if ((error = check_fdcwd(path, dirfd, &vnode)) < 0) return error;
+
+    mode = (mode & ~(thisproc()->umask)) & 0777;
+    if ((error = vfs_open(vnode, path, O_CREAT, S_IFDIR | mode, thisproc()->uid, &file)) < 0)
+        return error;
+    vfs_close(file);
     return 0;
 }
 
+/* int mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev); */
 long sys_mknodat(void)
 {
-    struct inode *ip;
     char *path;
-    int dirfd, major, minor;
+    int dirfd;
+    mode_t mode;
+    dev_t dev;
+    struct vnode *cwd, *vnode;
+    long error;
 
-    if (argint(0, &dirfd) < 0 || argstr(1, &path) < 0
-        || argint(2, &major) < 0 || argint(3, &minor))
-        return -1;
+    if ((error = argint(0, &dirfd)) < 0) return error;
+    if ((error = argstr(1, &path)) < 0) return error;
+    if ((error = argint(2, (int *)&mode)) < 0) return error;
+    if ((error = argu64(3, &dev)) < 0) return error;
+    if ((error = check_fdcwd(path, dirfd, &cwd)) < 0) return error;
 
-    if (dirfd != AT_FDCWD) {
-        warn("dirfd unimplemented");
-        return -1;
-    }
-    trace("path '%s', major:minor %d:%d", path, major, minor);
+    if ((error = vfs_mknod(cwd, path, mode, (device_t)dev, thisproc()->uid, &vnode)) < 0)
+        return error;
 
-    begin_op();
-    if ((ip = create(path, T_DEV, major, minor)) == 0) {
-        end_op();
-        return -1;
-    }
-    iunlockput(ip);
-    end_op();
+    vfs_release_vnode(vnode);
     return 0;
 }
 
+/* int chdir(const char *path); */
 long sys_chdir(void)
 {
     char *path;
-    struct inode *ip;
-    struct proc *curproc = thisproc();
+    struct vnode *vnode;
+    struct proc *p = thisproc();
+    long error;
 
-    begin_op();
-    if (argstr(0, &path) < 0 || (ip = namei(path)) == 0) {
-        end_op();
-        return -1;
-    }
-    ilock(ip);
-    if (ip->type != T_DIR) {
-        iunlockput(ip);
-        end_op();
-        return -1;
-    }
-    iunlock(ip);
-    iput(curproc->cwd);
-    end_op();
-    curproc->cwd = ip;
+    if ((error = argstr(0, &path)) < 0) return error;
+
+    if ((error = vfs_lookup(p->cwd, path, VLOOKUP_NORMAL, p->uid, &vnode)) < 0)
+        return error;
+
+    if (!S_ISDIR(vnode->mode))
+        return -ENOTDIR;
+
+    p->cwd = vfs_clone_vnode(vnode);
     return 0;
 }
 
+/*  int execve(const char *filename, char *const argv[], char *const envp[]); */
 long sys_execve(void)
 {
-    char *p;
+    char *filename;
     void *argv, *envp;
-    if (argstr(0, &p) < 0 || argu64(1, (uint64_t *) & argv) < 0
-        || argu64(2, (uint64_t *) & envp) < 0)
-        return -1;
-    return execve(p, argv, envp);
+    long error;
+
+    if ((error = argstr(0, &filename)) < 0) return error;
+    if ((error = argu64(1, (uint64_t *)&argv)) < 0) return error;
+    if ((error = argu64(2, (uint64_t *)&envp)) < 0) return error;
+
+    // TODO: execve()の書き換え
+    return execve(filename, argv, envp);
 }
 
+/* int pipe2(int pipefd[2], int flags); */
 long sys_pipe2(void)
 {
-    int *fd, flag;
-    struct file *rf, *wf;
-    int fd0, fd1;
+    int fd[2], flags;
+    struct vfile *file[2];
+    struct proc *p = thisproc();
+    long error;
 
-    if (argint(1, &flag) < 0
-        || argptr(0, (void *)&fd, 2 * sizeof(fd[0])) < 0)
-        return -1;
-    trace("flag 0x%x", flag);
-    if (flag) {
-        warn("pipe with flag unimplemented");
-        return -1;
+    if ((error = argint(1, &flags)) < 0) return error;
+    if ((error = argptr(0, (void **)&fd, 2 * sizeof(int))) < 0) return error;
+
+    if (flags & ~O_CLOEXEC) {
+        return -EINVAL;
     }
-    if (pipealloc(&rf, &wf) < 0)
-        return -1;
-    fd0 = -1;
-    if ((fd0 = fdalloc(rf)) < 0 || (fd1 = fdalloc(wf)) < 0) {
-        if (fd0 >= 0)
-            thisproc()->ofile[fd0] = 0;
-        fileclose(rf);
-        fileclose(wf);
-        return -1;
+
+    fd[0] = find_unused_fd(p->fd_table, 0);
+    set_fd(p->fd_table, fd[0], file[0]);
+    fd[1] = find_unused_fd(p->fd_table, 0);
+    set_fd(p->fd_table, fd[0], NULL);
+
+    if (fd[0] < 0 || fd[1] < 0)
+        return -EMFILE;
+    if ((error = vfs_create_pipe(&file[0], &file[1])) < 0)
+        return error;
+
+    set_fd(p->fd_table, fd[0], file[0]);
+    set_fd(p->fd_table, fd[1], file[1]);
+
+    if (flags & O_CLOEXEC) {
+        bit_add(thisproc()->fdflag, fd[0]);
+        bit_add(thisproc()->fdflag, fd[1]);
     }
-    fd[0] = fd0;
-    fd[1] = fd1;
+
     return 0;
 }
 
-// int ioctl(int d, unsigned long request, ...);
+// int ioctl(int fd, unsigned long request, ...);
 long sys_ioctl(void)
 {
-    int fd;
-    struct file *f;
+    struct vfile *file;
     uint64_t req;
-    struct ifreq *ifr;
+    uint64_t argp;
+    long error;
 
-    if (argfd(0, &fd, &f) < 0 || argu64(1, &req) < 0)
-        return -EINVAL;
+    if ((error = argfd(0, 0, &file)) < 0) return error;
+    if ((error = argu64(1, &req)) < 0) return error;
+    if ((error = argu64(2, &argp)) < 0) return error;
 
-    if ((f->type == FD_INODE && f->ip->type != T_DEV)
-      && f->type != FD_SOCKET) {
-        trace("bad type: %d, %d", f->type, (f->type == FD_INODE ? f->ip->type : -1));
-        return -ENOTTY;
-    }
-    trace("fd: %d, type: %d, req: 0x%llx", fd, f->type, req);
-    if (f->type == FD_SOCKET) {
-        if (argptr(2, (void **)&ifr, sizeof(struct ifreq)) < 0)
-                return -EINVAL;
-        return socket_ioctl(f->socket, req, ifr);
+    return vfs_ioctl(file, req, (void *)argp, thisproc()->uid);
+}
+
+/* int fcntl(int fd, int cmd, ...); */
+long sys_fcntl(void)
+{
+    struct vfile *file;
+    struct proc *p = thisproc();
+    int fd, fd1, cmd, args;
+    long error;
+
+    if ((error = argfd(0, &fd, &file)) < 0) return error;
+    if ((error = argint(1, &cmd)) < 0) return error;
+    if ((error = argint(2, &args)) < 0) return error;
+
+    switch (cmd) {
+        case F_DUPFD:
+            if ((fd1 = find_unused_fd(p->fd_table, args)) < 0)
+            return fd1;
+            set_fd(p->fd_table, fd1, file);
+            return fd1;
+        case F_GETFD:
+            return bit_test(p->fdflag, fd) ? FD_CLOEXEC : 0;
+        case F_SETFD:
+            if (args & FD_CLOEXEC)
+                bit_add(p->fdflag, fd);
+            else
+                bit_remove(p->fdflag, fd);
+            return 0;
+
+        case F_GETFL:
+            return (file->flags & (FILE_STATUS_FLAGS | O_ACCMODE));
+
+        case F_SETFL:
+            file->flags = ((args & FILE_STATUS_FLAGS) | (file->flags & O_ACCMODE));
+            return 0;
     }
 
-    if (req == TIOCGWINSZ)
-        return 0;
-    else {
-        warn("ioctl unimplemented. ");
-        return -EINVAL;
-    }
+    return -EINVAL;
+}
+
+/*  off_t lseek(int fd, off_t offset, int whence); */
+long sys_lseek(void)
+{
+    int fd;
+    off_t offset;
+    int whence;
+    struct vfile *file;
+    long error;
+
+    if ((error = argfd(0, &fd, &file)) < 0) return error;
+    if ((error = argu64(1, (uint64_t *)&offset)) < 0) return error;
+    if ((error = argint(2, &whence)) < 0) return error;
+
+    return vfs_seek(file, offset, whence);
+}
+
+// ssize_t getdents64(int fd, void *dirp, size_t count);
+long sys_getdents64(void)
+{
+    char *buffer;
+    uint64_t size;
+    struct vfile *file;
+    long error;
+
+    if ((error = argfd(0, 0, &file)) < 0) return error;
+    if ((error = argu64(2, &size)) < 0) return error;
+    if ((error = argptr(1, (void **)&buffer, size)) < 0) return error;
+
+    return vfs_getdents(file, (void *)buffer, size);
 }

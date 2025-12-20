@@ -4,6 +4,7 @@
 
 #include <types.h>
 #include <net/sockio.h>
+#include <vfs.h>
 
 #define PF_INET     2
 
@@ -58,16 +59,24 @@ struct socket {
     int desc;
 };
 
-int         socket_alloc(int domain, int type, int protocol);
-int         socket_close(struct socket *s);
+struct sock_vnode {
+    struct vnode vn;
+    struct socket sock;
+};
+
+#define SOCKET(vnode)   (&((struct sock_vnode *) (vnode))->sock)
+
+int         socket_alloc(int domain, int type, int protocol, uid_t uid, struct vfile **file);
+int         socket_release_vnode(struct vnode *vnode);
+int         socket_close(struct vfile *file);
 int         socket_connect(struct socket *s, struct sockaddr *addr, int addrlen);
 int         socket_bind(struct socket *s, struct sockaddr *addr, int addrlen);
 int         socket_listen(struct socket *s, int backlog);
 int         socket_accept(struct socket *s, struct sockaddr *addr, int *addrlen);
-int         socket_read(struct socket *s, char *buf, int n);
-int         socket_write(struct socket *s, char *buf, int n);
+int         socket_read(struct vfile *file, char *buf, size_t n);
+int         socket_write(struct vfile *file, char *buf, size_t n);
 int         socket_recvfrom(struct socket *s, char *buf, int n, struct sockaddr *addr, int *addrlen);
 int         socket_sendto(struct socket *s, char *buf, int n, struct sockaddr *addr, int addrlen);
-int         socket_ioctl(struct socket *s, int req, void *arg);
+int         socket_ioctl(struct vfile *file, uint32_t req, void *arg, uid_t uid);
 
 #endif

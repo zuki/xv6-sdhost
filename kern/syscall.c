@@ -13,6 +13,9 @@
 #include <linux/time.h>
 #include <clock.h>
 #include <rtc.h>
+#include <vfs.h>
+#include <filedesc.h>
+#include <fs/vfile.h>
 
 /* Check if a block of memory lies within the process user space. */
 int in_user(void *s, size_t n)
@@ -44,7 +47,7 @@ long fetchstr(uint64_t addr, char **pp)
             if (*s == 0)
                 return s - *pp;
     }
-    return -1;
+    return -EFAULT;
 }
 
 /*
@@ -57,7 +60,7 @@ long argint(int n, int *ip)
     struct proc *proc = thisproc();
     if (n > 5) {
         warn("too many system call parameters");
-        return -1;
+        return -EINVAL;
     }
     *ip = proc->tf->x[n];
 
@@ -74,7 +77,7 @@ long argu64(int n, uint64_t * ip)
     struct proc *proc = thisproc();
     if (n > 5) {
         warn("too many system call parameters");
-        return -1;
+        return -EINVAL;
     }
     *ip = proc->tf->x[n];
 
@@ -85,15 +88,16 @@ long argu64(int n, uint64_t * ip)
  * Fetch the nth word-sized system call argument as a file descriptor
  * and return both the descriptor and the corresponding struct file.
  */
-long argfd(int n, int *pfd, struct file **pf)
+long argfd(int n, int *pfd, struct vfile **pf)
 {
     int fd;
-    struct file *f;
+    struct vfile *f;
+    struct proc *p = thisproc();
 
     if (argint(n, &fd) < 0)
-        return -1;
-    if (fd < 0 || fd >= NOFILE || (f = thisproc()->ofile[fd]) == 0)
-        return -1;
+        return -EINVAL;
+    if ((f = get_fd(p->fd_table, fd)) == NULL)
+        return -EBADF;
     if (pfd)
         *pfd = fd;
     if (pf)
@@ -110,7 +114,7 @@ long argptr(int n, void **pp, size_t size)
 {
     uint64_t i = 0;
     if (argu64(n, &i) < 0) {
-        return -1;
+        return -EINVAL;
     }
     if (i == 0) {
         *pp = 0;
@@ -120,7 +124,7 @@ long argptr(int n, void **pp, size_t size)
         *pp = (char *)i;
         return 0;
     } else {
-        return -1;
+        return -EFAULT;
     }
 }
 
@@ -133,8 +137,10 @@ long argptr(int n, void **pp, size_t size)
 long argstr(int n, char **pp)
 {
     uint64_t addr = 0;
-    if (argu64(n, &addr) < 0)
-        return -1;
+    long error;
+
+    if ((error = argu64(n, &addr)) < 0)
+        return error;
     int r = fetchstr(addr, pp);
     return r;
 }
@@ -172,15 +178,15 @@ long sys_clock_settime(void)
 static func syscalls[] = {
     //[SYS_getcwd] = (func)sys_getcwd,            // 17
     [SYS_dup] = sys_dup,                        // 23
-    //[SYS_dup3] = sys_dup3,                      // 24
+    [SYS_dup3] = sys_dup3,                      // 24
     //[SYS_fcntl] = sys_fcntl,                    // 25
     [SYS_ioctl] = sys_ioctl,                    // 29
     [SYS_mknodat] = sys_mknodat,                // 33
     [SYS_mkdirat] = sys_mkdirat,                // 34
-    //[SYS_unlinkat] = sys_unlinkat,              // 35
-    //[SYS_symlinkat] = sys_symlinkat,            // 36
-    //[SYS_linkat] = sys_linkat,                  // 37
-    //[SYS_renameat] = sys_renameat,              // 38
+    [SYS_unlinkat] = sys_unlinkat,              // 35
+    [SYS_symlinkat] = sys_symlinkat,            // 36
+    [SYS_linkat] = sys_linkat,                  // 37
+    [SYS_renameat] = sys_renameat,              // 38
     //[SYS_umount2] = sys_umount2,                // 39
     //[SYS_mount] = sys_mount,                    // 40
     //[SYS_faccessat] = sys_faccessat,            // 48
@@ -191,15 +197,15 @@ static func syscalls[] = {
     [SYS_openat] = sys_openat,                  // 56
     [SYS_close] = sys_close,                    // 57
     [SYS_pipe2] = sys_pipe2,                    // 59
-    //[SYS_getdents64] = sys_getdents64,            // 61
-    //[SYS_lseek] = (func)sys_lseek,              // 62
+    [SYS_getdents64] = sys_getdents64,            // 61
+    [SYS_lseek] = (func)sys_lseek,              // 62
     [SYS_read] = (func)sys_read,                // 63
     [SYS_write] = (func)sys_write,              // 64
     //[SYS_readv] = (func)sys_readv,              // 65
     [SYS_writev] = (func)sys_writev,            // 66
     //[SYS_pread64] = sys_pread64,                // 67
     //[SYS_ppoll] = sys_ppoll,                    // 73
-    //[SYS_readlinkat] = (func)sys_readlinkat,    // 78
+    [SYS_readlinkat] = (func)sys_readlinkat,    // 78
     [SYS_newfstatat] = sys_fstatat,             // 79
     [SYS_fstat] = sys_fstat,                    // 80
     //[SYS_fsync] = sys_fsync,                    // 82

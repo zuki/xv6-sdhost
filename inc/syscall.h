@@ -3,7 +3,7 @@
 
 #include <types.h>
 #include <trap.h>
-#include <file.h>
+#include <vfs.h>
 #include <linux/syscall.h>
 #include <linux/fcntl.h>
 
@@ -17,7 +17,7 @@ int in_user(void *s, size_t n);
 long argstr(int, char **);
 long argint(int, int *);
 long argu64(int n, uint64_t * ip);
-long argfd(int n, int *pfd, struct file **pf);
+long argfd(int n, int *pfd, struct vfile **pf);
 long argptr(int, void **, size_t);
 long fetchstr(uint64_t, char **);
 long sys_clock_gettime(void);
@@ -91,7 +91,7 @@ ssize_t sys_read(void);
 ssize_t sys_readv(void);
 ssize_t sys_write(void);
 ssize_t sys_writev(void);
-ssize_t sys_lseek(void);
+off_t sys_lseek(void);
 long sys_fsync(void);
 long sys_fdatasync(void);
 long sys_close(void);

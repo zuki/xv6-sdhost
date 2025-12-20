@@ -1,13 +1,14 @@
-#include <sd.h>
 #include <emmc.h>
 #include <list.h>
 #include <spinlock.h>
-#include <buf.h>
+#include <fs/bufcache.h>
 #include <types.h>
 #include <console.h>
 #include <irq.h>
-#include <fs.h>
 #include <string.h>
+#include <driver.h>
+#include <linux/errno.h>
+#include <sd.h>
 
 static struct emmc card;
 static struct list_head sdque;
@@ -22,6 +23,27 @@ static void sd_sleep(void *chan)
     sleep(chan, &cardlock);
 }
 
+// Driver Definition
+int sd_init(void);
+int sd_open(minor_t minor, int access);
+int sd_close(minor_t minor);
+int sd_read(minor_t minor, char *buffer, off_t offset, size_t size);
+int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size);
+int sd_ioctl(minor_t minor, unsigned int request, void *argp, uid_t uid);
+int sd_poll(minor_t minor, int events);
+off_t sd_seek(minor_t minor, off_t position, int whence, off_t offset);
+
+struct driver sd_driver = {
+    sd_init,
+    sd_open,
+    sd_close,
+    sd_read,
+    sd_write,
+    sd_ioctl,
+    sd_poll,
+    sd_seek,
+};
+
 /*
  * Initialize SD card and parse MBR.
  * 1. The first partition should be FAT and is used for booting.
@@ -29,8 +51,7 @@ static void sd_sleep(void *chan)
  *
  * See https://en.wikipedia.org/wiki/Master_boot_record
  */
-void
-sd_init(void)
+int sd_init(void)
 {
     struct mbr mbr;
 
@@ -44,6 +65,8 @@ sd_init(void)
     irq_register(IRQ_SDIO, sd_intr, 0);
 #elif RASPI == 4
 #endif
+
+    register_driver(DEVMAJOR_SD, &sd_driver);
 
     acquire(&cardlock);
     int ret = emmc_init(&card, sd_sleep, (void *)&card);
@@ -71,10 +94,11 @@ sd_init(void)
     }
 
     info("sd_init ok\n");
+
+    return 0;
 }
 
-void
-sd_intr(void *params)
+void sd_intr(void *params)
 {
     acquire(&cardlock);
     emmc_intr(&card);
@@ -83,6 +107,7 @@ sd_intr(void *params)
     release(&cardlock);
 }
 
+#if 0
 /*
  * SDカードのリクエスト処理を開始する.
  * Callerはcardlockを保持していなければならない.
@@ -136,9 +161,100 @@ void sd_rw(struct buf *b)
     release(&cardlock);
 }
 
+
 void sd_flush(void)
 {
     acquire(&cardlock);
     sd_start();
     release(&cardlock);
+}
+#endif
+
+int sd_open(minor_t minor, int access)
+{
+    if (minor > ptnum)
+        return -ENXIO;
+    return 0;
+}
+
+int sd_close(minor_t minor)
+{
+    if (minor > ptnum)
+        return -ENXIO;
+    return 0;
+}
+
+int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
+{
+    if (minor > ptnum)
+        return -ENXIO;
+
+    if (offset > (ptinfo[minor].nsecs << 9))
+        return -EFAULT;
+    if (offset + size > (ptinfo[minor].nsecs << 9))
+        size = (ptinfo[minor].nsecs << 9) - offset;
+
+    offset >>= 9;
+    emmc_seek(&card, ptinfo[minor].lba + offset);
+    for (int count = size >> 9; count > 0; count--, offset++, buffer = &buffer[512]) {
+        if (emmc_read(&card, buffer, BSIZE) != BSIZE)
+            return -EIO;
+    }
+
+    return size;
+}
+
+int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size)
+{
+    if (minor > ptnum)
+        return -ENXIO;
+
+    if (offset > (ptinfo[minor].nsecs << 9))
+        return -EFAULT;
+    if (offset + size > (ptinfo[minor].nsecs << 9))
+        size = (ptinfo[minor].nsecs << 9) - offset;
+
+    offset >>= 9;
+    emmc_seek(&card, ptinfo[minor].lba + offset);
+    for (int count = size >> 9; count > 0; count--, offset++, buffer = &buffer[512]) {
+        if (emmc_write(&card, buffer, BSIZE) != BSIZE)
+            return -EIO;
+    }
+
+    return size;
+}
+
+int sd_ioctl(minor_t minor, unsigned int request, void *argp, uid_t uid)
+{
+    if (minor > ptnum)
+        return -ENXIO;
+    return 0;
+}
+
+int sd_poll(minor_t minor, int events)
+{
+	return events & (VFS_POLL_READ | VFS_POLL_WRITE);
+}
+
+off_t sd_seek(minor_t minor, off_t position, int whence, off_t offset)
+{
+    if (minor > ptnum)
+        return -ENXIO;
+
+    switch(whence) {
+        case SEEK_SET:
+            break;
+        case SEEK_CUR:
+            position = offset * position;
+            break;
+        case SEEK_END:
+            position = ptinfo[minor].nsecs + position;
+        default:
+            return -EINVAL;
+    }
+
+    if (position > ptinfo[minor].nsecs)
+        position = ptinfo[minor].nsecs;
+
+    return position;
 }

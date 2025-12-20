@@ -7,42 +7,65 @@
 #include <net/udp.h>
 #include <net/tcp.h>
 #include <net/platform.h>
-#include <fs.h>
 #include <sleeplock.h>
-#include <file.h>
+#include <vfs.h>
+#include <fs/vfile.h>
+#include <fs/nop.h>
+#include <filedesc.h>
 #include <mm.h>
 #include <string.h>
 #include <linux/errno.h>
 #include <console.h>
 
-int socket_alloc(int domain, int type, int protocol)
+struct vfile_ops sock_vfile_ops = {
+    nop_open,
+    socket_close,
+    socket_read,
+    socket_write,
+    socket_ioctl,
+    nop_poll,
+    nop_seek,
+    nop_readdir,
+    nop_getdents,
+};
+
+struct vnode_ops sock_vnode_ops = {
+    &sock_vfile_ops,
+    nop_create,
+	nop_mknod,
+	nop_lookup,
+	nop_link,
+    nop_symlink,
+	nop_unlink,
+	nop_rename,
+	nop_truncate,
+	nop_update,
+	socket_release_vnode,
+    nop_rmdir,
+};
+
+int socket_alloc(int domain, int type, int protocol, uid_t uid, struct vfile **file)
 {
-    int fd;
-    struct file *f;
+    struct vfile *f;
     struct socket *s;
+    struct sock_vnode *vnode;
 
     if (domain != AF_INET || (protocol != 0 && protocol != IP_PROTOCOL_ICMP && protocol != IP_PROTOCOL_TCP && protocol != IP_PROTOCOL_UDP)) {
         error("bad domain: %d or protocol: %d", domain, protocol);
         return -EINVAL;
     }
-    f = filealloc();
-    if (!f) {
-        error("cant filealloc");
+
+    if ((vnode = kmalloc(sizeof(struct sock_vnode))) == NULL)
         return -ENOMEM;
-    }
-    fd = fdalloc(f);
-    if (!fd) {
-        error("cant fdalloc");
-        fileclose(f);
+    vfs_init_vnode(&vnode->vn, &sock_vnode_ops, NULL, S_IFSOCK | 0600, 1, uid, 0, 0, 0, 0, 0, 0, 0);
+
+    if ((f = alloc_file(&vnode->vn, 0)) == NULL) {
+        kmfree(vnode);
         return -EMFILE;
     }
-    s = (struct socket *)kmalloc(sizeof(struct socket));
-    if (!s) {
-        error("cant malloc for socket");
-        thisproc()->ofile[fd] = 0;
-        fileclose(f);
-        return -ENOMEM;
-    }
+
+    s = SOCKET(vnode);
+
     s->type = type;
     switch(type) {
     case SOCK_DGRAM:
@@ -53,21 +76,26 @@ int socket_alloc(int domain, int type, int protocol)
         break;
     default:
         error("wrong type: %d", type);
-        thisproc()->ofile[fd] = 0;
-        fileclose(f);
-        memory_free(s);
+        kmfree(vnode);
         return -EAFNOSUPPORT;
     }
-    f->type = FD_SOCKET;
-    f->readable = 1;
-    f->writable = 1;
-    f->socket = s;
+
+    if (*file)
+        *file = f;
     trace("socket: %d, desc: %d", fd, s->desc);
-    return fd;
+    return 0;
 }
 
-int socket_close(struct socket *s)
+int socket_release_vnode(struct vnode *vnode)
 {
+    kmfree(vnode);
+    return 0;
+}
+
+int socket_close(struct vfile *file)
+{
+    struct socket *s = SOCKET(file->vnode);
+
     switch (s->type) {
     case SOCK_DGRAM:
         udp_close(s->desc);
@@ -78,7 +106,7 @@ int socket_close(struct socket *s)
     default:
         return -1;
     }
-    memory_free(s);
+    //kmfree(vnode);
     return 0;
 }
 
@@ -153,34 +181,34 @@ int socket_listen(struct socket *s, int backlog)
 int socket_accept(struct socket *s, struct sockaddr *addr, int *addrlen)
 {
     int adesc, fd;
-    struct file *f;
+    struct vfile *file;
     struct socket *as;
     struct ip_endpoint foreign;
+    struct proc *p = thisproc();
+    struct sock_vnode *vnode;
 
     if (s->type != SOCK_STREAM) {
         return -EOPNOTSUPP;
     }
-    f = filealloc();
-    if (!f) {
-        return -ENOMEM;
-    }
 
-    if ((fd = fdalloc(f)) < 0) {
-        fileclose(f);
+    if ((fd = find_unused_fd(p->fd_table, 0)) < 0)
+        return fd;
+
+    if ((vnode = kmalloc(sizeof(struct sock_vnode))) == NULL)
+        return -ENOMEM;
+    vfs_init_vnode(&vnode->vn, &sock_vnode_ops, NULL, S_IFSOCK | 0600, 1, p->uid, 0, 0, 0, 0, 0, 0, 0);
+
+    if ((file = alloc_file(&vnode->vn, 0)) == NULL) {
+        kmfree(vnode);
         return -EMFILE;
     }
 
-    as = (struct socket *)kmalloc(sizeof(struct socket));
-    if (!as) {
-        thisproc()->ofile[fd] = 0;
-        fileclose(f);
-        return -ENOMEM;
-    }
-    adesc = tcp_accept(s->desc, &foreign);
+    set_fd(p->fd_table, fd, file);
+
+    adesc = tcp_accept(SOCKET(vnode)->desc, &foreign);
     if (adesc == -1) {
-        thisproc()->ofile[fd] = 0;
-        fileclose(f);
-        kmfree((void*)as);
+        unset_fd(p->fd_table, fd);
+        kmfree(vnode);
         return -EPROTO;
     }
     ((struct sockaddr_in *)addr)->sin_family = AF_INET;
@@ -188,32 +216,33 @@ int socket_accept(struct socket *s, struct sockaddr *addr, int *addrlen)
     ((struct sockaddr_in *)addr)->sin_port = foreign.port;
     as->type = s->type;
     as->desc = adesc;
-    f->type = FD_SOCKET;
-    f->readable = 1;
-    f->writable = 1;
-    f->socket = as;
+
     if (addrlen)
         *addrlen = sizeof(struct sockaddr_in);
     return fd;
 }
 
-int socket_read(struct socket *s, char *buf, int n)
+int socket_read(struct vfile *file, char *buf, size_t n)
 {
+    struct socket *s = SOCKET(file->vnode);
+
     if (s->type != SOCK_STREAM) {
         return -EINVAL;
     }
     return tcp_receive(s->desc, (uint8_t *)buf, n);
 }
 
-int socket_write(struct socket *s, char *buf, int n)
+int socket_write(struct vfile *file, char *buf, size_t n)
 {
+    struct socket *s = SOCKET(file->vnode);
+
     if (s->type != SOCK_STREAM) {
         return -EINVAL;
     }
     return tcp_send(s->desc, (uint8_t *)buf, n);
 }
 
-int socket_ioctl(struct socket *s, int req, void *arg)
+int socket_ioctl(struct vfile *file, uint32_t req, void *arg, uid_t uid)
 {
     struct ifreq *ifreq;
     struct net_device *dev;

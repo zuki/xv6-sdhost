@@ -6,17 +6,19 @@
 #define USR_INC_FS_H
 
 #include <stdint.h>
+#include <time.h>
+#include "types.h"
 
 #define MAXOPBLOCKS     10  // Max # of blocks any FS op writes
 #define LOGSIZE         (MAXOPBLOCKS*3)     // Max data blocks in on-disk log
 #define ROOTDEV         1                   // Device number of file system root disk
-#define ROOTINO         1                   // Root i-number
+#define V6_ROOTINO      1                   // Root i-number
 
 #define FSSIZE          1000    // ファイルシステムのブロック単位のサイズ
-#define BSIZE           4096    // ブロックサイズ
+#define BLKSIZE         4096    // ブロックサイズ
 
-#define NDIRECT     11      
-#define NINDIRECT   (BSIZE / sizeof(uint32_t))    // 第一間接指定のブロック数
+#define NDIRECT     11
+#define NINDIRECT   (BLKSIZE / sizeof(uint32_t))    // 第一間接指定のブロック数
 #define NINDIRECT2  (NINDIRECT * NINDIRECT)       // 第二間接指定のブロック数
 #define MAXFILE     (NDIRECT + NINDIRECT + NINDIRECT2)   // 1ファイルの最大ブロック数 - 11 + 1024 + 1,048,576 = 1,049,611 : * 4096 = 4100 MB
 
@@ -36,38 +38,50 @@ struct superblock {
     uint32_t bmapstart;    // Block number of first free map block
 };
 
-/* On-disk inode structure. */
+/* On-disk inode構造体 : 128バイト */
 struct dinode {
-    uint16_t type;                // File type
-    uint16_t major;               // Major device number (T_DEV only)
-    uint16_t minor;               // Minor device number (T_DEV only)
-    uint16_t nlink;               // Number of links to inode in file system
-    uint32_t size;                // Size of file (bytes)
-    uint32_t addrs[NDIRECT+2];    // Data block addresses
+    uint16_t            type;       //  0: V6ファイルタイプ : T_XXX
+    uint16_t            nlink;      //  2: ハードリンク数
+    device_t            dev;        //  4:デバイス番号
+    uint32_t            size;       //  8: Size of file (bytes)
+    mode_t              mode;       // 12: file mode
+    uid_t               uid;        // 16: owner's user id
+    gid_t               gid;        // 20: owner's gropu id
+    struct timespec     atime;      // 24: last accessed time
+    struct timespec     mtime;      // 40: last modified time
+    struct timespec     ctime;      // 56: created time
+    uint32_t addrs[NDIRECT+2];      // 72: Data block addresses
+    char             _dummy[4];     // 124:
 };
 
 /* Inodes per block: 4 */
-#define IPB           (BSIZE / sizeof(struct dinode))
+#define IPB           (BLKSIZE / sizeof(struct dinode))
 
 /* Block containing inode i. */
 #define IBLOCK(i, sb)     ((i) / IPB + sb.inodestart)
 
 /* Bitmap bits per block;  4096 = 0x1000 */
-#define BPB           (BSIZE*8)
+#define BPB           (BLKSIZE*8)
 
 /* Block of free map containing bit for block b. */
 #define BBLOCK(b, sb) (b/BPB + sb.bmapstart)
 
 /* Directory is a file containing a sequence of dirent structures. */
-#define DIRSIZ 14
+#define DIRSIZ 58
 
 struct dirent {
-  uint16_t inum;
+  uint32_t  inum;
+  uint16_t  type;
   char name[DIRSIZ];
 };
 
 #define T_DIR       1   // Directory
 #define T_FILE      2   // File
 #define T_DEV       3   // Device
+
+#define makedev(x,y) ((((x) & 0xff) << 8) | \
+        ((y) & 0xff))
+
+#define DEVV6   (makedev(1,1))
 
 #endif

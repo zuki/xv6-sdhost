@@ -46,12 +46,6 @@
 #define UTIME_NOW  0x3fffffff
 #define UTIME_OMIT 0x3ffffffe
 
-#define T_DIR       1   // Directory
-#define T_FILE      2   // File
-#define T_DEV       3   // Device
-#define T_MOUNT     4   // Mount Point
-#define T_SYMLINK   5   // Sysbolic link
-
 #define DT_UNKNOWN      0
 #define DT_FIFO         1
 #define DT_CHR          2
@@ -82,16 +76,5 @@ struct stat {
         struct timespec st_ctime;
         unsigned __unused[2];
 };
-
-#define major(x) \
-        ((unsigned)( (((x)>>31>>1) & 0xfffff000) | (((x)>>8) & 0x00000fff) ))
-#define minor(x) \
-        ((unsigned)( (((x)>>12) & 0xffffff00) | ((x) & 0x000000ff) ))
-
-#define makedev(x,y) ( \
-        (((x)&0xfffff000ULL) << 32) | \
-        (((x)&0x00000fffULL) << 8) | \
-        (((y)&0xffffff00ULL) << 12) | \
-        (((y)&0x000000ffULL)) )
 
 #endif
