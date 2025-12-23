@@ -7,7 +7,7 @@
 
 extern struct spinlock dbglock;
 
-int console_init();
+int console_preinit(void);
 void cprintf1(const char *fmt, ...);
 void cprintf(const char *fmt, ...);
 void panic(const char *fmt, ...);

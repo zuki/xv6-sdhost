@@ -81,7 +81,15 @@ struct dirent {
 
 #define makedev(x,y) ((((x) & 0xff) << 8) | \
         ((y) & 0xff))
+#define major(x) (((x)>>8) & 0xff)
+#define minor(x) ((x) & 0xff)
 
-#define DEVV6   (makedev(1,1))
+#define DEVFAT          makedev(1, 0)
+#define DEVV6           makedev(1, 1)
+#define DEVCONS         makedev(2, 1)
+#define DEVTTYPS        makedev(3, 1)
+
+#define SDMAJOR         (major(DVV6))
+#define TTYMAJOR        (major(DEVCONS))
 
 #endif

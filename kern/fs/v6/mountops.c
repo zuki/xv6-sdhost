@@ -4,6 +4,7 @@
 #include <fs/v6/file.h>
 #include <fs/v6/fs.h>
 #include <linux/errno.h>
+#include <console.h>
 
 struct mount_ops v6_mount_ops = {
     "v6",
@@ -21,14 +22,15 @@ int v6_init(void)
 
 int v6_mount(struct mount *mp, device_t dev, struct vnode *parent)
 {
-    mp->ops = &v6_mount_ops;
     mp->dev = dev;
-    mp->super = V6SBP;
+    mp->super = NULL;
     struct v6_inode *ip = v6_iget(mp, V6_ROOTINO);
     if (ip == NULL) {
         return -ENOMEM;
     }
-    mp->root_node = &ip->vnode;
+    ip->vnode.mode = S_IFDIR | 0755;
+    ip->type = T_DIR;
+    mp->root_node = ITOV(ip);
 
     return 0;
 }

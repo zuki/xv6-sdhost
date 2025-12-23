@@ -18,6 +18,27 @@
 #include <usb.h>
 #include <net/net.h>
 #include <vfs.h>
+#include <driver.h>
+
+extern struct driver console_driver;
+extern struct driver tty_driver;
+extern struct driver sd_driver;
+
+struct driver *drivers[] = {
+    &console_driver,
+    &tty_driver,
+    &sd_driver,
+    NULL
+};
+
+extern struct mount_ops v6_mount_ops;
+
+struct mount_ops *filesystems[] = {
+    &v6_mount_ops,
+    NULL
+};
+
+device_t root_dev = makedev(DEVMAJOR_SD, 1);
 
 /*
  * Keep it in data segment by explicitly initializing by zero,
@@ -37,12 +58,19 @@ main()
         memset(edata, 0, end - edata);
         i2c_init(DS3231_I2C_DIV);
         irq_init();
-        console_init();
+        console_preinit();
         mm_init();
         clock_init();
         rand_init();
         proc_init();
+        for (int i = 0; drivers[i]; i++)
+            drivers[i]->init();
         init_vfs();
+        for (int i = 0; filesystems[i]; i++)
+            filesystems[i]->init();
+        int err = vfs_mount(NULL, "/", root_dev, &v6_mount_ops, 0, 0);
+        if (err < 0)
+            error("vfs_mount error: %d", err);
 #if 0
         usb_init();
         net_init();

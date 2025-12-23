@@ -26,6 +26,11 @@ static struct mount *_find_mount_by_vnode(struct vnode *mount)
     return NULL;
 }
 
+struct mount *get_rootfs(void)
+{
+    return root_fs;
+}
+
 int init_vfs(void)
 {
     // 1. root_fsのクリア
@@ -38,6 +43,7 @@ int init_vfs(void)
     init_bufcache();
     // 4. vfile_tableの初期化
     init_vfile();
+    info("init_vfs ok");
     return 0;
 }
 
@@ -66,12 +72,12 @@ int vfs_mount(struct vnode *cwd, const char *path, device_t dev, struct mount_op
 
     if (uid != 0)
         return -EPERM;
-
-    if (!root_fs)
+    if (!root_fs) {
         vnode = NULL;
-    else {
-        if ((error = vfs_lookup(cwd, path, VLOOKUP_NORMAL, uid, &vnode)) < 0)
+    } else {
+        if ((error = vfs_lookup(cwd, path, VLOOKUP_NORMAL, uid, &vnode)) < 0) {
             return error;
+        }
     }
 
     if (vnode && (vnode->bits & VBF_MOUNTED)) {
@@ -80,8 +86,9 @@ int vfs_mount(struct vnode *cwd, const char *path, device_t dev, struct mount_op
     }
 
     for (int i = 0; i < VFS_MOUNT_MAX; i++) {
-        if (mountpoints[i].dev == dev)
+        if (mountpoints[i].dev == dev) {
             return -EBUSY;
+        }
     }
 
     for (int i = 0; i < VFS_MOUNT_MAX; i++) {
@@ -105,6 +112,7 @@ int vfs_mount(struct vnode *cwd, const char *path, device_t dev, struct mount_op
             return 0;
         }
     }
+
     return -ENOMEM;
 }
 
@@ -160,11 +168,11 @@ int vfs_sync(device_t dev)
 int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct vnode **result)
 {
     int error;
-    int i = 0, j;
+    int i = 0, j, k = 0;
     struct mount *mp;
     struct vnode *cur;
     char component[VFS_FILENAME_MAX];
-
+    debug("cwd->ino: %d, path: %s, flags: 0x%x", cwd->ino, path, flags);
     if (!result)
         return -EINVAL;
 
@@ -176,6 +184,8 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
     /* 変数 i は pathの次に処理する位置 */
     vfs_clone_vnode(cur);
     while (1) {
+        k++;
+        debug("LP[%d] cur->ino: %d, ref: %d", k, cur->ino, cur->refcount);
         /* curにファイルシステムがマウントされている場合、curを
          * マウントされたファイルシステムのルートノードに置き換える */
         if (cur->bits & VBF_MOUNTED) {
@@ -184,16 +194,19 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
             if (!mp)
                 return -ENXIO;
             cur = vfs_clone_vnode(mp->root_node);
+            debug("CHG: cur->ino: %d, ref: %d", cur->ino, cur->refcount);
         }
 
         // pathの終端にきたら、resultにvnodeをセットして成功で復帰
         if (path[i] == '\0') {
+            debug("OK: cur->ino: %d, ref: %d", cur->ino, cur->refcount);
             *result = cur;
             return 0;
         }
 
         // curが最後の要素でない場合、curはディレクトリでなければならない
         if (!S_ISDIR(cur->mode)) {
+            error("cur (%d) is not dir", cur->ino);
             vfs_release_vnode(cur);
             return -ENOTDIR;
         }
@@ -211,16 +224,20 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
             i += 1;
         /* componentをNULL終端する */
         component[j] = '\0';
-
+        //debug("COMP[%d]: %s", k, component);
         if (j >= VFS_FILENAME_MAX) {
             vfs_release_vnode(cur);
+            error("componet too long");
             return -ENAMETOOLONG;
         }
 
         // 最後のコンポーネントの手前で停止する必要がある場合、検索を
         // スキップし、ループの先頭に戻って終了する(curは一つ前のvnode)
-        if (flags & VLOOKUP_PARENT_OF && path[i] == '\0')
+        //debug("FLG (%s), path[i]: '%c'", flags ? "PARENT" : "SELF", path[i]);
+        if ((flags & VLOOKUP_PARENT_OF) && path[i] == '\0') {
+            debug("find parent and stop");
             continue;
+        }
 
         // マウントされたファイルシステムのルートディレクトリで ".."に
         // アクセスする場合、検索前のルートノードにマウントノードを入れ替える
@@ -728,6 +745,7 @@ int vfs_getdents(struct vfile *file, void *buffer, size_t size)
 int vfs_release_vnode(struct vnode *vnode)
 {
     if (!vnode) return 0;
+    debug("refcount = %d", vnode->refcount);
     vnode->refcount--;
     if (vnode->refcount < 0) {
         error("double free of vnode, %x", vnode);

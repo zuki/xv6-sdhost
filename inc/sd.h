@@ -63,6 +63,7 @@ static inline uint32_t fs_lba(int minor)
 void sd_intr(void *params);
 
 int sd_init(void);
+void sd_postinit(void);
 int sd_open(minor_t minor, int access);
 int sd_close(minor_t minor);
 int sd_read(minor_t minor, char *buffer, off_t offset, size_t size);
@@ -70,6 +71,5 @@ int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size);
 int sd_ioctl(minor_t minor, unsigned int request, void *argp, uid_t uid);
 int sd_poll(minor_t minor, int events);
 off_t sd_seek(minor_t minor, off_t position, int whence, off_t offset);
-
 
 #endif

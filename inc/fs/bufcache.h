@@ -9,6 +9,7 @@
 
 #define BCF_ALLOCATED   0x01
 #define BCF_DIRTY       0x02
+#define BCF_BUSY        0x04
 
 struct buf {
     struct queue_node node;
@@ -17,7 +18,6 @@ struct buf {
     device_t dev;
     uint32_t blockno;
     uint8_t *block;
-    struct sleeplock lock;
     struct list_head dlink;
 };
 

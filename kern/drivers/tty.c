@@ -11,6 +11,7 @@
 #include <linux/signal.h>
 #include <proc.h>
 #include <spinlock.h>
+#include <console.h>
 
 #define TTY_DEVICE_NUM  2
 
@@ -74,14 +75,16 @@ int tty_init(void)
 {
 
     for (short i = 0; i < TTY_DEVICE_NUM; i++) {
-        devices[i].rdev = DEVNUM(DEVMAJOR_CONSOLE, i);
+        devices[i].rdev = makedev(DEVMAJOR_CONSOLE, i);
         devices[i].pgid = 0;
         devices[i].opens = 0;
         initlock(&devices[i].lock, "ttylock");
         memcpy(&devices[i].tio, &default_tio, sizeof(struct termios));
     }
 
-    return register_driver(DEVMAJOR_TTY, &tty_driver);
+    int err = register_driver(DEVMAJOR_TTY, &tty_driver);
+    info("tty_init ok");
+    return err;
 }
 
 int tty_open(minor_t minor, int mode)

@@ -49,6 +49,7 @@ void timer_init()
     initlock(&timerlock, "timer");
     list_init(&timer_list.list);
     TIMERS = slab_cache_create("timer_list", sizeof(struct timer_list), 64);
+    info("[%d] timer_init ok", cpuid());
 }
 
 static void timer_reset()

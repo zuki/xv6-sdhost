@@ -20,18 +20,9 @@ static int ptnum = 0;
 
 static void sd_sleep(void *chan)
 {
+    //info("[%d] pid=%c, chan=0x%p", cpuid(), thisproc()->pid, chan);
     sleep(chan, &cardlock);
 }
-
-// Driver Definition
-int sd_init(void);
-int sd_open(minor_t minor, int access);
-int sd_close(minor_t minor);
-int sd_read(minor_t minor, char *buffer, off_t offset, size_t size);
-int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size);
-int sd_ioctl(minor_t minor, unsigned int request, void *argp, uid_t uid);
-int sd_poll(minor_t minor, int events);
-off_t sd_seek(minor_t minor, off_t position, int whence, off_t offset);
 
 struct driver sd_driver = {
     sd_init,
@@ -53,8 +44,6 @@ struct driver sd_driver = {
  */
 int sd_init(void)
 {
-    struct mbr mbr;
-
     char buf[BSIZE];
 
     list_init(&sdque);
@@ -66,7 +55,16 @@ int sd_init(void)
 #elif RASPI == 4
 #endif
 
-    register_driver(DEVMAJOR_SD, &sd_driver);
+    int err = register_driver(DEVMAJOR_SD, &sd_driver);
+    info("sd_init ok\n");
+    return err;
+}
+
+void sd_postinit(void)
+{
+    struct mbr mbr;
+
+    char buf[BSIZE];
 
     acquire(&cardlock);
     int ret = emmc_init(&card, sd_sleep, (void *)&card);
@@ -93,9 +91,7 @@ int sd_init(void)
         ptnum++;
     }
 
-    info("sd_init ok\n");
-
-    return 0;
+    info("sd_postinit ok\n");
 }
 
 void sd_intr(void *params)
@@ -186,19 +182,24 @@ int sd_close(minor_t minor)
 
 int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
 {
+    //debug("minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
+
     if (minor > ptnum)
         return -ENXIO;
 
-    if (offset > (ptinfo[minor].nsecs << 9))
+    if (offset > ptinfo[minor].nsecs)
         return -EFAULT;
-    if (offset + size > (ptinfo[minor].nsecs << 9))
-        size = (ptinfo[minor].nsecs << 9) - offset;
+    if ((offset + (size / BSIZE)) > ptinfo[minor].nsecs)
+        size = ptinfo[minor].nsecs - offset;
 
-    offset >>= 9;
-    emmc_seek(&card, ptinfo[minor].lba + offset);
-    for (int count = size >> 9; count > 0; count--, offset++, buffer = &buffer[512]) {
+    uint64_t bno = (fs_lba(minor) + offset * 8) * SECTOR_SIZE;
+    //debug("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+    // seekはバイト単位
+    emmc_seek(&card, bno);
+    for (int count = 0; count < (size / BSIZE); count++) {
         if (emmc_read(&card, buffer, BSIZE) != BSIZE)
             return -EIO;
+        buffer = buffer + BSIZE;
     }
 
     return size;
@@ -206,19 +207,22 @@ int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
 
 int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size)
 {
+    debug("minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
     if (minor > ptnum)
         return -ENXIO;
 
-    if (offset > (ptinfo[minor].nsecs << 9))
+    if (offset > ptinfo[minor].nsecs)
         return -EFAULT;
-    if (offset + size > (ptinfo[minor].nsecs << 9))
-        size = (ptinfo[minor].nsecs << 9) - offset;
+    if ((offset + (size / BSIZE)) > ptinfo[minor].nsecs)
+        size = ptinfo[minor].nsecs - offset;
 
-    offset >>= 9;
-    emmc_seek(&card, ptinfo[minor].lba + offset);
-    for (int count = size >> 9; count > 0; count--, offset++, buffer = &buffer[512]) {
+   uint64_t bno = (fs_lba(minor) + offset * 8) * SECTOR_SIZE;
+    debug("lba: 0x%x, offset: %d, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+    emmc_seek(&card, bno);
+    for (int count = 0; count < (size / BSIZE); count++) {
         if (emmc_write(&card, buffer, BSIZE) != BSIZE)
             return -EIO;
+        buffer = buffer + BSIZE;
     }
 
     return size;

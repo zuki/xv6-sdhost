@@ -15,6 +15,7 @@
     - [VFS機能を導入](xv6/vfs.md)
         - [SVR4のvfsシステムの調査](xv6/svr4_vfs.md)
         - [SVR5のs5ファイルシステムの関数](xv6/s5functions.md)
+    - [v6ファイルダンプツール](xv6/dumptool.md)
 
 - [その他のメモ](others/README.md)
     - [デフォルトで使用されるリンカスクリプト](others/lds.md)

@@ -35,7 +35,7 @@ void init_bufcache(void)
         blocks[i].refcount = 0;
         blocks[i].flags = 0;
         blocks[i].block = NULL;
-        initsleeplock(&blocks[i].lock, "buf");
+        //initsleeplock(&blocks[i].lock, "buf");
         _queue_insert(&bufcache, &blocks[i].node);
     }
 
@@ -45,16 +45,17 @@ void init_bufcache(void)
 void sync_bufcache()
 {
     for (int i = 0; i < BLOCKCACHE_MAX; i++) {
-        acquiresleep(&blocks[i].lock);
+        blocks[i].flags |= BCF_BUSY;
+        //acquiresleep(&blocks[i].lock);
         if (blocks[i].flags & BCF_ALLOCATED)
             _write_entry(&blocks[i]);
-        releasesleep(&blocks[i].lock);
+        //releasesleep(&blocks[i].lock);
+        blocks[i].flags &= ~BCF_BUSY;
     }
 }
 
 /* デバイスdevのブロック番号blocknoのブロックを読み込む : bread を置き換え
- * 読み込みが失敗したらpanic */
-// TODO: panicではない何かを考える
+ * sleeplockを持ったstruct bufを返す。読み込みが失敗したらpanic */
 struct buf *get_block(device_t dev, uint32_t blockno)
 {
     struct buf *cur;
@@ -69,7 +70,8 @@ struct buf *get_block(device_t dev, uint32_t blockno)
             _queue_remove(&bufcache, &cur->node);
             _queue_insert(&bufcache, &cur->node);
             release(&bufcache.lock);
-            acquiresleep(&cur->lock);
+            cur->flags |= BCF_BUSY;
+            //acquiresleep(&cur->lock);
             return cur;
         }
     }
@@ -80,9 +82,9 @@ struct buf *get_block(device_t dev, uint32_t blockno)
 /* bwrite を置き換え */
 void put_block(struct buf *buf)
 {
-    acquiresleep(&buf->lock);
+    //acquiresleep(&buf->lock);
     _write_entry(buf);
-    releasesleep(&buf->lock);
+    //releasesleep(&buf->lock);
 }
 
 /* brelseを置き換える */
@@ -100,7 +102,8 @@ int release_block(struct buf *buf, int dirty)
         buf->refcount = 0;
         error("possible double free for block %d:%d", buf->dev, buf->blockno);
     }
-    releasesleep(&buf->lock);
+    //releasesleep(&buf->lock);
+    buf->flags &= ~BCF_BUSY;
     return 0;
 }
 
@@ -120,21 +123,12 @@ static struct buf *_load_block(device_t dev, uint32_t blockno)
     entry = _find_free_entry();
 
     entry->refcount = 1;
-    entry->flags = BCF_ALLOCATED;
+    entry->flags |= BCF_ALLOCATED;  // すでにBCF_BUSYがセットされている
     entry->dev = dev;
     entry->blockno = blockno;
     entry->block = BC_ALLOC_BLOCK();
 
     _read_entry(entry);
-
-#if 0
-    if (_read_entry(entry) < 0) {
-        entry->refcount = 0;
-        releasesleep(&entry->lock);
-        panic("read_entryエラー");
-        return NULL;
-    }
-#endif
 
     return entry;
 }
@@ -156,7 +150,8 @@ static inline struct buf *_find_free_entry()
     }
 
     release(&bufcache.lock);
-    acquiresleep(&last->lock);
+    //acquiresleep(&last->lock);
+    last->flags |= BCF_BUSY;
     /* リサイクルするエントリを先頭に移動する */
     _queue_remove(&bufcache, &last->node);
     _queue_insert(&bufcache, &last->node);
@@ -172,12 +167,14 @@ static inline struct buf *_find_free_entry()
 
 static inline int _read_entry(struct buf *entry)
 {
-    assert(holdingsleep(&entry->lock));
+    //assert(holdingsleep(&entry->lock));
+    assert(entry->flags & BCF_BUSY);
 
-    trace("READING %x: %x <- %x x %x", entry->dev, entry->block, (entry->blockno * BC_BLOCK_SIZE), BC_BLOCK_SIZE);
+    debug("read: dev: 0x%x, buffer: 0x%x, bno: 0x%x, size: 0x%x", entry->dev, entry->block, entry->blockno, BC_BLOCK_SIZE);
     int size = dev_read(entry->dev, entry->block, entry->blockno, BC_BLOCK_SIZE);
     if (size != BC_BLOCK_SIZE) {
-        panic("read_entry");
+        info("size: %d", size);
+        panic("read_entry\n");
         return -1;
     }
     return 0;
@@ -185,13 +182,14 @@ static inline int _read_entry(struct buf *entry)
 
 static inline int _write_entry(struct buf *entry)
 {
-    assert(holdingsleep(&entry->lock));
+    //assert(holdingsleep(&entry->lock));
+    assert(entry->flags & BCF_BUSY);
 
     /* 変更されていなければ何もしない */
     if (!(entry->flags & BCF_DIRTY))
         return 0;
 
-    trace("WRITING %x: %x <- %x x %x", entry->dev, entry->blockno, entry->block, BC_BLOCK_SIZE);
+    trace("WRITING 0x%x: 0x%x <- 0x%x + 0x%x", entry->dev, entry->blockno, entry->block, BC_BLOCK_SIZE);
     // デバイスに書き込む
     int size = dev_write(entry->dev, entry->block, entry->blockno, BC_BLOCK_SIZE);
     if (size != BC_BLOCK_SIZE) {

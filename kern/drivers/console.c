@@ -59,7 +59,6 @@ static void consputc(int c)
     }
 }
 
-
 static void console_intr1(int (*getc)())
 {
     int c, prof = 0;
@@ -302,15 +301,20 @@ void hexdump(const void *data, size_t size, const char *name)
 
 }
 
-int console_init(void)
-{
+int console_preinit(void) {
     // mini UARTを使用
     uart_init();
 
     irq_enable(IRQ_AUX);
     irq_register(IRQ_AUX, console_intr, 0);
+    info("console_preinit ok");
+}
 
-    return register_driver(DEVMAJOR_CONSOLE, &console_driver);
+int console_init(void)
+{
+    int err = register_driver(DEVMAJOR_CONSOLE, &console_driver);
+    info("console_init ok");
+    return err;
 }
 
 int console_open(minor_t minor, int mode)

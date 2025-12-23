@@ -43,15 +43,16 @@ int mode2v6type(mode_t mode)
 }
 
 /// v6ファイルシステムの固有データ
-struct v6_vfs v6_vfs;
+//struct v6_vfs v6_vfs;
+struct v6_superblock v6_sb = { 0 };
 
 /* v6スーパーブロックをsbに読み込む. */
-void readsb(device_t dev, struct v6_superblock *sb)
+void v6_readsb(device_t dev, struct v6_superblock *sb)
 {
     struct buf *bp;
 
     bp = get_block(dev, 1);
-    memmove(sb, bp->block, sizeof(*sb));
+    memmove(&v6_sb, bp->block, sizeof(struct v6_superblock));
     release_block(bp, 0);
 }
 
@@ -75,9 +76,10 @@ uint32_t v6_balloc(uint32_t dev)
     struct buf *bp;
 
     bp = 0;
-    for (b = 0; b < V6SB.size; b += BPB) {
-        bp = get_block(dev, BBLOCK(b, V6SB));
-        for (bi = 0; bi < BPB && b + bi < V6SB.size; bi++) {
+    for (b = 0; b < v6_sb.size; b += BPB) {
+        //bp = get_block(dev, BBLOCK(b, v6_sb));
+        bp = get_block(dev, BBLOCK(b));
+        for (bi = 0; bi < BPB && b + bi < v6_sb.size; bi++) {
             m = 1 << (bi % 8);
             if ((bp->block[bi / 8] & m) == 0) {  // Is block free?
                 bp->block[bi / 8] |= m;  // Mark block in use.
@@ -99,7 +101,8 @@ void v6_bfree(device_t dev, uint32_t b)
     struct buf *bp;
     int bi, m;
 
-    bp = get_block(dev, BBLOCK(b, V6SB));
+    //bp = get_block(dev, BBLOCK(b, v6_sb));
+    bp = get_block(dev, BBLOCK(b));
     bi = b % BPB;
     m = 1 << (bi % 8);
     if ((bp->block[bi / 8] & m) == 0)
@@ -190,10 +193,19 @@ void v6_iinit(device_t dev)
         initsleeplock(&v6_icache.inode[i].lock, "inode");
     }
 
-    // TODO: これをv6_mount()に持っていった方が良いか検討
-    readsb(dev, &V6SB);
-    info("V6SB: size %d nblocks %d ninodes %d nlog %d logstart %d\
- inodestart %d bmapstart %d", V6SB.size, V6SB.nblocks, V6SB.ninodes, V6SB.nlog, V6SB.logstart, V6SB.inodestart, V6SB.bmapstart);
+#if 0
+    v6_readsb(dev, &v6_sb);
+    info("v6_sb: size %d nblocks %d ninodes %d nlog %d logstart %d\
+ inodestart %d bmapstart %d", v6_sb.size, v6_sb.nblocks, v6_sb.ninodes, v6_sb.nlog, v6_sb.logstart, v6_sb.inodestart, v6_sb.bmapstart);
+#endif
+}
+
+void v6_set_super(void)
+{
+    v6_readsb(DEVV6, &v6_sb);
+    info("v6_sb: size %d nblocks %d ninodes %d nlog %d logstart %d\
+ inodestart %d bmapstart %d", v6_sb.size, v6_sb.nblocks, v6_sb.ninodes, v6_sb.nlog, v6_sb.logstart, v6_sb.inodestart, v6_sb.bmapstart);
+    get_rootfs()->super = &v6_sb;
 }
 
 /* onディスクdinodeを割り当てる.
@@ -206,8 +218,9 @@ struct v6_inode *v6_ialloc(struct mount *mp, uint16_t type)
     struct buf *bp;
     struct v6_dinode *dip;
 
-    for (ino = 1; ino < V6SB.ninodes; ino++) {
-        bp = get_block(mp->dev, IBLOCK(ino, V6SB));
+    for (ino = 1; ino < v6_sb.ninodes; ino++) {
+        //bp = get_block(mp->dev, IBLOCK(ino, v6_sb));
+        bp = get_block(mp->dev, IBLOCK(ino));
         dip = (struct v6_dinode *)bp->block + ino % IPB;
         if (dip->type == 0) {   // a free inode
             memset(dip, 0, sizeof(*dip));
@@ -234,7 +247,8 @@ void v6_iupdate(struct v6_inode *ip)
     struct v6_dinode *dip;
     struct vnode *vp = ITOV(ip);
 
-    bp = get_block(vp->rdev, IBLOCK(vp->ino, V6SB));
+    //bp = get_block(vp->rdev, IBLOCK(vp->ino, v6_sb));
+    bp = get_block(vp->rdev, IBLOCK(vp->ino));
     dip = (struct v6_dinode *)(bp->block + vp->ino % IPB);
     dip->nlink = vp->nlink;
     dip->type  = ip->type;
@@ -258,6 +272,7 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
 {
     struct v6_inode *ip, *empty;
     struct vnode *vp;
+    //debug("dev: 0x%x, ino: %d", mp->dev, ino);
 
     acquire(&v6_icache.lock);
     // v6_inodeがキャッシュされているかチェックする
@@ -267,6 +282,7 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
         if (vp->refcount > 0 && vp->rdev == mp->dev && vp->ino == ino) {
             vp->refcount++;
             release(&v6_icache.lock);
+            debug("hit ip->ino: %d", vp->ino);
             return ip;
         }
         if (empty == NULL && vp->refcount == 0)
@@ -277,11 +293,12 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
         error("no v6_inodes");
         return NULL;
     }
-
     // v6_inodeキャッシュエントリをリサイクル.
     ip = empty;
     vfs_init_vnode(&ip->vnode, &v6_vnode_ops, mp, 0, 1, 0, 0, mp->dev, ino, 0, 0, 0, 0);
     ip->valid = 0;
+    ITOV(ip)->data = ip;
+    //v6_dump(ip);
     release(&v6_icache.lock);
 
     return ip;
@@ -310,14 +327,19 @@ void v6_ilock(struct v6_inode *ip)
     struct v6_dinode *dip;
     struct vnode *vp;
 
-    if (ip == 0 || ITOV(ip)->refcount < 1)
+    if (ip == 0 || ITOV(ip)->refcount < 0)
         panic("v6_ilock");
 
+    debug("slock: ino=%d", ITOV(ip)->ino);
     acquiresleep(&ip->lock);
     vp = ITOV(ip);
+
+    // FIXME:
     if (ip->valid == 0) {
-        bp = get_block(vp->rdev, IBLOCK(vp->ino, V6SB));
-        dip = (struct v6_dinode *)bp->block + vp->ino % IPB;
+        //debug("vp->ino: %d, valid: %d", vp->ino, ip->valid);
+        //debug("bno: 0x%x, v6_sb: 0x%x, inostart: 0x%x", IBLOCK(vp->ino), v6_sb, v6_sb.inodestart);
+        bp = get_block(vp->rdev, IBLOCK(vp->ino));
+        dip = (struct v6_dinode *)bp->block + (vp->ino % IPB);
         ip->type  = dip->type;
         vp->nlink = dip->nlink;
         vp->rdev  = dip->rdev;
@@ -326,6 +348,7 @@ void v6_ilock(struct v6_inode *ip)
         vp->uid   = dip->uid;
         vp->gid   = dip->gid;
         memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
+        debug("type: %d, nlink: %d, rdev: 0x%x, size: 0x%x, mode: 0x%x, addrs[0]: 0x%x", ip->type, vp->nlink, vp->rdev, vp->size, vp->mode, ip->addrs[0]);
         put_block(bp);
         release_block(bp, 0);
         ip->valid = 1;
@@ -337,9 +360,10 @@ void v6_ilock(struct v6_inode *ip)
 /* 指定されたv6_inodeのロックを外す. */
 void v6_iunlock(struct v6_inode *ip)
 {
-    if (ip == 0 || !holdingsleep(&ip->lock) || ITOV(ip)->refcount < 1)
+    if (ip == 0 || !holdingsleep(&ip->lock) || ITOV(ip)->refcount < 0)
         panic("iunlock");
 
+    debug("relslock: ino=%d", ITOV(ip)->ino);
     releasesleep(&ip->lock);
 }
 
@@ -353,11 +377,12 @@ void v6_iput(struct v6_inode *ip)
 {
     struct vnode *vp = ITOV(ip);
 
+    debug("slock: ino=%d", ITOV(ip)->ino);
     acquiresleep(&ip->lock);
     if (ip->valid && vp->nlink == 0) {
-        acquire(&v6_icache.lock);
+        //acquire(&v6_icache.lock);
         int r = vp->refcount;
-        release(&v6_icache.lock);
+        //release(&v6_icache.lock);
         if (r == 1) {
             /* v6_inodeはリンクを持たず、参照もないのでデータを
              * 切り詰めて解放する */
@@ -367,11 +392,10 @@ void v6_iput(struct v6_inode *ip)
             ip->valid = 0;
         }
     }
+    debug("relslock: ino=%d", ITOV(ip)->ino);
     releasesleep(&ip->lock);
 
-    acquire(&v6_icache.lock);
-    vp->refcount--;
-    release(&v6_icache.lock);
+    // refcountはローカルではさわらない vfs_release_vnode()で行う
 }
 
 /* よくあるイディオム: unlockしてputする */
@@ -586,8 +610,7 @@ size_t v6_writei(struct v6_inode *ip, char *src, off_t off, size_t n)
 
 /*
  * 指定のディレクトリでディレクトリエントリを探す.
- * 見つかったらそのエントリのバイトオフセットを*poffに
- * セットし、そのv6_inodeを返す。見つからなかった
+ * 見つかったらそのv6_inodeを返す。見つからなかった
  * 場合はNULLを返す。
  */
 struct v6_inode *v6_dirlookup(struct v6_inode *dp, char *name)
@@ -595,11 +618,18 @@ struct v6_inode *v6_dirlookup(struct v6_inode *dp, char *name)
     struct dirent de;
     struct vnode *vp = ITOV(dp);
 
-    if (dp->type != T_DIR)
-        panic("dirlookup not DIR");
+    debug("dp->ino: %d, name: %s", vp->ino, name);
 
-    if ((dir_find_entry_by_name(vp, name, &de)) < 0)
+    if (!S_ISDIR(vp->mode)) {
+        error("dirlookup not DIR: dp->ino: 0x%x, mode: 0x%x, name: %s", vp->ino, vp->mode, name);
+        v6_dump(dp);
         return NULL;
+    }
+
+    if ((dir_find_entry_by_name(vp, name, &de, 0)) < 0) {
+        debug("no entry found by name: %s", name);
+        return NULL;
+    }
 
     return v6_iget(vp->mp, de.ino);
 }
@@ -655,4 +685,25 @@ void sync_v6_inodes(void)
         }
     }
     release(&v6_icache.lock);
+}
+
+void v6_dump(struct v6_inode *inode)
+{
+    struct vnode *vnode = ITOV(inode);
+    cprintf("=== dump vnode: 0x%x ===\n", vnode);
+    cprintf("   ops: 0x%x\n", vnode->ops);
+    cprintf("    mp: 0x%x\n", vnode->mp);
+    cprintf("   ref: 0x%x\n", vnode->refcount);
+    cprintf("  mode: 0x%x\n", vnode->mode);
+    cprintf(" nlink: 0x%x\n", vnode->nlink);
+    cprintf("  bits: 0x%x\n", vnode->bits);
+    cprintf("  rdev: 0x%x\n", vnode->rdev);
+    cprintf("   ino: 0x%x\n", vnode->ino);
+    cprintf("  size: 0x%x\n", vnode->size);
+    cprintf("  data: 0x%x\n", vnode->data);
+    cprintf("inode : 0x%x\n", inode);
+    cprintf(" vnode: 0x%x\n", ITOV(inode));
+    cprintf(" valid: %d\n", inode->valid);
+    cprintf("  type: %d\n", inode->type);
+    cprintf("==========================\n", vnode);
 }

@@ -4,6 +4,8 @@
 #include <param.h>
 #include <linux/stat.h>
 
+struct v6_superblock;
+
 #define BLKSIZE         4096                /* ブロックサイズ */
 #define SECTOR_SIZE     512                 /* セクタサイズ */
 #define BLKSECT         (BLKSIZE / SECTOR_SIZE)   /* ブロックあたりのセクタ数 */
@@ -22,14 +24,18 @@
 /* ブロックあたりのinode数 : Inodes per block */
 #define IPB         (BLKSIZE / sizeof(struct v6_dinode))
 
+#define INOSTART    (2 + LOGSIZE)           /* Boot + Super + Log */
+#define INOBLKS     (NINODE / IPB + 1)
+#define BITSTART    (INOSTART + INOBLKS)
+
 /* inode iが含まれるブロック */
-#define IBLOCK(i, sb)   ((i) / IPB + sb.inodestart)
+#define IBLOCK(i)   ((i) / IPB + INOSTART)
 
 /* ブロックあたりのBitmapビット数 */
 #define BPB         (BLKSIZE*8)
 
 /* ブロック b を記録する未使用マップのあるブロック */
-#define BBLOCK(b, sb) (b/BPB + sb.bmapstart)
+#define BBLOCK(b) (b/BPB + BITSTART)
 
 /* ディレクトリエントリ名の最大サイズ */
 #define DIRSIZ  58
@@ -37,5 +43,7 @@
 #define V6_DIRENTS_PER_BLOCK    (BLKSIZE / DESIZE)
 /* 最大リンク数 */
 #define MAXLINK 100
+
+
 
 #endif

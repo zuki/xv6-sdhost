@@ -15,7 +15,7 @@
 #include <net/net.h>
 #include <config.h>
 
-extern int sd_init(void);
+extern int sd_postinit(void);
 
 extern void trapret();
 extern void swtch(struct context **old, struct context *new);
@@ -45,6 +45,8 @@ proc_init(void)
     list_init(&ptable.sched_que);
     for (int i = 0; i < SQSIZE; i++)
         list_init(&ptable.slpque[i]);
+
+    info("proc_init ok");
 }
 
 // TODO: use kmalloc
@@ -139,19 +141,22 @@ idle_init(void)
     thiscpu()->idle = proc_initx("idle", ispin, (size_t)(eicode - ispin));
 }
 
-// TODO: 12/19はここから
 /* Set up the first user process. */
 void
 user_init(void)
 {
     extern char icode[], eicode[];
+
+    trace("user_init start: icode = 0x%x, size = 0x%x", icode, (size_t)(eicode - icode));
     struct proc *p = proc_initx("icode", icode, (size_t)(eicode - icode));
-    vfs_lookup(NULL, "/", VLOOKUP_NORMAL, 0, &p->cwd);
-    assert(p->cwd);
+    trace("p->pid = %d", p->pid);
+    p->cwd = vfs_clone_vnode(get_rootfs()->root_node);
+    trace("p->cwd->ino = %d", p->cwd->ino);
 
     acquire(&ptable.lock);
     list_push_back(&ptable.sched_que, &p->link);
     release(&ptable.lock);
+    info("user_init ok");
 }
 
 /*
@@ -193,14 +198,16 @@ forkret(void)
 {
     #include <fs/v6/file.h>
 
+    extern device_t root_dev;
+
     static int first = 1;
     if (first && thisproc() != thiscpu()->idle) {
         first = 0;
         release(&ptable.lock);
 
-        sd_init();
-        v6_init();
-        //initlog(ROOTDEV);
+        //v6_init();
+        sd_postinit();
+        v6_set_super();
 #if 1
         usb_init();
         net_init();
@@ -236,6 +243,9 @@ sleep(void *chan, struct spinlock *lk)
 {
     struct proc *p = thisproc();
     int i = HASH(chan);
+    if (p == thiscpu()->idle) {
+        info("[%d] pid=%c, chan=0x%p", cpuid(), p->pid, chan);
+    }
     assert(i < SQSIZE);
     assert(p != thiscpu()->idle);
 
@@ -375,6 +385,7 @@ wait(void)
                 return pid;
             }
         }
+        //info("[%d] pid=%c, chan=0x%p", cpuid(), thisproc()->pid, cp);
         sleep(cp, &ptable.lock);
     }
     release(&ptable.lock);

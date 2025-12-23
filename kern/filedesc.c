@@ -65,8 +65,11 @@ void unset_fd(fd_table_t table, int fd)
 struct vfile *get_vnode(fd_table_t table, struct vnode *vnode)
 {
     for (int i = 0; i < OPEN_MAX; i++) {
-        if (table[i]->vnode == vnode)
+        if (table[i]->vnode == vnode) {
+            debug("hit with %d", i);
             return table[i];
+        }
     }
+    debug("no hit");
     return NULL;
 }

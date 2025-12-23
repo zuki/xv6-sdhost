@@ -8,11 +8,6 @@
 #define DEVMAJOR_CONSOLE    2
 #define DEVMAJOR_TTY        3
 
-#define DEVNUM(major, minor)    ((major) << 8 | (minor & 0xff))
-
-typedef unsigned int major_t;
-typedef unsigned int minor_t;
-
 struct driver {
     int (*init)(void);
     int (*open)(minor_t minor, int mode);

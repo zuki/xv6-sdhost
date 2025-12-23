@@ -61,11 +61,10 @@ void free_vfile(struct vfile *file)
     --file->refcount;
     if (file->refcount < 0) {
         error("double free of file pointer, %x", file);
-    } else if (file->refcount <= 0) {
-        // TODO: これで良いか検討
+    } else if (file->refcount == 0) {
         if (vfs_release_vnode(file->vnode))
             warn("failed release vnode: %d", file->vnode->ino);
         file->vnode = NULL;
     }
-    acquire(&file_table.lock);
+    release(&file_table.lock);
 }

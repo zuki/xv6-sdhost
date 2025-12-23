@@ -78,7 +78,7 @@ int v6_create(struct vnode *vnode, const char *name, mode_t mode, uid_t uid, str
 
 fail:
     // something went wrong. de-allocate ip.
-    v6_release(ITOV(ip));
+    //v6_release(ITOV(ip));
     return err;
 }
 
@@ -96,9 +96,14 @@ int v6_mknod(struct vnode *parent, const char *filename, mode_t mode, device_t d
 int v6_lookup(struct vnode *vnode, const char *filename, struct vnode **result)
 {
     struct v6_inode *ip;
-
+    //debug("vnode->ino: %d, mode: 0x%x, ip->valid: %d, COMP: %s", vnode->ino, vnode->mode, VTOI(vnode)->valid, filename);
+    v6_ilock(VTOI(vnode));
     ip = v6_dirlookup(VTOI(vnode), filename);
     if (ip) {
+        v6_iunlockput(VTOI(vnode));
+        debug("OK: %s, ip->ino: %d", filename, ITOV(ip)->ino);
+        v6_ilock(ip);
+        v6_iunlock(ip);
         if (result)
             *result = ITOV(ip);
         return 0;
@@ -131,6 +136,7 @@ int v6_unlink(struct vnode *parent, struct vnode *vnode, const char *filename)
 {
     struct dirent de, de0;
     int err;
+    off_t offset;
 
     memset(&de0, 0, DESIZE);
 
@@ -139,10 +145,10 @@ int v6_unlink(struct vnode *parent, struct vnode *vnode, const char *filename)
     if (vnode->nlink > 1)
         return -EBUSY;
 
-    if ((err = dir_find_entry_by_inode(parent, vnode->ino, &de)) < 0)
+    if ((err = dir_find_entry_by_inode(parent, vnode->ino, &de, &offset)) < 0)
         return err;
 
-    return v6_write_dirent(parent, &de0, true);
+    return v6_write_dirent(parent, &de0, offset);
 }
 
 int v6_rename(struct vnode *vnode, struct vnode *oldparent, const char *oldname, struct vnode *newparent, const char *newname)
@@ -150,14 +156,15 @@ int v6_rename(struct vnode *vnode, struct vnode *oldparent, const char *oldname,
     struct dirent olddir, newdir;
     struct dirent de;
     int err;
+    off_t oldoff, newoff;
 
-    err = dir_find_entry_by_name(newparent, newname, &newdir);
+    err = dir_find_entry_by_name(newparent, newname, &newdir, &newoff);
     if (err == 0)
         return -EEXIST;
     else if (err != -ENOENT)
         return err;
 
-    err = dir_find_entry_by_name(oldparent, oldname, &olddir);
+    err = dir_find_entry_by_name(oldparent, oldname, &olddir, &oldoff);
     if (err < 0)
         return err;
 
@@ -165,12 +172,12 @@ int v6_rename(struct vnode *vnode, struct vnode *oldparent, const char *oldname,
     de.ino = vnode->ino;
     de.type = mode2v6type(vnode->mode);
     memmove(de.name, newname, DIRSIZ);
-    err = v6_write_dirent(newparent, &de, false);
+    err = v6_write_dirent(newparent, &de, newoff);
     if (err < 0)
         return -ENOSPC;
 
     olddir.ino = 0;
-    return v6_write_dirent(oldparent, &olddir, true);
+    return v6_write_dirent(oldparent, &olddir, oldoff);
 }
 
 int v6_truncate(struct vnode *vnode)
@@ -206,7 +213,7 @@ int v6_release(struct vnode *vnode)
 {
     struct v6_inode *ip = VTOI(vnode);
 
-    if (vnode->ino == 0) {
+    if (vnode->ino == 0 || vnode->refcount == 0) {
         v6_ilock(ip);
         ip->type = 0;
         vnode->nlink = 0;

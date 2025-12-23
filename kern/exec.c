@@ -11,36 +11,38 @@
 #include <memlayout.h>
 #include <syscall.h>
 #include <vfs.h>
+#include <linux/errno.h>
 
 static uint64_t auxv[][2] = { { AT_PAGESZ, PGSIZE } };
 
-int
-execve(const char *path, char *const argv[], char *const envp[])
+int execve(const char *path, char *const argv[], char *const envp[])
 {
-    struct vnode *vnode;
     struct vfile *file;
+    char *s;
     int err;
 
-    char *s;
-    if (fetchstr((uint64_t) path, &s) < 0)
-        return -1;
+    debug("path='%s', argv=0x%p, envp=0x%p", path, argv, envp);
 
     // Save previous page table.
     struct proc *curproc = thisproc();
+
+    if (vfs_access(curproc->cwd, path, X_OK, curproc->uid))
+        return -EPERM;
+
+    if ((err = vfs_open(curproc->cwd, path, O_RDONLY, 0, curproc->uid, &file)) < 0)
+        return err;
+
+    if (!S_ISREG(file->vnode->mode)) {
+        vfs_close(file);
+        return -EISDIR;
+    }
+
     void *oldpgdir = curproc->pgdir, *pgdir = vm_init();
 
     if (pgdir == 0) {
         debug("vm init failed");
         goto bad;
     }
-
-    trace("path='%s', argv=0x%p, envp=0x%p", s, argv, envp);
-
-    if ((err = vfs_lookup(curproc->cwd, path, VLOOKUP_NORMAL, curproc->uid, &vnode)) < 0) {
-        debug("namei bad");
-        goto bad;
-    }
-    file = get_vnode(curproc->fd_table, vnode);
 
     Elf64_Ehdr elf;
     if (vfs_read(file, (char *)&elf, sizeof(elf)) < 0) {
@@ -59,7 +61,7 @@ execve(const char *path, char *const argv[], char *const envp[])
         debug("64 bit program not supported");
         goto bad;
     }
-    trace("check elf header finish");
+    debug("elf header check ok");
 
     int i;
     Elf64_Phdr ph;
@@ -134,7 +136,8 @@ execve(const char *path, char *const argv[], char *const envp[])
               ph.p_vaddr + ph.p_memsz);
     }
 
-    vfs_release_vnode(vnode);
+    vfs_close(file);
+    debug("load file ok");
 
     // Push argument strings, prepare rest of stack in ustack.
     uvm_switch(oldpgdir);
@@ -154,6 +157,7 @@ execve(const char *path, char *const argv[], char *const envp[])
                 goto bad;
         }
     }
+    debug("copy argv ok");
     if (envp) {
         for (; in_user((void *)(envp + envc), sizeof(*envp)) && envp[envc];
              envc++) {
@@ -167,6 +171,7 @@ execve(const char *path, char *const argv[], char *const envp[])
                 goto bad;
         }
     }
+    debug("copy envp ok")
     // Align to 16B. 3 zero terminator of auxv/envp/argv and 1 argc.
     void *newsp =
         (void *)ROUNDDOWN((size_t)sp - sizeof(auxv) -
@@ -179,7 +184,7 @@ execve(const char *path, char *const argv[], char *const envp[])
     uint64_t *newargv = newsp + 8;
     uint64_t *newenvp = (void *)newargv + 8 * (argc + 1);
     uint64_t *newauxv = (void *)newenvp + 8 * (envc + 1);
-    trace("argv: 0x%p, envp: 0x%p, auxv: 0x%p", newargv, newenvp, newauxv);
+    debug("argv: 0x%p, envp: 0x%p, auxv: 0x%p", newargv, newenvp, newauxv);
     memmove(newauxv, auxv, sizeof(auxv));
 
     for (int i = envc - 1; i >= 0; i--) {
@@ -231,14 +236,13 @@ execve(const char *path, char *const argv[], char *const envp[])
 
     uvm_switch(curproc->pgdir);
     vm_free(oldpgdir);
-    trace("finish %s", curproc->name);
+    debug("finish %s", curproc->name);
     return 0;
 
   bad:
+    vfs_close(file);
     if (pgdir)
         vm_free(pgdir);
-    if (vnode)
-        vfs_release_vnode(vnode);
     thisproc()->pgdir = oldpgdir;
     debug("bad");
     return -1;

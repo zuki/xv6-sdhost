@@ -48,6 +48,7 @@ void iappend(uint32_t inum, void *p, int n);
 void make_dirent(uint32_t inum, uint16_t type, uint32_t parent, char *name);
 uint32_t make_dir(uint32_t parent, char *name, uid_t uid, gid_t gid, mode_t mode);
 uint32_t make_file(uint32_t parent, char *name, uid_t uid, gid_t gid, mode_t mode);
+uint32_t make_dev(uint32_t parent, char *name, int major, int minor, uid_t uid, gid_t gid, mode_t mode);
 void copy_file(int start, int argc, char *files[], uint32_t parent, uid_t uid, gid_t gid, mode_t mode);
 
 // convert to little-endian byte order
@@ -92,7 +93,7 @@ int
 main(int argc, char *argv[])
 {
     int i, cc, fd;
-    uint32_t rootino, inum, off, binino;
+    uint32_t rootino, inum, off, binino, devino;
     struct dirent de;
     char buf[BLKSIZE];
     struct dinode din;
@@ -147,6 +148,12 @@ main(int argc, char *argv[])
     // create /bin
     binino = make_dir(rootino, "bin", 0, 0, S_IFDIR|0775);
 
+    // Create /dev
+    devino = make_dir(rootino, "dev", 0, 0, S_IFDIR|0775);
+
+    // Create /dev/tty1
+    make_dev(devino, "tty1", TTYMAJOR, 1, 0, 0, S_IFCHR|0666);
+
     copy_file(2, argc, argv, binino, 0, 0, S_IFREG|0755);
 
     // fix size of root inode dir
@@ -190,8 +197,7 @@ make_dir(uint32_t parent, char *name, uid_t uid, gid_t gid, mode_t mode)
     return inum;
 }
 
-uint32_t
-make_dev(uint32_t parent, char *name, int major, int minor, uid_t uid, gid_t gid, mode_t mode)
+uint32_t make_dev(uint32_t parent, char *name, int major, int minor, uid_t uid, gid_t gid, mode_t mode)
 {
     struct dinode din;
 
@@ -309,6 +315,7 @@ ialloc(uint16_t type, uid_t uid, gid_t gid, mode_t mode)
     bzero(&din, sizeof(din));
     din.type  = xshort(type);
     din.nlink = xshort(1);
+    din.dev   = xint(DEVV6);
     din.size  = xint(0);
     din.mode  = xint(mode);
     din.uid   = xint(uid);

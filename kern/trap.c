@@ -43,6 +43,7 @@ void trap_init()
     extern char vectors[];
     lvbar(vectors);
     lesr(0);
+    info("[%d] trap_init ok", cpuid());
 }
 
 void trap(struct trapframe *tf)

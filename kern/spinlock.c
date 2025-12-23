@@ -20,8 +20,8 @@ void
 release(struct spinlock *lk)
 {
     if (!lk->locked) {
-        error("name: %s", lk->name);
-        panic("release: not locked\n");
+        error("error: %s is not locked", lk->name);
+        return;
     }
     __atomic_clear(&lk->locked, __ATOMIC_RELEASE);
 }

@@ -14,6 +14,7 @@ int v6_init(void);
 int v6_mount(struct mount *mp, device_t dev, struct vnode *parent);
 int v6_unmount(struct mount *mp);
 int v6_sync(struct mount *mp);
+void v6_set_super(void);
 
 /* v6vfileops.c */
 int v6_open(struct vfile *file, int flags);

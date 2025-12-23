@@ -18,8 +18,6 @@
 #define T_FIFO      7   // FIFO
 #define T_UNKNOWN   8
 
-
-
 /* v6ファイルシステムのディスクレイアウト:
  * [ boot block | super block | log | inode blocks | free bit map | data blocks ]
  *
@@ -65,18 +63,20 @@ struct v6_dinode {
 };
 
 /* v6 VFS固有データ */
+#if 0
 struct v6_vfs {
     struct vnode *  root;       /* ルートvnode */
     struct vnode *  devv;       /* ブロックデバイスのvnode */
     struct v6_superblock sb;    /* スーパーブロックを保持するバッファ */
 };
+#endif
 
-#define ITOV(ip)    ((struct vnode *)&(ip)->vnode)
+extern struct v6_superblock v6_sb;
+
+#define ITOV(ip)    ((struct vnode *)ip)
 #define VTOI(vp)    ((struct v6_inode *)(vp)->data)
 #define FTOI(fp)    ((struct v6_inode *)(fp)->vnode->data)
 
-#define V6SB        (v6_vfs.sb)
-#define V6SBP       (&v6_vfs.sb)
 
 /* v6mountops.c */
 extern struct mount_ops v6_mount_ops;
@@ -89,7 +89,8 @@ extern struct vfile_ops v6_file_ops;
 extern struct _v6_icache v6_icache;
 extern struct v6_vfs v6_vfs;
 
-void readsb(device_t dev, struct v6_superblock *sb);
+void v6_readsb(device_t dev, struct v6_superblock *sb);
+void v6_set_super(void);
 void v6_bzero(int dev, int bno);
 uint32_t v6_balloc(uint32_t dev);
 void v6_bfree(device_t dev, uint32_t b);
@@ -111,5 +112,6 @@ int v6_dirlink(struct v6_inode *dp, char *name, uint32_t ino, uint16_t type);
 void sync_v6_inodes(void);
 
 int mode2v6type(mode_t mode);
+void v6_dump(struct v6_inode *inode);
 
 #endif

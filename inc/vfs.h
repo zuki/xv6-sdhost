@@ -166,6 +166,8 @@ struct dirent64 {
 
 int init_vfs(void);
 
+struct mount *get_rootfs(void);
+
 void vfs_mount_iter_start(struct mount_iter *iter);
 struct mount *vfs_mount_iter_next(struct mount_iter *iter);
 int vfs_mount(struct vnode *cwd, const char *path, device_t dev, struct mount_ops *ops, int mountflags, uid_t uid);
@@ -226,12 +228,28 @@ static inline void vfs_init_vnode(
     vnode->rdev = rdev;
     vnode->ino = ino;
     vnode->size = size;
-    vnode->atime.tv_sec = atime->tv_sec;
-    vnode->atime.tv_nsec = atime->tv_nsec;
-    vnode->mtime.tv_sec = mtime->tv_sec;
-    vnode->mtime.tv_nsec = mtime->tv_nsec;
-    vnode->ctime.tv_sec = ctime->tv_sec;
-    vnode->ctime.tv_nsec = ctime->tv_nsec;
+    if (atime) {
+        vnode->atime.tv_sec = atime->tv_sec;
+        vnode->atime.tv_nsec = atime->tv_nsec;
+    } else {
+        vnode->atime.tv_sec = 0;
+        vnode->atime.tv_nsec = 0;
+    }
+    if (mtime) {
+        vnode->mtime.tv_sec = mtime->tv_sec;
+        vnode->mtime.tv_nsec = mtime->tv_nsec;
+    } else {
+        vnode->mtime.tv_sec = 0;
+        vnode->mtime.tv_nsec = 0;
+    }
+    if (ctime) {
+        vnode->ctime.tv_sec = ctime->tv_sec;
+        vnode->ctime.tv_nsec = ctime->tv_nsec;
+    } else {
+        vnode->ctime.tv_sec = 0;
+        vnode->ctime.tv_nsec = 0;
+    }
+
 }
 
 static inline struct vnode *vfs_clone_vnode(struct vnode *vnode)

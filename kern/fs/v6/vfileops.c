@@ -31,7 +31,7 @@ int v6_open(struct vfile *file, int flags)
     return 0;
 }
 
-/* Close file f. (Decrement ref count, close when reaches 0.) */
+/* Close file f. refcountはさわらない */
 int v6_close(struct vfile *file)
 {
     v6_iput(FTOI(file));
@@ -42,6 +42,9 @@ int v6_close(struct vfile *file)
 int v6_read(struct vfile *file, char *buffer, size_t size)
 {
     int r;
+    debug("file: 0x%x,", file);
+    debug("vnode: 0x%x", file->vnode);
+    debug("inode: 0x%x", file->vnode->data);
     struct v6_inode *ip = FTOI(file);
 
     v6_ilock(ip);
