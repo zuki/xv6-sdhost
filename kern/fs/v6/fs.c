@@ -348,6 +348,9 @@ void v6_ilock(struct v6_inode *ip)
         vp->mode  = dip->mode;
         vp->uid   = dip->uid;
         vp->gid   = dip->gid;
+        memmove(&vp->atime, &dip->atime, sizeof(struct timespec));
+        memmove(&vp->mtime, &dip->mtime, sizeof(struct timespec));
+        memmove(&vp->ctime, &dip->ctime, sizeof(struct timespec));
         memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
         trace("type: %d, nlink: %d, rdev: 0x%x, size: 0x%x, mode: 0x%x, addrs[0]: 0x%x", ip->type, vp->nlink, vp->rdev, vp->size, vp->mode, ip->addrs[0]);
         put_block(bp);
