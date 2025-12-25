@@ -308,6 +308,7 @@ int console_preinit(void) {
     irq_enable(IRQ_AUX);
     irq_register(IRQ_AUX, console_intr, 0);
     info("console_preinit ok");
+    return 0;
 }
 
 int console_init(void)
@@ -333,6 +334,8 @@ int console_close(minor_t minor)
 
 int console_read(minor_t minor, char *buffer, off_t offset, size_t size)
 {
+    //char *p = buffer;
+    int count = 0;
     acquire(&channel.lock);
     while (size > 0) {
         while (channel.r == channel.w) {
@@ -353,12 +356,15 @@ int console_read(minor_t minor, char *buffer, off_t offset, size_t size)
         }
         *buffer++ = c;
         --size;
+        ++count;
         if (c == '\n')
             break;
     }
-    release(&channel.lock);
+    //debug("buffer: 0x%x, size: 0x%x, buffer: %s, r: %d, w: %d, e: %d, buffer-p: %d", buffer, size, p, channel.r, channel.w, channel.e, (size_t)(buffer - p));
 
-    return (size_t)buffer - size;
+    release(&channel.lock);
+    //return (int)(buffer - p);
+    return count;
 }
 
 int console_write(minor_t minor, const char *buffer, off_t offset, size_t size)

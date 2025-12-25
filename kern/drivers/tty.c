@@ -87,34 +87,34 @@ int tty_init(void)
     return err;
 }
 
+// minorは1から、devicesは0からなので (minor - 1) を使う
 int tty_open(minor_t minor, int mode)
 {
-    if (minor >= TTY_DEVICE_NUM)
+    if ((minor - 1) >= TTY_DEVICE_NUM)
         return -ENODEV;
-    if (devices[minor].opens++ == 0)
-        return dev_open(devices[minor].rdev, mode | O_NONBLOCK | O_EXCL);
+    if (devices[minor-1].opens++ == 0)
+        return dev_open(devices[minor-1].rdev, mode | O_NONBLOCK | O_EXCL);
     return 0;
 }
 
 int tty_close(minor_t minor)
 {
-    if (minor >= TTY_DEVICE_NUM)
+    if ((minor - 1) >= TTY_DEVICE_NUM)
         return -ENODEV;
-    if (devices[minor].opens == 0)
+    if (devices[minor-1].opens == 0)
         return -EBADF;
-    if (--devices[minor].opens == 0)
-        return dev_close(devices[minor].rdev);
+    if (--(devices[minor-1].opens) == 0)
+        return dev_close(devices[minor-1].rdev);
     return 0;
 }
 
 int tty_read(minor_t minor, char *buffer, off_t offset, size_t size)
 {
     int read;
-    if (minor >= TTY_DEVICE_NUM)
+    if ((minor - 1) >= TTY_DEVICE_NUM)
         return -ENODEV;
 
-    // TODO: 非カノニカルの場合の処理（console_readにtermiosを渡す方法）
-    read = dev_read(devices[minor].rdev, buffer, offset, size);
+    read = dev_read(devices[minor-1].rdev, buffer, offset, size);
     return read;
 }
 
@@ -122,43 +122,43 @@ int tty_write(minor_t minor, const char *buffer, off_t offset, size_t size)
 {
     int written;
 
-    if (minor >= TTY_DEVICE_NUM)
+    if ((minor - 1) >= TTY_DEVICE_NUM)
         return -ENODEV;
 
-    written = dev_write(devices[minor].rdev, buffer, offset, size);
+    written = dev_write(devices[minor-1].rdev, buffer, offset, size);
     return written;
 }
 
 int tty_ioctl(minor_t minor, unsigned int request, void *argp, uid_t uid)
 {
-    if (minor >= TTY_DEVICE_NUM)
+    if ((minor - 1) >= TTY_DEVICE_NUM)
         return -ENODEV;
 
     // TODO: さらにrequestに対応
     switch (request) {
         case TCGETS: {
-            acquire(&devices[minor].lock);
-            memcpy((struct termios *) argp, &devices[minor].tio, sizeof(struct termios));
-            release(&devices[minor].lock);
+            acquire(&devices[minor-1].lock);
+            memcpy((struct termios *) argp, &devices[minor-1].tio, sizeof(struct termios));
+            release(&devices[minor-1].lock);
             return 0;
         }
         case TCSETS: {
-            acquire(&devices[minor].lock);
-            memcpy(&devices[minor].tio, (struct termios *) argp, sizeof(struct termios));
-            release(&devices[minor].lock);
+            acquire(&devices[minor-1].lock);
+            memcpy(&devices[minor-1].tio, (struct termios *) argp, sizeof(struct termios));
+            release(&devices[minor-1].lock);
             return 0;
         }
 
         case TIOCGPGRP: {
-            *((int *) argp) = devices[minor].pgid;
+            *((int *) argp) = devices[minor-1].pgid;
             return 0;
         }
         case TIOCSPGRP: {
-            devices[minor].pgid = *((int *) argp);
+            devices[minor-1].pgid = *((int *) argp);
             return 0;
         }
         default:
-            return dev_ioctl(devices[minor].rdev, request, argp, uid);
+            return dev_ioctl(devices[minor-1].rdev, request, argp, uid);
     }
     return -EINVAL;
 }

@@ -1,15 +1,15 @@
-
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <time.h>
 #include <sys/stat.h>
 
 #include <usr_fs.h>
 
-char *
-fmtname(char *path)
+char *fmtname(char *path)
 {
     static char buf[DIRSIZ + 1];
     char *p;
@@ -18,15 +18,67 @@ fmtname(char *path)
     p++;
 
     // Return blank-padded name.
-    if (strlen(p) >= DIRSIZ)
-        return p;
-    memmove(buf, p, strlen(p));
-    memset(buf + strlen(p), ' ', DIRSIZ - strlen(p));
+    //if (strlen(p) >= DIRSIZ)
+    //    return p;
+    memmove(buf, p, DIRSIZ);
+    buf[DIRSIZ] = 0;
+    //memset(buf + strlen(p), ' ', DIRSIZ - strlen(p));
     return buf;
 }
 
-void
-ls(char *path)
+char * fmttime(time_t time)
+{
+    static char mtime_s[12];
+
+    struct tm *tm = localtime(&time);
+    sprintf(mtime_s, "%2d %2d %02d:%02d",
+        tm->tm_mon + 1, tm->tm_mday,  tm->tm_hour, tm->tm_min);
+    return mtime_s;
+}
+
+char *
+fmtmode(mode_t mode)
+{
+    static char fmod[11];
+
+    if (S_ISDIR(mode)) fmod[0] = 'd';
+    else if (S_ISCHR(mode)) fmod[0] = 'c';
+    else if (S_ISBLK(mode)) fmod[0] = 'b';
+    else if (S_ISFIFO(mode)) fmod[0] = 'f';
+    else if (S_ISLNK(mode)) fmod[0] = 'l';
+    else if (S_ISSOCK(mode)) fmod[0] = 's';
+    else fmod[0] = '-';
+
+    fmod[1] = (S_IRUSR & mode) ? 'r' : '-';
+    fmod[2] = (S_IWUSR & mode) ? 'w' : '-';
+    fmod[3] = (S_IXUSR & mode) ? 'x' : '-';
+    fmod[4] = (S_IRGRP & mode) ? 'r' : '-';
+    fmod[5] = (S_IWGRP & mode) ? 'w' : '-';
+    fmod[6] = (S_IXGRP & mode) ? 'x' : '-';
+    fmod[7] = (S_IROTH & mode) ? 'r' : '-';
+    fmod[8] = (S_IWOTH & mode) ? 'w' : '-';
+    fmod[9] = (S_IXOTH & mode) ? 'x' : '-';
+    if (S_ISUID & mode) fmod[3] = 's';
+    if (S_ISGID & mode) fmod[6] = 's';
+    if (S_ISVTX & mode) fmod[9] = 't';
+    fmod[10] = 0;
+
+    return fmod;
+}
+
+char *
+fmtuser(uid_t uid, gid_t gid)
+{
+    if (uid == 0 && gid == 0)
+        return "root wheel";
+    else if (uid == 1000 && gid == 1000)
+        return "zuki staff";
+    else
+        return "anon anon ";
+}
+
+
+void ls(char *path)
 {
     char buf[512], *p;
     int fd;
@@ -45,8 +97,8 @@ ls(char *path)
     }
 
     if (S_ISREG(st.st_mode)) {
-        printf("%s %x %ld %ld\n", fmtname(path), st.st_mode, st.st_ino,
-               st.st_size);
+        printf("%s %4ld %s %5ld %s %s\n", fmtmode(st.st_mode), st.st_ino,
+               fmtuser(st.st_uid, st.st_gid), st.st_size, fmttime(st.st_mtime), fmtname(path));
     } else if (S_ISDIR(st.st_mode)) {
         if (strlen(path) + 1 + DIRSIZ + 1 > sizeof(buf)) {
             fprintf(stderr, "ls: path too long\n");
@@ -63,8 +115,8 @@ ls(char *path)
                     fprintf(stderr, "ls: cannot stat %s\n", buf);
                     continue;
                 }
-                printf("%s %x %ld %ld\n", fmtname(buf), st.st_mode,
-                       st.st_ino, st.st_size);
+                printf("%s %4ld %s %5ld %s %s\n", fmtmode(st.st_mode),
+                       st.st_ino, fmtuser(st.st_uid, st.st_gid), st.st_size, fmttime(st.st_mtime), fmtname(buf));
             }
         }
     }

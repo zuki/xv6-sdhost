@@ -62,12 +62,13 @@ static int dir_find_entry_by_name(struct vnode *dir,  const char *filename, stru
     struct v6_inode *dp = VTOI(dir);
     struct dirent de0;
     int err;
-
+    trace("dp->ino: %d, filename: '%s'", dir->ino, filename);
     for (int offset = 0; offset < dir->size; offset += DESIZE) {
         err = v6_readi(dp, (char *)&de0, offset, DESIZE);
         if (err < 0 || err != DESIZE) {
             return err;
         }
+        trace("de0.name: '%s'", de0.name);
         if (strncmp(filename, de0.name, DIRSIZ) == 0) {
             if (offp) *offp = offset;
             if (de) memmove(de, &de0, DESIZE);

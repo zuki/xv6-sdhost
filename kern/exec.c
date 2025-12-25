@@ -21,7 +21,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
     char *s;
     int err;
 
-    debug("path='%s', argv=0x%p, envp=0x%p", path, argv, envp);
+    trace("path='%s', argv=0x%p, envp=0x%p", path, argv, envp);
 
     // Save previous page table.
     struct proc *curproc = thisproc();
@@ -40,13 +40,13 @@ int execve(const char *path, char *const argv[], char *const envp[])
     void *oldpgdir = curproc->pgdir, *pgdir = vm_init();
 
     if (pgdir == 0) {
-        debug("vm init failed");
+        trace("vm init failed");
         goto bad;
     }
 
     Elf64_Ehdr elf;
     if (vfs_read(file, (char *)&elf, sizeof(elf)) < 0) {
-        debug("readelf bad");
+        trace("readelf bad");
         goto bad;
     }
 
@@ -54,14 +54,14 @@ int execve(const char *path, char *const argv[], char *const envp[])
          && elf.e_ident[EI_MAG1] == ELFMAG1
          && elf.e_ident[EI_MAG2] == ELFMAG2
          && elf.e_ident[EI_MAG3] == ELFMAG3)) {
-        debug("elf header magic invalid");
+        trace("elf header magic invalid");
         goto bad;
     }
     if (elf.e_ident[EI_CLASS] != ELFCLASS64) {
-        debug("64 bit program not supported");
+        trace("64 bit program not supported");
         goto bad;
     }
-    debug("elf header check ok");
+    trace("elf header check ok");
 
     int i;
     Elf64_Phdr ph;
@@ -74,22 +74,22 @@ int execve(const char *path, char *const argv[], char *const envp[])
 
     for (i = 0; i < elf.e_phnum; i++) {
         if (vfs_read(file, (char *)&ph, sizeof(ph)) < 0) {
-            debug("read bad");
+            trace("read bad");
             goto bad;
         }
 
         if (ph.p_type != PT_LOAD) {
-            // debug("unsupported type 0x%x, skipped\n", ph.p_type);
+            // trace("unsupported type 0x%x, skipped\n", ph.p_type);
             continue;
         }
 
         if (ph.p_memsz < ph.p_filesz) {
-            debug("memsz smaller than filesz");
+            trace("memsz smaller than filesz");
             goto bad;
         }
 
         if (ph.p_vaddr + ph.p_memsz < ph.p_vaddr) {
-            debug("vaddr + memsz overflow");
+            trace("vaddr + memsz overflow");
             goto bad;
         }
 
@@ -97,7 +97,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
             first = 0;
             sz = base = ph.p_vaddr;
             if (base % PGSIZE != 0) {
-                debug("first section should be page aligned!");
+                trace("first section should be page aligned!");
                 goto bad;
             }
         }
@@ -105,7 +105,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         if ((sz =
              uvm_alloc(pgdir, base, stksz, sz,
                        ph.p_vaddr + ph.p_memsz)) == 0) {
-            debug("uvm_alloc bad");
+            trace("uvm_alloc bad");
             goto bad;
         }
 
@@ -113,15 +113,15 @@ int execve(const char *path, char *const argv[], char *const envp[])
 
         offset = file->offset;
         if (vfs_seek(file, ph.p_offset, SEEK_SET) < 0) {
-            debug("failed seek");
+            trace("failed seek");
             goto bad;
         }
         if (vfs_read(file, (char *)ph.p_vaddr, ph.p_filesz) < 0) {
-            debug("read section bad");
+            trace("read section bad");
             goto bad;
         }
         if ((offset = vfs_seek(file, offset, SEEK_SET)) < 0) {
-            debug("failed seek");
+            trace("failed seek");
             goto bad;
         }
 
@@ -137,7 +137,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
     }
 
     vfs_close(file);
-    debug("load file ok");
+    trace("load file ok");
 
     // Push argument strings, prepare rest of stack in ustack.
     uvm_switch(oldpgdir);
@@ -148,7 +148,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         for (; in_user((void *)(argv + argc), sizeof(*argv)) && argv[argc];
              argc++) {
             if ((len = fetchstr((uint64_t) argv[argc], &s)) < 0) {
-                debug("argv fetchstr bad");
+                trace("argv fetchstr bad");
                 goto bad;
             }
             trace("argv[%d] = '%s', len: %d", argc, argv[argc], len);
@@ -157,12 +157,12 @@ int execve(const char *path, char *const argv[], char *const envp[])
                 goto bad;
         }
     }
-    debug("copy argv ok");
+    trace("copy argv ok");
     if (envp) {
         for (; in_user((void *)(envp + envc), sizeof(*envp)) && envp[envc];
              envc++) {
             if ((len = fetchstr((uint64_t) envp[envc], &s)) < 0) {
-                debug("envp fetchstr bad");
+                trace("envp fetchstr bad");
                 goto bad;
             }
             trace("envp[%d] = '%s', len: %d", envc, envp[envc], len);
@@ -171,7 +171,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
                 goto bad;
         }
     }
-    debug("copy envp ok")
+    trace("copy envp ok")
     // Align to 16B. 3 zero terminator of auxv/envp/argv and 1 argc.
     void *newsp =
         (void *)ROUNDDOWN((size_t)sp - sizeof(auxv) -
@@ -184,7 +184,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
     uint64_t *newargv = newsp + 8;
     uint64_t *newenvp = (void *)newargv + 8 * (argc + 1);
     uint64_t *newauxv = (void *)newenvp + 8 * (envc + 1);
-    debug("argv: 0x%p, envp: 0x%p, auxv: 0x%p", newargv, newenvp, newauxv);
+    trace("argv: 0x%p, envp: 0x%p, auxv: 0x%p", newargv, newenvp, newauxv);
     memmove(newauxv, auxv, sizeof(auxv));
 
     for (int i = envc - 1; i >= 0; i--) {
@@ -210,6 +210,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         goto bad;
 
     assert((uint64_t) sp > USERTOP - stksz);
+    trace("proc: base=0x%x, size=0x%x, stack: sp=0x%x, size=0x%x", base, sz, sp, stksz);
 
     // Commit to the user image.
     curproc->pgdir = pgdir;
@@ -232,11 +233,12 @@ int execve(const char *path, char *const argv[], char *const envp[])
     for (last = cur = path; *cur; cur++)
         if (*cur == '/')
             last = cur + 1;
+    trace("p->name: %s", last);
     safestrcpy(curproc->name, last, sizeof(curproc->name));
 
     uvm_switch(curproc->pgdir);
     vm_free(oldpgdir);
-    debug("finish %s", curproc->name);
+    trace("exec %s ok", curproc->name);
     return 0;
 
   bad:
@@ -244,6 +246,6 @@ int execve(const char *path, char *const argv[], char *const envp[])
     if (pgdir)
         vm_free(pgdir);
     thisproc()->pgdir = oldpgdir;
-    debug("bad");
+    trace("bad");
     return -1;
 }

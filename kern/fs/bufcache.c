@@ -9,12 +9,9 @@
 #include <spinlock.h>
 
 #define BC_BLOCK_SIZE       4096
-#define BC_ALLOC_BLOCK()    (slab_cache_alloc(BUFDATA))
-#define BC_FREE_BLOCK(ptr)  (slab_cache_free(BUFDATA, ptr))
-
 #define BLOCKCACHE_MAX      30
-
 #define DMA_MINALIGN        64
+
 static struct slab_cache    *BUFDATA;
 
 static struct queue bufcache;
@@ -126,7 +123,7 @@ static struct buf *_load_block(device_t dev, uint32_t blockno)
     entry->flags |= BCF_ALLOCATED;  // すでにBCF_BUSYがセットされている
     entry->dev = dev;
     entry->blockno = blockno;
-    entry->block = BC_ALLOC_BLOCK();
+    entry->block = (uint8_t *)slab_cache_alloc(BUFDATA);
 
     _read_entry(entry);
 
@@ -158,7 +155,7 @@ static inline struct buf *_find_free_entry()
     if (last->block) {
         // ここでlastがdirtyだったら書き戻す
         _write_entry(last);
-        BC_FREE_BLOCK(last->block);
+        slab_cache_free(BUFDATA, last->block);
         last->block = NULL;
     }
 
@@ -170,7 +167,7 @@ static inline int _read_entry(struct buf *entry)
     //assert(holdingsleep(&entry->lock));
     assert(entry->flags & BCF_BUSY);
 
-    debug("read: dev: 0x%x, buffer: 0x%x, bno: 0x%x, size: 0x%x", entry->dev, entry->block, entry->blockno, BC_BLOCK_SIZE);
+    trace("read: dev: 0x%x, buffer: 0x%x, bno: 0x%x, size: 0x%x", entry->dev, entry->block, entry->blockno, BC_BLOCK_SIZE);
     int size = dev_read(entry->dev, entry->block, entry->blockno, BC_BLOCK_SIZE);
     if (size != BC_BLOCK_SIZE) {
         info("size: %d", size);

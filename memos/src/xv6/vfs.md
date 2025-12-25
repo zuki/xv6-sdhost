@@ -826,3 +826,729 @@ kern/drivers/console.c:264: kernel panic at cpu 3.
 [2]vfs_lookup:  // ここでストール : exec.cは終了、/bin/initの処理に入った模様
                 // おそらく /dev/tty1 のデバイス番号の整合性の問題だと思われる
 ```
+
+## 12月24日
+
+- usrプログラムで/dev/tty1が正しく設定されていなかった
+
+```bash
+[3]execve: path='/bin/init', argv=0x0, envp=0x0
+[3]vfs_lookup: cwd->ino: 1, path: /bin/init, flags: 0x0
+[3]vfs_lookup: LP[1] cur->ino: 1, ref: 3
+[3]v6_ilock: slock: ino=1
+[3]_read_entry: read: dev: 0x101, buffer: 0xbd1080, bno: 0x20, size: 0x1000
+[1]v6_ilock: type: 1, nlink: 1, rdev: 0x101, size: 0x1000, mode: 0x41fd, addrs[0]: 0x28
+[1]v6_dirlookup: dp->ino: 1, name: bin
+[1]_read_entry: read: dev: 0x101, buffer: 0xbd2080, bno: 0x28, size: 0x1000
+[1]v6_iunlock: relslock: ino=1
+[1]v6_iput: slock: ino=1
+[1]v6_iput: relslock: ino=1
+[1]v6_lookup: OK: bin, ip->ino: 2
+[1]v6_ilock: slock: ino=2
+[1]v6_ilock: type: 1, nlink: 1, rdev: 0x101, size: 0x340, mode: 0x41fd, addrs[0]: 0x29
+[1]v6_iunlock: relslock: ino=2
+[1]vfs_lookup: LP[2] cur->ino: 2, ref: 1
+[1]v6_ilock: slock: ino=2
+[1]v6_dirlookup: dp->ino: 2, name: init
+[1]_read_entry: read: dev: 0x101, buffer: 0xbd3080, bno: 0x29, size: 0x1000
+[1]v6_iunlock: relslock: ino=2
+[1]v6_iput: slock: ino=2
+[1]v6_iput: relslock: ino=2
+[1]v6_lookup: OK: init, ip->ino: 6
+[1]v6_ilock: slock: ino=6
+[1]v6_ilock: type: 2, nlink: 1, rdev: 0x101, size: 0x57b0, mode: 0x81ed, addrs[0]: 0x35
+[1]v6_iunlock: relslock: ino=6
+[1]vfs_lookup: LP[3] cur->ino: 6, ref: 1
+[1]vfs_lookup: OK: cur->ino: 6, ref: 1
+[1]vfs_release_vnode: ino: 6, refcount = 1
+[1]v6_release: ino: 6, refcount: 0
+[1]v6_ilock: slock: ino=6
+[1]v6_iunlock: relslock: ino=6
+[1]v6_iput: slock: ino=6
+[1]v6_iput: relslock: ino=6
+[1]vfs_lookup: cwd->ino: 1, path: /bin/init, flags: 0x0
+[1]vfs_lookup: LP[1] cur->ino: 1, ref: 4
+[1]v6_ilock: slock: ino=1
+[1]v6_dirlookup: dp->ino: 1, name: bin
+[1]v6_iget: hit ip->ino: 2
+[1]v6_iunlock: relslock: ino=1
+[1]v6_iput: slock: ino=1
+[1]v6_iput: relslock: ino=1
+[1]v6_lookup: OK: bin, ip->ino: 2
+[1]v6_ilock: slock: ino=2
+[1]v6_iunlock: relslock: ino=2
+[1]vfs_lookup: LP[2] cur->ino: 2, ref: 2
+[1]v6_ilock: slock: ino=2
+[1]v6_dirlookup: dp->ino: 2, name: init
+[1]v6_iunlock: relslock: ino=2
+[1]v6_iput: slock: ino=2
+[1]v6_iput: relslock: ino=2
+[1]v6_lookup: OK: init, ip->ino: 6
+[1]v6_ilock: slock: ino=6
+[1]v6_ilock: type: 2, nlink: 1, rdev: 0x101, size: 0x57b0, mode: 0x81ed, addrs[0]: 0x35
+[1]v6_iunlock: relslock: ino=6
+[1]vfs_lookup: LP[3] cur->ino: 6, ref: 1
+[1]vfs_lookup: OK: cur->ino: 6, ref: 1
+[1]v6_read: file: 0x1c6300,
+[1]v6_read: vnode: 0x1c33b8
+[1]v6_read: inode: 0x1c33b8
+[1]v6_ilock: slock: ino=6
+[1]_read_entry: read: dev: 0x101, buffer: 0xbd4080, bno: 0x35, size: 0x1000
+[1]v6_iunlock: relslock: ino=6
+[1]execve: elf header check ok
+[1]v6_read: file: 0x1c6300,
+[1]v6_read: vnode: 0x1c33b8
+[1]v6_read: inode: 0x1c33b8
+[1]v6_ilock: slock: ino=6
+[1]v6_iunlock: relslock: ino=6
+[1]v6_read: file: 0x1c6300,
+[1]v6_read: vnode: 0x1c33b8
+[1]v6_read: inode: 0x1c33b8
+[1]v6_ilock: slock: ino=6
+[1]_read_entry: read: dev: 0x101, buffer: 0xbd5080, bno: 0x36, size: 0x1000
+[2]_read_entry: read: dev: 0x101, buffer: 0xbd6080, bno: 0x37, size: 0x1000
+[2]_read_entry: read: dev: 0x101, buffer: 0xbd7080, bno: 0x38, size: 0x1000
+[1]v6_iunlock: relslock: ino=6
+[1]v6_read: file: 0x1c6300,
+[1]v6_read: vnode: 0x1c33b8
+[1]v6_read: inode: 0x1c33b8
+[1]v6_ilock: slock: ino=6
+[1]v6_iunlock: relslock: ino=6
+[1]v6_read: file: 0x1c6300,
+[1]v6_read: vnode: 0x1c33b8
+[1]v6_read: inode: 0x1c33b8
+[1]v6_ilock: slock: ino=6
+[1]v6_iunlock: relslock: ino=6
+[1]v6_read: file: 0x1c6300,
+[1]v6_read: vnode: 0x1c33b8
+[1]v6_read: inode: 0x1c33b8
+[1]v6_ilock: slock: ino=6
+[1]v6_iunlock: relslock: ino=6
+[1]v6_iput: slock: ino=6
+[1]v6_iput: relslock: ino=6
+[1]vfs_release_vnode: ino: 6, refcount = 1
+[1]v6_release: ino: 6, refcount: 0
+[1]v6_ilock: slock: ino=6
+[1]v6_iunlock: relslock: ino=6
+[1]v6_iput: slock: ino=6
+[1]v6_iput: relslock: ino=6
+[1]execve: load file ok
+[1]execve: copy argv ok
+[1]execve: copy envp ok
+[1]execve: argv: 0xffffffffffd8, envp: 0xffffffffffe0, auxv: 0xffffffffffe8
+[1]execve: finish init
+[1]sys_openat: dirfd: -100, path: /dev/tty1, flags : 0x20002, mode: 0x0
+[1]sys_openat: vnode->ino: 1
+[1]sys_openat: fd: 0
+[1]sys_openat: vnode->ino: 1, path: /dev/tty1, flags : 0x20002, mode: 0x0
+[1]vfs_lookup: cwd->ino: 1, path: /dev/tty1, flags: 0x0
+[1]vfs_lookup: LP[1] cur->ino: 1, ref: 5
+[1]v6_ilock: slock: ino=1
+[1]v6_dirlookup: dp->ino: 1, name: dev
+[1]v6_iunlock: relslock: ino=1
+[1]v6_iput: slock: ino=1
+[1]v6_iput: relslock: ino=1
+[1]v6_lookup: OK: dev, ip->ino: 3
+[1]v6_ilock: slock: ino=3
+[1]v6_ilock: type: 1, nlink: 1, rdev: 0x101, size: 0xc0, mode: 0x41fd, addrs[0]: 0x2a
+[1]v6_iunlock: relslock: ino=3
+[1]vfs_lookup: LP[2] cur->ino: 3, ref: 1
+[1]v6_ilock: slock: ino=3
+[1]v6_dirlookup: dp->ino: 3, name: tty1
+[1]_read_entry: read: dev: 0x101, buffer: 0xbd8080, bno: 0x2a, size: 0x1000
+[2]v6_iunlock: relslock: ino=3
+[2]v6_iput: slock: ino=3
+[2]v6_iput: relslock: ino=3
+[2]v6_lookup: OK: tty1, ip->ino: 4
+[2]v6_ilock: slock: ino=4
+[2]v6_ilock: type: 3, nlink: 1, rdev: 0x301, size: 0x0, mode: 0x21b6, addrs[0]: 0x0
+[2]v6_iunlock: relslock: ino=4
+[2]vfs_lookup: LP[3] cur->ino: 4, ref: 1
+[2]vfs_lookup: OK: cur->ino: 4, ref: 1
+[2]sys_openat: fd: 0, file->vnode->ino: 4
+init: starting sh
+[1]execve: path='/bin/sh', argv=0x403060, envp=0x403040
+[1]vfs_lookup: cwd->ino: 1, path: /bin/sh, flags: 0x0
+[1]vfs_lookup: LP[1] cur->ino: 1, ref: 7
+[1]v6_ilock: slock: ino=1
+[1]v6_dirlookup: dp->ino: 1, name: bin
+[1]v6_iget: hit ip->ino: 2
+[1]v6_iunlock: relslock: ino=1
+[1]v6_iput: slock: ino=1
+[1]v6_iput: relslock: ino=1
+[1]v6_lookup: OK: bin, ip->ino: 2
+[1]v6_ilock: slock: ino=2
+[1]v6_iunlock: relslock: ino=2
+[1]vfs_lookup: LP[2] cur->ino: 2, ref: 3
+[1]v6_ilock: slock: ino=2
+[1]v6_dirlookup: dp->ino: 2, name: sh
+[1]v6_iunlock: relslock: ino=2
+[1]v6_iput: slock: ino=2
+[1]v6_iput: relslock: ino=2
+[1]v6_lookup: OK: sh, ip->ino: 10
+[1]v6_ilock: slock: ino=10
+[1]v6_ilock: type: 2, nlink: 1, rdev: 0x101, size: 0xd328, mode: 0x81ed, addrs[0]: 0x5e
+[1]v6_iunlock: relslock: ino=10
+[1]vfs_lookup: LP[3] cur->ino: 10, ref: 1
+[1]vfs_lookup: OK: cur->ino: 10, ref: 1
+[1]vfs_release_vnode: ino: 10, refcount = 1
+[1]v6_release: ino: 10, refcount: 0
+[1]v6_ilock: slock: ino=10
+[1]v6_iunlock: relslock: ino=10
+[1]v6_iput: slock: ino=10
+[1]v6_iput: relslock: ino=10
+[1]vfs_lookup: cwd->ino: 1, path: /bin/sh, flags: 0x0
+[1]vfs_lookup: LP[1] cur->ino: 1, ref: 8
+[1]v6_ilock: slock: ino=1
+[1]v6_dirlookup: dp->ino: 1, name: bin
+[1]v6_iget: hit ip->ino: 2
+[1]v6_iunlock: relslock: ino=1
+[1]v6_iput: slock: ino=1
+[1]v6_iput: relslock: ino=1
+[1]v6_lookup: OK: bin, ip->ino: 2
+[1]v6_ilock: slock: ino=2
+[1]v6_iunlock: relslock: ino=2
+[1]vfs_lookup: LP[2] cur->ino: 2, ref: 4
+[1]v6_ilock: slock: ino=2
+[1]v6_dirlookup: dp->ino: 2, name: sh
+[1]v6_iunlock: relslock: ino=2
+[1]v6_iput: slock: ino=2
+[1]v6_iput: relslock: ino=2
+[1]v6_lookup: OK: sh, ip->ino: 10
+[1]v6_ilock: slock: ino=10
+[1]v6_ilock: type: 2, nlink: 1, rdev: 0x101, size: 0xd328, mode: 0x81ed, addrs[0]: 0x5e
+[1]v6_iunlock: relslock: ino=10
+[1]vfs_lookup: LP[3] cur->ino: 10, ref: 1
+[1]vfs_lookup: OK: cur->ino: 10, ref: 1
+[1]v6_read: file: 0x1c6320,
+[1]v6_read: vnode: 0x1c3568
+[1]v6_read: inode: 0x1c3568
+[1]v6_ilock: slock: ino=10
+[1]_read_entry: read: dev: 0x101, buffer: 0xbd9080, bno: 0x5e, size: 0x1000
+[2]v6_iunlock: relslock: ino=10
+[2]execve: elf header check ok
+[2]v6_read: file: 0x1c6320,
+[2]v6_read: vnode: 0x1c3568
+[2]v6_read: inode: 0x1c3568
+[2]v6_ilock: slock: ino=10
+[2]v6_iunlock: relslock: ino=10
+[2]v6_read: file: 0x1c6320,
+[2]v6_read: vnode: 0x1c3568
+[2]v6_read: inode: 0x1c3568
+[2]v6_ilock: slock: ino=10
+[2]_read_entry: read: dev: 0x101, buffer: 0xbda080, bno: 0x5f, size: 0x1000
+[1]_read_entry: read: dev: 0x101, buffer: 0xbdb080, bno: 0x60, size: 0x1000
+[1]_read_entry: read: dev: 0x101, buffer: 0xbdc080, bno: 0x61, size: 0x1000
+[1]_read_entry: read: dev: 0x101, buffer: 0xbdd080, bno: 0x62, size: 0x1000
+[3]_read_entry: read: dev: 0x101, buffer: 0xbde080, bno: 0x63, size: 0x1000
+[1]_read_entry: read: dev: 0x101, buffer: 0xb80080, bno: 0x64, size: 0x1000
+[3]_read_entry: read: dev: 0x101, buffer: 0xb81080, bno: 0x65, size: 0x1000
+[1]_read_entry: read: dev: 0x101, buffer: 0xb82080, bno: 0x66, size: 0x1000
+[1]_read_entry: read: dev: 0x101, buffer: 0xb83080, bno: 0x67, size: 0x1000
+[2]v6_iunlock: relslock: ino=10
+[2]v6_read: file: 0x1c6320,
+[2]v6_read: vnode: 0x1c3568
+[2]v6_read: inode: 0x1c3568
+[2]v6_ilock: slock: ino=10
+[2]v6_iunlock: relslock: ino=10
+[2]v6_read: file: 0x1c6320,
+[2]v6_read: vnode: 0x1c3568
+[2]v6_read: inode: 0x1c3568
+[2]v6_ilock: slock: ino=10
+[2]v6_iunlock: relslock: ino=10
+[2]v6_read: file: 0x1c6320,
+[2]v6_read: vnode: 0x1c3568
+[2]v6_read: inode: 0x1c3568
+[2]v6_ilock: slock: ino=10
+[2]v6_iunlock: relslock: ino=10
+[2]v6_iput: slock: ino=10
+[2]v6_iput: relslock: ino=10
+[2]vfs_release_vnode: ino: 10, refcount = 1
+[2]v6_release: ino: 10, refcount: 0
+[2]v6_ilock: slock: ino=10
+[2]v6_iunlock: relslock: ino=10
+[2]v6_iput: slock: ino=10
+[2]v6_iput: relslock: ino=10
+[2]execve: load file ok
+[2]execve: copy argv ok
+[2]execve: copy envp ok
+[2]execve: argv: 0xffffffffff98, envp: 0xffffffffffa8, auxv: 0xffffffffffc0
+[2]execve: finish sh
+sh: argv[0] = 'sh'
+sh: testenv = 'FROM_INIT'
+[2]sys_openat: dirfd: -100, path: /dev/tty1, flags : 0x20002, mode: 0x0
+[2]sys_openat: vnode->ino: 1
+[2]sys_openat: fd: 3
+[2]sys_openat: vnode->ino: 1, path: /dev/tty1, flags : 0x20002, mode: 0x0
+[2]vfs_lookup: cwd->ino: 1, path: /dev/tty1, flags: 0x0
+[2]vfs_lookup: LP[1] cur->ino: 1, ref: 9
+[2]v6_ilock: slock: ino=1
+[2]v6_dirlookup: dp->ino: 1, name: dev
+[2]v6_iget: hit ip->ino: 3
+[2]v6_iunlock: relslock: ino=1
+[2]v6_iput: slock: ino=1
+[2]v6_iput: relslock: ino=1
+[2]v6_lookup: OK: dev, ip->ino: 3
+[2]v6_ilock: slock: ino=3
+[2]v6_iunlock: relslock: ino=3
+[2]vfs_lookup: LP[2] cur->ino: 3, ref: 2
+[2]v6_ilock: slock: ino=3
+[2]v6_dirlookup: dp->ino: 3, name: tty1
+[2]v6_iunlock: relslock: ino=3
+[2]v6_iput: slock: ino=3
+[2]v6_iput: relslock: ino=3
+[2]v6_lookup: OK: tty1, ip->ino: 4
+[2]v6_ilock: slock: ino=4
+[2]v6_ilock: type: 3, nlink: 1, rdev: 0x301, size: 0x0, mode: 0x21b6, addrs[0]: 0x0
+[2]v6_iunlock: relslock: ino=4
+[2]vfs_lookup: LP[3] cur->ino: 4, ref: 1
+[2]vfs_lookup: OK: cur->ino: 4, ref: 1
+[2]sys_openat: fd: 3, file->vnode->ino: 4
+[2]vfs_release_vnode: ino: 4, refcount = 1
+
+[2]v6_release: ino: 4, refcount: 0
+[2]v6_ilock: slock: ino=4
+[2]_read_entry: read: dev: 0x301, buffer: 0xb84080, bno: 0x20, size: 0x1000
+```
+
+- /dev/tty1が削除対象になっている
+
+```bash
+[3]v6_dirlookup: dp->ino: 3, name: tty1     // /dev で tty1 をlookup
+[3]v6_lookup: OK: tty1, ip->ino: 4          // tty1発見, ino=4
+[3]v6_ilock: slock: ino=4
+[3]v6_ilock: vp->ino: 4, valid: 0, type: 0, mode: 0x0   // ino=4のv6_dinodeを読み込み
+[3]v6_ilock: type: 3, nlink: 1, rdev: 0x301, size: 0x0, mode: 0x21b6, addrs[0]: 0x0
+[3]v6_iunlock: relslock: ino=4
+[3]vfs_lookup: LP[3] cur->ino: 4, ref: 1
+[3]vfs_lookup: OK: cur->ino: 4, ref: 1      // /dev/tty1 のlookup成功, ino=4のrefが1
+[3]sys_openat: fd: 3, file->vnode->ino: 4   // sys_openat()正常終了
+[3]vfs_release_vnode: ino: 4, refcount = 1
+[3]v6_release: ino: 4, refcount: 0
+[3]v6_ilock: slock: ino=4
+[3]v6_ilock: vp->ino: 4, valid: 1, type: 3, mode: 0x21b6
+[3]v6_iupdate: type: 0, mode: 0x21b6, valid: 1
+[3]_read_entry: read: dev: 0x301, buffer: 0xb84080, bno: 0x20, size: 0x1000
+```
+
+- openat()でvfs_lookup()で取得したvnodeをvfs_clone_vnode()してrefをカウントアップ
+
+```bash
+[1]v6_dirlookup: dp->ino: 3, name: tty1
+[1]_read_entry: read: dev: 0x101, buffer: 0xbd8080, bno: 0x2a, size: 0x1000
+[3]v6_iunlock: relslock: ino=3
+[3]v6_iput: slock: ino=3
+[3]v6_iput: relslock: ino=3
+[3]v6_lookup: OK: tty1, ip->ino: 4
+[3]v6_ilock: slock: ino=4
+[3]v6_ilock: vp->ino: 4, valid: 0, type: 0, mode: 0x0
+[3]v6_ilock: type: 3, nlink: 1, rdev: 0x301, size: 0x0, mode: 0x21b6, addrs[0]: 0x0
+[3]v6_iunlock: relslock: ino=4
+[3]vfs_lookup: LP[3] cur->ino: 4, ref: 1
+[3]vfs_lookup: OK: cur->ino: 4, ref: 1
+[3]sys_openat: fd: 0, file->vnode->ino: 4, ref: 2 // ref=2となり、vfs_release_vnode()が呼ばれない
+[3]sys_dup: oldfd: 0
+[3]sys_dup: retrun fd: 1
+[3]sys_dup: oldfd: 0
+[3]sys_dup: retrun fd: 2
+init: starting sh
+$ /bin/ls /bin
+.                                                          41fd 2 832
+..                                                         41fd 1 4096
+cat                                                        81ed 5 38568
+...
+$
+```
+
+- /bin/init -> /bin/sh -> /bin/ls が正常に動いているようだ
+- /bin/ls の出力を現状に合わせる
+
+```bash
+[1]execve: path='/bin/init', argv=0x0, envp=0x0
+[1]vfs_lookup: cwd->ino: 1, path: /bin/init, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 6, ref: 1
+[3]vfs_lookup: cwd->ino: 1, path: /bin/init, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 6, ref: 1
+[1]execve: proc: base=0x400000, size=0x4037b8, stack: sp=0xffffffd0, size=0xa000    # /bin/init
+
+[1]sys_openat: vnode->ino: 1, path: /dev/tty1, flags : 0x20002, mode: 0x0
+[1]vfs_lookup: cwd->ino: 1, path: /dev/tty1, flags: 0x0
+[2]vfs_lookup: OK: cur->ino: 4, ref: 1
+[3]execve: path='/bin/sh', argv=0x403030, envp=0x403010
+[3]vfs_lookup: cwd->ino: 1, path: /bin/sh, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 10, ref: 1
+[3]vfs_lookup: cwd->ino: 1, path: /bin/sh, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 10, ref: 1
+[2]execve: proc: base=0x400000, size=0x40c5a0, stack: sp=0xffffff80, size=0xa000    # /bin/sh
+[2]sys_openat: vnode->ino: 1, path: /dev/tty1, flags : 0x20002, mode: 0x0
+[2]vfs_lookup: cwd->ino: 1, path: /dev/tty1, flags: 0x0
+[2]vfs_lookup: OK: cur->ino: 4, ref: 1
+1 sleep  init           // CNTL-p でプロセス一覧
+2 run    idle
+3 run    idle
+4 run    idle
+5 runble idle
+6 run    rxether
+7 sleep  sh fa: 1
+$ /bin/date
+[3]execve: path='/bin/date', argv=0x409818, envp=0xffffffffff98
+[3]vfs_lookup: cwd->ino: 1, path: /bin/date, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 9, ref: 1
+[3]vfs_lookup: cwd->ino: 1, path: /bin/date, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 9, ref: 1
+[1]execve: proc: base=0x400000, size=0x409728, stack: sp=0xffffff80, size=0xa000    # /bin/date
+2025年12日24日 水曜日 17時44分37秒 JST                          // コマンドは正常に実行しているが
+$ [1]trap: [7] unknown trap code: 36 at 0x403be4 with 0x40d000  // shがこのエラーで再起動
+[1]exit: exit: pid 7, err 1
+[1]execve: path='/bin/sh', argv=0x403030, envp=0x403010
+[1]vfs_lookup: cwd->ino: 1, path: /bin/sh, flags: 0x0
+[1]vfs_lookup: OK: cur->ino: 10, ref: 2
+[1]vfs_lookup: cwd->ino: 1, path: /bin/sh, flags: 0x0
+[1]vfs_lookup: OK: cur->ino: 10, ref: 2
+[1]execve: proc: base=0x400000, size=0x40c5a0, stack: sp=0xffffff80, size=0xa000    # /bin/sh
+
+[1]sys_openat: vnode->ino: 1, path: /dev/tty1, flags : 0x20002, mode: 0x0
+[1]vfs_lookup: cwd->ino: 1, path: /dev/tty1, flags: 0x0
+[1]vfs_lookup: OK: cur->ino: 4, ref: 1
+$ /bin/ls /                                                     // 再起動するが
+[0]execve: path='/bin/ls', argv=0x409818, envp=0xffffffffff98
+[0]vfs_lookup: cwd->ino: 1, path: /bin/ls, flags: 0x0
+[0]vfs_lookup: OK: cur->ino: 12, ref: 1
+[0]vfs_lookup: cwd->ino: 1, path: /bin/ls, flags: 0x0
+[0]vfs_lookup: OK: cur->ino: 12, ref: 1
+[3]release: error: slab is not locked                           // ここでストール(dateコマンドは実行可)
+```
+
+- コマンド実行後につねに`trap: unknown trap code: 36 at 0x403be4 with 0x40d000`が発生し、shが再起動する
+- このtrapは/bin/sh で発生。コマンドから送信でも発生する
+
+```bash
+$ /bin/ls /bin                                                  // OK, ただしunknown trapは発生
+[2]execve: path='/bin/ls', argv=0x409818, envp=0xffffffffff98
+[2]vfs_lookup: cwd->ino: 1, path: /bin/ls, flags: 0x0
+[2]vfs_lookup: OK: cur->ino: 12, ref: 1
+[2]vfs_lookup: cwd->ino: 1, path: /bin/ls, flags: 0x0
+[2]vfs_lookup: OK: cur->ino: 12, ref: 1
+[3]execve: proc: base=0x400000, size=0x40a2d8, stack: sp=0xffffff70, size=0xa000
+[3]sys_openat: vnode->ino: 1, path: /bin, flags : 0x20000, mode: 0x0
+[3]vfs_lookup: cwd->ino: 1, path: /bin, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 2, ref: 7
+[3]vfs_lookup: cwd->ino: 1, path: /bin/., flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 2, ref: 10
+drwxrwxr-x    2 root wheel   832  1  1 09:00 .
+[3]vfs_lookup: cwd->ino: 1, path: /bin/.., flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 1, ref: 16
+drwxrwxr-x    1 root wheel  4096  1  1 09:00 ..
+[3]vfs_lookup: cwd->ino: 1, path: /bin/cat, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 5, ref: 1
+-rwxr-xr-x    5 root wheel 38568  1  1 09:00 cat
+[3]vfs_lookup: cwd->ino: 1, path: /bin/init, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 6, ref: 2
+-rwxr-xr-x    6 root wheel 22400  1  1 09:00 init
+[3]vfs_lookup: cwd->ino: 1, path: /bin/echo, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 7, ref: 1
+-rwxr-xr-x    7 root wheel 39480  1  1 09:00 echo
+[3]vfs_lookup: cwd->ino: 1, path: /bin/ifconfig, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 8, ref: 1
+-rwxr-xr-x    8 root wheel 44184  1  1 09:00 ifconfig
+[3]vfs_lookup: cwd->ino: 1, path: /bin/date, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 9, ref: 1
+-rwxr-xr-x    9 root wheel 49368  1  1 09:00 date
+[3]vfs_lookup: cwd->ino: 1, path: /bin/sh, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 10, ref: 2
+-rwxr-xr-x   10 root wheel 52200  1  1 09:00 sh
+[3]vfs_lookup: cwd->ino: 1, path: /bin/utest, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 11, ref: 1
+-rwxr-xr-x   11 root wheel 17744  1  1 09:00 utest
+[3]vfs_lookup: cwd->ino: 1, path: /bin/ls, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 12, ref: 2
+-rwxr-xr-x   12 root wheel 53064  1  1 09:00 ls
+[3]vfs_lookup: cwd->ino: 1, path: /bin/udpecho, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 13, ref: 1
+-rwxr-xr-x   13 root wheel 39032  1  1 09:00 udpecho
+[3]vfs_lookup: cwd->ino: 1, path: /bin/dns, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 14, ref: 1
+-rwxr-xr-x   14 root wheel 11056  1  1 09:00 dns
+[3]vfs_lookup: cwd->ino: 1, path: /bin/tcpecho, flags: 0x0
+[3]vfs_lookup: OK: cur->ino: 15, ref: 1
+-rwxr-xr-x   15 root wheel 40616  1  1 09:00 tcpecho
+
+$ /bin/ls /                                                     // NG
+[1]execve: path='/bin/ls', argv=0x409818, envp=0xffffffffff98
+[1]vfs_lookup: cwd->ino: 1, path: /bin/ls, flags: 0x0
+[1]vfs_lookup: OK: cur->ino: 12, ref: 1
+[1]vfs_lookup: cwd->ino: 1, path: /bin/ls, flags: 0x0
+[1]vfs_lookup: OK: cur->ino: 12, ref: 1
+[1]execve: proc: base=0x400000, size=0x40a2d8, stack: sp=0xffffff70, size=0xa000
+[1]sys_openat: vnode->ino: 1, path: /, flags : 0x20000, mode: 0x0
+[1]vfs_lookup: cwd->ino: 1, path: /, flags: 0x0
+[1]vfs_lookup: OK: cur->ino: 1, ref: 13
+[1]vfs_lookup: cwd->ino: 1, path: //., flags: 0x0
+ilock: no type
+kern/drivers/console.c:264: kernel panic at cpu 1.
+```
+
+- trapの該当部分
+
+```bash
+0000000000403b70 <memchr>:
+  403b70:   aa0003e3    mov x3, x0
+  403b74:   12001c21    and w1, w1, #0xff
+  403b78:   f240081f    tst x0, #0x7
+  403b7c:   54000120    b.eq    403ba0 <memchr+0x30>  // b.none
+  403b80:   b4000522    cbz x2, 403c24 <memchr+0xb4>
+  403b84:   39400060    ldrb    w0, [x3]
+  403b88:   6b01001f    cmp w0, w1
+  403b8c:   54000380    b.eq    403bfc <memchr+0x8c>  // b.none
+  403b90:   91000463    add x3, x3, #0x1
+  403b94:   d1000442    sub x2, x2, #0x1
+  403b98:   f240087f    tst x3, #0x7
+  403b9c:   54ffff21    b.ne    403b80 <memchr+0x10>  // b.any
+  403ba0:   d2800000    mov x0, #0x0                    // #0
+  403ba4:   b40003e2    cbz x2, 403c20 <memchr+0xb0>
+  403ba8:   39400060    ldrb    w0, [x3]
+  403bac:   6b01001f    cmp w0, w1
+  403bb0:   54000260    b.eq    403bfc <memchr+0x8c>  // b.none
+  403bb4:   93407c25    sxtw    x5, w1
+  403bb8:   b200c3e0    mov x0, #0x101010101010101      // #72340172838076673
+  403bbc:   b207dbe6    mov x6, #0xfefefefefefefefe     // #-72340172838076674
+  403bc0:   f29fdfe6    movk    x6, #0xfeff
+  403bc4:   9b007ca5    mul x5, x5, x0
+  403bc8:   f1001c5f    cmp x2, #0x7
+  403bcc:   540000c8    b.hi    403be4 <memchr+0x74>  // b.pmore
+  403bd0:   1400000b    b   403bfc <memchr+0x8c>
+  403bd4:   d1002042    sub x2, x2, #0x8
+  403bd8:   91002063    add x3, x3, #0x8
+  403bdc:   f1001c5f    cmp x2, #0x7
+  403be0:   54000269    b.ls    403c2c <memchr+0xbc>  // b.plast
+  403be4:   f9400060    ldr x0, [x3]
+  ...
+0000000000403db0 <strnlen>:
+  403db0:   a9be53f3    stp x19, x20, [sp, #-32]!
+  403db4:   aa0003f3    mov x19, x0
+  403db8:   aa0103f4    mov x20, x1
+  403dbc:   aa0103e2    mov x2, x1
+  403dc0:   52800001    mov w1, #0x0                    // #0
+  403dc4:   f9000bfe    str x30, [sp, #16]
+  403dc8:   97ffff6a    bl  403b70 <memchr>
+  ...
+0000000000401ab0 <fgets>:
+  ...
+  401b40:   9400080c    bl  403b70 <memchr>
+
+$ nm sh
+000000000040a3f0 B _end
+
+0x40b000 - 0x40a3f0 = 0xc10 = 3088
+```
+
+## 12月25日
+
+- usr/shを修正(空改行の判定), mallloc1()をmalloc()に変更
+
+```bash
+[3]execve: path='/bin/init', argv=0x0, envp=0x0
+[3]execve: p->name: init
+[3]sys_openat: vnode->ino: 1, path: /dev/tty1, flags : 0x20002, mode: 0x0
+[3]syscall1: proc[7] sys_gettid called
+[1]sys_wait4: [-1] pid: 0, status: 0x0, options: 0x0, rusage: 0x8
+[3]syscall1: proc[7] sys_execve called
+[3]execve: path='/bin/sh', argv=0x403030, envp=0x403010
+[2]execve: p->name: sh
+[2]syscall1: proc[7] sys_gettid called
+[2]syscall1: proc[7] sys_openat called
+[2]sys_openat: vnode->ino: 1, path: /dev/tty1, flags : 0x20002, mode: 0x0
+[2]syscall1: proc[7] sys_close called
+[2]syscall1: proc[7] sys_writev called
+[2]sys_writev: fd 2, iovcnt: 2
+[2]sys_writev: iov[0]: base=409e00, len=0
+[2]sys_writev: iov[1]: base=407d50, len=2
+$ [2]syscall1: proc[7] sys_read called
+/bin/date
+[1]console_read: buffer: 0x409e12, size: 0x3f6, buffer: /bin/date   // console_read
+, r: 10, w: 10, e: 10
+[1]syscall1: proc[7] sys_clone called
+[2]syscall1: proc[8] sys_gettid called
+[1]syscall1: proc[7] sys_wait4 called
+[2]syscall1: proc[8] sys_brk called
+[1]sys_wait4: [-1] pid: 0, status: 0x0, options: 0x0, rusage: 0x8
+[2]sys_brk: [8] name : 0x40a3f0 to 0x0, old p->sz: 0x40a3f0
+[2]syscall1: proc[8] sys_brk called
+[2]sys_brk: [8] name : 0x40a3f0 to 0x40c000, old p->sz: 0x40a3f0
+[2]sys_brk: [8] new p->sz: 0x40c000
+[2]syscall1: proc[8] sys_execve called
+[2]execve: path='/bin/date', argv=0x40b008, envp=0x409ad0
+[3]execve: p->name: date
+[3]syscall1: proc[8] sys_gettid called
+[3]syscall1: proc[8] sys_clock_gettime called
+[3]syscall1: proc[8] sys_ioctl called
+[3]syscall1: proc[8] sys_writev called
+[3]sys_writev: fd 1, iovcnt: 2
+[3]sys_writev: iov[0]: base=409068, len=40
+[3]sys_writev: iov[1]: base=4070cc, len=8
+2025年12日25日 木曜日 11時 9分10秒 JST
+[3]syscall1: proc[8] sys_exit called
+[3]sys_exit_group: [8] sys_exit_group: 'date' exit with code 0
+[3]syscall1: proc[7] sys_writev called
+[3]sys_writev: fd 2, iovcnt: 2
+[3]sys_writev: iov[0]: base=409e00, len=0
+[3]sys_writev: iov[1]: base=407d50, len=2
+$ [3]trap: [7] unknown trap code: 36 at 0x403f64 with 0x40b000
+[3]exit: exit: pid 7, err 1
+[1]syscall1: proc[9] sys_gettid called
+[2]sys_wait4: [-1] pid: 0, status: 0x0, options: 0x0, rusage: 0x8
+[1]syscall1: proc[9] sys_execve called
+[1]execve: path='/bin/sh', argv=0x403030, envp=0x403010
+[1]execve: p->name: sh
+[1]syscall1: proc[9] sys_gettid called
+[1]syscall1: proc[9] sys_openat called
+[1]sys_openat: vnode->ino: 1, path: /dev/tty1, flags : 0x20002, mode: 0x0
+[1]syscall1: proc[9] sys_close called
+[1]syscall1: proc[9] sys_writev called
+[1]sys_writev: fd 2, iovcnt: 2
+[1]sys_writev: iov[0]: base=409e00, len=0
+[1]sys_writev: iov[1]: base=407d50, len=2
+$ [1]syscall1: proc[9] sys_read called
+```
+
+- consoleread()の返り値が間違っていた
+
+```bash
+[0]console_preinit: console_preinit ok
+[0]rand_init: rand_init ok
+[0]proc_init: proc_init ok
+[0]console_init: console_init ok
+[0]tty_init: tty_init ok
+[0]sd_init: sd_init ok
+
+[0]slab_cache_create: create buf.data, size: 4096, alignment: 64
+[0]init_vfs: init_vfs ok
+[0]user_init: user_init ok
+[0]slab_cache_create: create timer_list, size: 40, alignment: 64
+[2]slab_cache_create: create timer_list, size: 40, alignment: 64
+[0]timer_init: [0] timer_init ok
+[3]slab_cache_create: create timer_list, size: 40, alignment: 64
+[0]trap_init: [0] trap_init ok
+[0]main: cpu 0 init finished
+[3]timer_init: [3] timer_init ok
+[0]sdhost_probe: firmware sets clock divider
+[2]timer_init: [2] timer_init ok
+[1]slab_cache_create: create timer_list, size: 40, alignment: 64
+[3]trap_init: [3] trap_init ok
+[1]timer_init: [1] timer_init ok
+[3]main: cpu 3 init finished
+[2]trap_init: [2] trap_init ok
+[1]trap_init: [1] trap_init ok
+[1]main: cpu 1 init finished
+[2]main: cpu 2 init finished
+[0]sdhost_set_ios: ios clock 400000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
+[0]sdhost_finish_command: error detected: CMD 0x4205, HSTS 0x40, EDM 0x10800
+[0]sdhost_finish_command: command 5 timeout
+[0]emmc_card_reset: OCR: 0xff80, 1.8v support: 0, SDHC support: 1
+[0]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
+[0]emmc_card_reset: card CID: 0x27504853, 0x44333247, 0x506c5d21, 0xcc017421
+[0]emmc_card_reset: RCA: 0x5048
+[1]emmc_card_reset: SCR: version 3.0x, bus_widths 0x5
+[1]sdhost_set_ios: ios clock 25000000, pwr 0, bus_width 1, timing 0, vdd 0, drv_type 0
+[1]emmc_card_reset: found valid version 3.0x SD card
+[3]sd_postinit: partition[0]: TYPE: 12, LBA = 0x800, #SECS = 0x20000
+[3]sd_postinit: partition[1]: TYPE: 131, LBA = 0x20800, #SECS = 0x1f800
+[3]sd_postinit: sd_postinit ok
+
+[3]release: error: card is not locked
+[3]v6_set_super: v6_sb: size 1000 nblocks 960 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 39
+[3]slab_cache_create: create usb_dev_desc, size: 18, alignment: 64
+[3]slab_cache_create: create usb_cfg_desc, size: 9, alignment: 64
+[3]slab_cache_create: create usb_if_desc, size: 9, alignment: 64
+[3]slab_cache_create: create usb_ep_desc, size: 18, alignment: 64
+[3]slab_cache_create: create usb_str_desc, size: 2, alignment: 64
+[3]slab_cache_create: create hub_desc, size: 9, alignment: 64
+[3]slab_cache_create: create usb_4byte, size: 4, alignment: 64
+[3]slab_cache_create: create params, size: 16, alignment: 0
+[3]slab_cache_create: create stdata, size: 192, alignment: 64
+[3]slab_cache_create: create periodic, size: 32, alignment: 64
+[3]slab_cache_create: create stdata, size: 24, alignment: 64
+[3]slab_cache_create: create stdata, size: 24, alignment: 64
+[3]slab_cache_create: create urb, size: 72, alignment: 64
+[3]slab_cache_create: create urb, size: 72, alignment: 64
+[2]usb_dev_init: Device ven424-2514, dev9-0-2 found
+[2]usb_function_get_if_name: func name=int9-0-1
+[2]usb_dev_init: Interface int9-0-1 found
+[2]usb_dev_init: Function is not supported
+[2]usb_function_get_if_name: func name=int9-0-2
+[2]usb_dev_init: Interface int9-0-2 found
+[2]usb_dev_factory_get_device: Using device/interface int9-0-2
+[1]usb_dev_init: Device ven424-2514, dev9-0-2 found
+[1]usb_function_get_if_name: func name=int9-0-1
+[1]usb_dev_init: Interface int9-0-1 found
+[1]usb_dev_init: Function is not supported
+[1]usb_function_get_if_name: func name=int9-0-2
+[1]usb_dev_init: Interface int9-0-2 found
+[1]usb_dev_factory_get_device: Using device/interface int9-0-2
+[2]usb_dev_init: Device ven424-7800 found
+[2]usb_dev_factory_get_device: Using device/interface ven424-7800
+[2]lan7800_init_macaddr: MAC address is b8:27:eb:ab:e8:48
+[3]usb_standard_hub_enumerate_ports: Port 1: Device configured
+[2]usb_standard_hub_enumerate_ports: Port 1: Device configured
+[1]dwhc_root_port_init: Device configured
+[1]usb_init: dwhc initialized
+
+[1]net_device_register: dev=net0, type=2 (ETHERNET)
+[1]usb_init: usb_init ok
+[1]net_protocol_register: type=0x0800 (IP)
+[1]net_protocol_register: type=0x0806 (ARP)
+[1]ip_protocol_register: type=1 (ICMP)
+[1]ip_protocol_register: type=17 (UDP)
+[1]ip_protocol_register: type=6 (TCP)
+[1]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.110 dev=net0
+[1]ip_iface_register: registered: dev=net0, unicast=192.168.10.110, netmask=255.255.255.0, broadcast=192.168.10.255
+[1]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.110 dev=net0
+[1]net_init: net_init ok
+[1]net_device_open: dev=net0, state=up
+[2]netrun: running...
+$ /bin/date
+2025年12日25日 木曜日 13時53分19秒 JST
+$ /bin/echo abc
+[1]release: error: slab is not locked       // slab_cache_alloc()とslab_cache_free()の無限ループっぽい
+```
+
+- slab_cache_free()でreleaseするlockが間違っていた
+
+```bash
+$ /bin/date
+2025年12日25日 木曜日 14時19分21秒 JST
+$ /bin/echo abc
+abc
+$ /bin/ls /bin
+drwxrwxr-x    2 root wheel   832  1  1 09:00 .
+drwxrwxr-x    1 root wheel  4096  1  1 09:00 ..
+-rwxr-xr-x    5 root wheel 38568  1  1 09:00 cat
+-rwxr-xr-x    6 root wheel 22400  1  1 09:00 init
+-rwxr-xr-x    7 root wheel 39480  1  1 09:00 echo
+-rwxr-xr-x    8 root wheel 44184  1  1 09:00 ifconfig
+-rwxr-xr-x    9 root wheel 49368  1  1 09:00 date
+-rwxr-xr-x   10 root wheel 54664  1  1 09:00 sh
+-rwxr-xr-x   11 root wheel 17744  1  1 09:00 utest
+-rwxr-xr-x   12 root wheel 53064  1  1 09:00 ls
+-rwxr-xr-x   13 root wheel 39032  1  1 09:00 udpecho
+-rwxr-xr-x   14 root wheel 11056  1  1 09:00 dns
+-rwxr-xr-x   15 root wheel 40616  1  1 09:00 tcpecho
+$ /bin/cat > test.txt
+[2]v6_dirlookup: dirlookup not DIR: dp->ino: 0x10, mode: 0x81ed, name: test.txt
+=== dump vnode: 0x1c1208 ===
+   ops: 0xb61c0
+    mp: 0x1c4f88
+   ref: 0x1
+  mode: 0x81ed
+ nlink: 0x1
+  bits: 0x0
+  rdev: 0x101
+   ino: 0x10
+  size: 0x0
+  data: 0x1c1208
+inode : 0x1c1208
+ vnode: 0x1c1208
+ valid: 1
+  type: 1
+==========================
+```

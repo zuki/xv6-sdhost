@@ -22,7 +22,7 @@ size_t sys_brk(void)
     if (argu64(0, &newsz) < 0)
         return oldsz;
 
-    trace("name %s: 0x%llx to 0x%llx", p->name, oldsz, newsz);
+    trace("[%d] name %s: 0x%llx to 0x%llx, old p->sz: 0x%x", p->pid, p->name, oldsz, newsz, p->sz);
 
     if (newsz == 0)
         return oldsz;
@@ -35,6 +35,7 @@ size_t sys_brk(void)
             return oldsz;
         p->sz = sz;
     }
+    trace("[%d] new p->sz: 0x%x", p->pid, p->sz);
     return p->sz;
 }
 
@@ -87,7 +88,7 @@ long sys_clone(void)
     return fork();
 }
 
-
+// pid_t wait4(pid_t wpid, int *status, int options, struct rusage *rusage);
 long sys_wait4(void)
 {
     int pid, opt;
@@ -98,6 +99,7 @@ long sys_wait4(void)
         argint(2, &opt) < 0 || argu64(3, (uint64_t *) & rusage) < 0)
         return -1;
 
+    trace("[%d] pid: %d, status: 0x%x, options: 0x%x, rusage: 0x%x", pid, wstatus, opt, rusage);
     // FIXME:
     if (pid != -1 || wstatus != 0 || opt != 0 || rusage != 0) {
         warn("unimplemented. pid %d, wstatus 0x%p, opt 0x%x, rusage 0x%p",
@@ -132,13 +134,13 @@ long sys_rt_sigprocmask(void)
 
 // FIXME: exit_group should kill every thread in the current thread group.
 long sys_exit_group(void) {
-    trace("sys_exit_group: '%s' exit with code %d", thisproc()->name, thisproc()->tf->x[0]);
+    trace("[%d] sys_exit_group: '%s' exit with code %d", thisproc()->pid, thisproc()->name, thisproc()->tf->x[0]);
     exit(thisproc()->tf->x[0]);
     return 0;
 }
 
 long sys_exit(void) {
-    trace("sys_exit: '%s' exit with code %d", thisproc()->name, thisproc()->tf->x[0]);
+    trace("[%d] exit '%s' with code %d", thisproc()->pid, thisproc()->name, thisproc()->tf->x[0]);
     exit(thisproc()->tf->x[0]);
     return 0;
 }

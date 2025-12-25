@@ -123,7 +123,7 @@ static void sd_start(void)
         } else {
 #if 0
             size_t bytes = emmc_read(&card, b->data, BSIZE);
-            debug("bytes: %d, b->data: 0x%p", bytes, b->data);
+            trace("bytes: %d, b->data: 0x%p", bytes, b->data);
             assert(bytes == BSIZE);
 #endif
             assert(emmc_read(&card, b->data, BSIZE) == BSIZE);
@@ -182,7 +182,7 @@ int sd_close(minor_t minor)
 
 int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
 {
-    //debug("minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
+    //trace("minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
 
     if (minor > ptnum)
         return -ENXIO;
@@ -193,7 +193,7 @@ int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
         size = ptinfo[minor].nsecs - offset;
 
     uint64_t bno = (fs_lba(minor) + offset * 8) * SECTOR_SIZE;
-    //debug("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+    //trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
     // seekはバイト単位
     emmc_seek(&card, bno);
     for (int count = 0; count < (size / BSIZE); count++) {
@@ -207,7 +207,7 @@ int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
 
 int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size)
 {
-    debug("minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
+    trace("minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
     if (minor > ptnum)
         return -ENXIO;
 
@@ -217,7 +217,7 @@ int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size)
         size = ptinfo[minor].nsecs - offset;
 
    uint64_t bno = (fs_lba(minor) + offset * 8) * SECTOR_SIZE;
-    debug("lba: 0x%x, offset: %d, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+    trace("lba: 0x%x, offset: %d, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
     emmc_seek(&card, bno);
     for (int count = 0; count < (size / BSIZE); count++) {
         if (emmc_write(&card, buffer, BSIZE) != BSIZE)

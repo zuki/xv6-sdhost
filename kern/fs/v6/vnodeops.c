@@ -96,12 +96,12 @@ int v6_mknod(struct vnode *parent, const char *filename, mode_t mode, device_t d
 int v6_lookup(struct vnode *vnode, const char *filename, struct vnode **result)
 {
     struct v6_inode *ip;
-    //debug("vnode->ino: %d, mode: 0x%x, ip->valid: %d, COMP: %s", vnode->ino, vnode->mode, VTOI(vnode)->valid, filename);
+    trace("vnode->ino: %d, mode: 0x%x, ip->valid: %d, COMP: %s", vnode->ino, vnode->mode, VTOI(vnode)->valid, filename);
     v6_ilock(VTOI(vnode));
     ip = v6_dirlookup(VTOI(vnode), filename);
     if (ip) {
         v6_iunlockput(VTOI(vnode));
-        debug("OK: %s, ip->ino: %d", filename, ITOV(ip)->ino);
+        trace("OK: %s, ip->ino: %d", filename, ITOV(ip)->ino);
         v6_ilock(ip);
         v6_iunlock(ip);
         if (result)
@@ -214,8 +214,10 @@ int v6_release(struct vnode *vnode)
     struct v6_inode *ip = VTOI(vnode);
 
     if (vnode->ino == 0 || vnode->refcount == 0) {
+        trace("ino: %d, refcount: %d", vnode->ino, vnode->refcount);
         v6_ilock(ip);
         ip->type = 0;
+        vnode->ino = 0;
         vnode->nlink = 0;
         v6_iupdate(ip);
         v6_iunlockput(ip);

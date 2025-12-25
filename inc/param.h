@@ -6,6 +6,8 @@
 #define DEVFAT          makedev(1, 0)
 #define DEVV6           makedev(1, 1)
 #define DEVCONS         makedev(2, 1)
+#define DEVTTY1         makedev(3, 1)
+#define DEVTTY2         makedev(3, 2)
 
 /* vfs関係 */
 #define FSTYPESIZE      16                  /* ファイルシステムタイプの最大値 */

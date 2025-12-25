@@ -42,9 +42,9 @@ int v6_close(struct vfile *file)
 int v6_read(struct vfile *file, char *buffer, size_t size)
 {
     int r;
-    debug("file: 0x%x,", file);
-    debug("vnode: 0x%x", file->vnode);
-    debug("inode: 0x%x", file->vnode->data);
+    trace("file: 0x%x,", file);
+    trace("vnode: 0x%x", file->vnode);
+    trace("inode: 0x%x", file->vnode->data);
     struct v6_inode *ip = FTOI(file);
 
     v6_ilock(ip);

@@ -33,23 +33,21 @@ long check_fdcwd(char *path, int dirfd, struct vnode **cwd)
     struct vfile *f = NULL;
     struct proc *p = thisproc();
 
-    if (*path != '/') {
-        if (dirfd != AT_FDCWD) {
-            if ((f = get_fd(p->fd_table, dirfd)) == NULL) {
-                error("pid[%d] path: %s (ofile[%d]) is not open", p->pid, path, dirfd);
-                return -EBADF;
-            }
-
-            if (!S_ISDIR(f->vnode->mode)) {
-                error("pid[%d] path: %s, dirfd: %d, mode: 0x%x is not dir", p->pid, path, dirfd, f->vnode->mode);
-                return -ENOTDIR;
-            }
-            if (cwd)
-                *cwd = f->vnode;
-        } else if (dirfd == AT_FDCWD) {
-            if (cwd)
-                *cwd = thisproc()->cwd;
+    if (*path != '/' && dirfd != AT_FDCWD) {
+        if ((f = get_fd(p->fd_table, dirfd)) == NULL) {
+            error("pid[%d] path: %s (ofile[%d]) is not open", p->pid, path, dirfd);
+            return -EBADF;
         }
+
+        if (!S_ISDIR(f->vnode->mode)) {
+            error("pid[%d] path: %s, dirfd: %d, mode: 0x%x is not dir", p->pid, path, dirfd, f->vnode->mode);
+            return -ENOTDIR;
+        }
+        if (cwd)
+            *cwd = f->vnode;
+    } else {
+        if (cwd)
+            *cwd = thisproc()->cwd;
     }
 
     return 0;
@@ -66,10 +64,14 @@ long sys_dup(void)
 
     if ((error = argfd(0, 0, &f)) < 0)
         return error;
+
+    trace("oldfd: %d", fd);
+
     if ((fd = find_unused_fd(p->fd_table, 0)) < 0)
         return fd;
 
     set_fd(p->fd_table, fd, f);
+    trace("retrun fd: %d", fd);
     return fd;
 }
 
@@ -90,6 +92,8 @@ long sys_dup3(void)
 
     if (fd1 == fd2) return fd1;
 
+
+
     if ((fd2 = find_unused_fd(p->fd_table, fd2)) < 0)
         return fd2;
 
@@ -97,24 +101,26 @@ long sys_dup3(void)
         bit_add(p->fdflag, fd2);
 
     dup_fd(p->fd_table, fd2, f1);
-
+    trace("retrun fd: %d", fd2);
     return fd2;
 }
 
 /* ssize_t read(int fd, void *buf, size_t count); */
 ssize_t sys_read(void)
 {
+    int fd;
     struct vfile *f;
     size_t count;
     char *buf;
     long error;
 
-    if ((error = argfd(0, 0, &f)) < 0)
+    if ((error = argfd(0, &fd, &f)) < 0)
         return error;
     if ((argu64(2, (uint64_t *)&count)) < 0)
         return error;
     if ((error = argptr(1, (void **)&buf, count)) < 0)
         return error;
+    trace("fd: %d, buf: 0x%x, count: 0x%x", fd, buf, count);
     return vfs_read(f, buf, count);
 }
 
@@ -160,8 +166,10 @@ ssize_t sys_writev(void)
 
     int tot = 0;
     for (p = iov; p < iov + iovcnt; p++) {
-        if (!in_user(p->iov_base, p->iov_len))
+        if (!in_user(p->iov_base, p->iov_len)) {
+            error("iov_base: 0x%x, len: 0x%x not in user", p->iov_base, p->iov_len)
             return -EFAULT;
+        }
         tot += vfs_write(f, p->iov_base, p->iov_len);
     }
     return tot;
@@ -413,16 +421,27 @@ long sys_openat(void)
     if ((error = argint(2, &flags)) < 0) return error;
     if ((error = argint(3, (int *)&mode)) < 0) return error;
 
+    trace("dirfd: %d, path: %s, flags : 0x%x, mode: 0x%x", dirfd, path, flags, mode);
     if ((error = check_fdcwd(path, dirfd, &vnode)) < 0) return error;
-
+    trace("vnode->ino: %d", vnode->ino);
     fd = find_unused_fd(thisproc()->fd_table, 0);
-    mode = (mode & ~(thisproc()->umask)) & 0777;
-    if ((error = vfs_open(vnode, path, flags, mode, thisproc()->uid, &file)) < 0)
+    trace("fd: %d", fd);
+
+    if (mode)
+        mode = (mode & ~(thisproc()->umask)) & 0777;
+
+    trace("vnode->ino: %d, path: %s, flags : 0x%x, mode: 0x%x", vnode->ino, path, flags, mode);
+
+    if ((error = vfs_open(vnode, path, flags, mode, thisproc()->uid, &file)) < 0) {
+        error("vfs_open %s error: %d", path, error);
         return error;
+    }
 
     set_fd(thisproc()->fd_table, fd, file);
     if (flags & O_CLOEXEC)
         bit_add(thisproc()->fdflag, fd);
+
+    trace("fd: %d, file->vnode->ino: %d, ref: %d", fd, file->vnode->ino, file->vnode->refcount);
     return fd;
 }
 
@@ -465,6 +484,8 @@ long sys_mknodat(void)
     if ((error = argu64(3, &dev)) < 0) return error;
     if ((error = check_fdcwd(path, dirfd, &cwd)) < 0) return error;
 
+    trace("cwd->ino: %d, path: %s, mode: 0x%x, dev: 0x%x", cwd->ino, path, mode, dev);
+
     if ((error = vfs_mknod(cwd, path, mode, (device_t)dev, thisproc()->uid, &vnode)) < 0)
         return error;
 
@@ -481,7 +502,7 @@ long sys_chdir(void)
     long error;
 
     if ((error = argstr(0, &path)) < 0) return error;
-
+    debug("path: %s", path);
     if ((error = vfs_lookup(p->cwd, path, VLOOKUP_NORMAL, p->uid, &vnode)) < 0)
         return error;
 
@@ -489,6 +510,7 @@ long sys_chdir(void)
         return -ENOTDIR;
 
     p->cwd = vfs_clone_vnode(vnode);
+    debug("p->cwd: %d, vnode: %d", p->cwd->ino, vnode->ino);
     return 0;
 }
 
@@ -503,7 +525,6 @@ long sys_execve(void)
     if ((error = argu64(1, (uint64_t *)&argv)) < 0) return error;
     if ((error = argu64(2, (uint64_t *)&envp)) < 0) return error;
 
-    // TODO: execve()の書き換え
     return execve(filename, argv, envp);
 }
 

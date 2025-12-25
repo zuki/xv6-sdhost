@@ -172,7 +172,7 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
     struct mount *mp;
     struct vnode *cur;
     char component[VFS_FILENAME_MAX];
-    debug("cwd->ino: %d, path: %s, flags: 0x%x", cwd->ino, path, flags);
+    trace("cwd->ino: %d, path: %s, flags: 0x%x", cwd->ino, path, flags);
     if (!result)
         return -EINVAL;
 
@@ -185,7 +185,7 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
     vfs_clone_vnode(cur);
     while (1) {
         k++;
-        debug("LP[%d] cur->ino: %d, ref: %d", k, cur->ino, cur->refcount);
+        trace("LP[%d] cur->ino: %d, ref: %d", k, cur->ino, cur->refcount);
         /* curにファイルシステムがマウントされている場合、curを
          * マウントされたファイルシステムのルートノードに置き換える */
         if (cur->bits & VBF_MOUNTED) {
@@ -194,12 +194,12 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
             if (!mp)
                 return -ENXIO;
             cur = vfs_clone_vnode(mp->root_node);
-            debug("CHG: cur->ino: %d, ref: %d", cur->ino, cur->refcount);
+            trace("CHG: cur->ino: %d, ref: %d", cur->ino, cur->refcount);
         }
 
         // pathの終端にきたら、resultにvnodeをセットして成功で復帰
         if (path[i] == '\0') {
-            debug("OK: cur->ino: %d, ref: %d", cur->ino, cur->refcount);
+            trace("OK: cur->ino: %d, ref: %d", cur->ino, cur->refcount);
             *result = cur;
             return 0;
         }
@@ -224,7 +224,7 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
             i += 1;
         /* componentをNULL終端する */
         component[j] = '\0';
-        //debug("COMP[%d]: %s", k, component);
+        //trace("COMP[%d]: %s", k, component);
         if (j >= VFS_FILENAME_MAX) {
             vfs_release_vnode(cur);
             error("componet too long");
@@ -233,9 +233,9 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
 
         // 最後のコンポーネントの手前で停止する必要がある場合、検索を
         // スキップし、ループの先頭に戻って終了する(curは一つ前のvnode)
-        //debug("FLG (%s), path[i]: '%c'", flags ? "PARENT" : "SELF", path[i]);
+        //trace("FLG (%s), path[i]: '%c'", flags ? "PARENT" : "SELF", path[i]);
         if ((flags & VLOOKUP_PARENT_OF) && path[i] == '\0') {
-            debug("find parent and stop");
+            trace("find parent and stop");
             continue;
         }
 
@@ -663,6 +663,9 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
         }
     }
 
+    // これから使用するvnodega削除されないようclone
+    vfs_clone_vnode(vnode);
+
     // 処理を進める前にパーミッションをチェックする
     if ((flags & O_ACCMODE) != O_WRONLY)
         required_mode |= R_OK;
@@ -745,7 +748,7 @@ int vfs_getdents(struct vfile *file, void *buffer, size_t size)
 int vfs_release_vnode(struct vnode *vnode)
 {
     if (!vnode) return 0;
-    debug("refcount = %d", vnode->refcount);
+    trace("ino: %d, refcount = %d", vnode->ino, vnode->refcount);
     vnode->refcount--;
     if (vnode->refcount < 0) {
         error("double free of vnode, %x", vnode);

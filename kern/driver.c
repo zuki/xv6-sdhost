@@ -6,6 +6,7 @@
 
 #define MAX_DRIVERS     6
 
+// [0] = NULL, [1] = sd, [2] = console, [3] = tty
 static struct driver *drv_table[MAX_DRIVERS];
 
 int register_driver(major_t major, struct driver *driver)
@@ -14,7 +15,7 @@ int register_driver(major_t major, struct driver *driver)
         return -1;
 
     drv_table[major] = driver;
-    debug("drv_table[%d] = 0x%x", major, driver);
+    trace("drv_table[%d] = 0x%x", major, driver);
     return 0;
 }
 

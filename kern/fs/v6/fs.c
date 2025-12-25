@@ -247,20 +247,22 @@ void v6_iupdate(struct v6_inode *ip)
     struct v6_dinode *dip;
     struct vnode *vp = ITOV(ip);
 
-    //bp = get_block(vp->rdev, IBLOCK(vp->ino, v6_sb));
-    bp = get_block(vp->rdev, IBLOCK(vp->ino));
-    dip = (struct v6_dinode *)(bp->block + vp->ino % IPB);
-    dip->nlink = vp->nlink;
-    dip->type  = ip->type;
-    dip->rdev  = vp->rdev;
-    dip->size  = vp->size;
-    dip->mode  = vp->mode;
-    dip->uid   = vp->uid;
-    dip->gid   = vp->gid;
+    trace("type: %d, mode: 0x%x, valid: %d", ip->type, vp->mode, ip->valid);
+    if ((!S_ISBLK(vp->mode) && !S_ISCHR(vp->mode)) || ip->valid == 0) {
+        bp = get_block(vp->rdev, IBLOCK(vp->ino));
+        dip = (struct v6_dinode *)(bp->block + vp->ino % IPB);
+        dip->nlink = vp->nlink;
+        dip->type  = ip->type;
+        dip->rdev  = vp->rdev;
+        dip->size  = vp->size;
+        dip->mode  = vp->mode;
+        dip->uid   = vp->uid;
+        dip->gid   = vp->gid;
 
-    memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
-    put_block(bp);
-    release_block(bp, 0);
+        memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
+        put_block(bp);
+        release_block(bp, 0);
+    }
 }
 
 /*
@@ -272,7 +274,7 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
 {
     struct v6_inode *ip, *empty;
     struct vnode *vp;
-    //debug("dev: 0x%x, ino: %d", mp->dev, ino);
+    //trace("dev: 0x%x, ino: %d", mp->dev, ino);
 
     acquire(&v6_icache.lock);
     // v6_inodeがキャッシュされているかチェックする
@@ -282,7 +284,7 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
         if (vp->refcount > 0 && vp->rdev == mp->dev && vp->ino == ino) {
             vp->refcount++;
             release(&v6_icache.lock);
-            debug("hit ip->ino: %d", vp->ino);
+            trace("hit ip->ino: %d", vp->ino);
             return ip;
         }
         if (empty == NULL && vp->refcount == 0)
@@ -330,14 +332,13 @@ void v6_ilock(struct v6_inode *ip)
     if (ip == 0 || ITOV(ip)->refcount < 0)
         panic("v6_ilock");
 
-    debug("slock: ino=%d", ITOV(ip)->ino);
+    trace("slock: ino=%d", ITOV(ip)->ino);
     acquiresleep(&ip->lock);
     vp = ITOV(ip);
+    trace("vp->ino: %d, valid: %d, type: %d, mode: 0x%x", vp->ino, ip->valid, ip->type, vp->mode);
 
-    // FIXME:
     if (ip->valid == 0) {
-        //debug("vp->ino: %d, valid: %d", vp->ino, ip->valid);
-        //debug("bno: 0x%x, v6_sb: 0x%x, inostart: 0x%x", IBLOCK(vp->ino), v6_sb, v6_sb.inodestart);
+        //trace("bno: 0x%x, v6_sb: 0x%x, inostart: 0x%x", IBLOCK(vp->ino), v6_sb, v6_sb.inodestart);
         bp = get_block(vp->rdev, IBLOCK(vp->ino));
         dip = (struct v6_dinode *)bp->block + (vp->ino % IPB);
         ip->type  = dip->type;
@@ -348,7 +349,7 @@ void v6_ilock(struct v6_inode *ip)
         vp->uid   = dip->uid;
         vp->gid   = dip->gid;
         memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
-        debug("type: %d, nlink: %d, rdev: 0x%x, size: 0x%x, mode: 0x%x, addrs[0]: 0x%x", ip->type, vp->nlink, vp->rdev, vp->size, vp->mode, ip->addrs[0]);
+        trace("type: %d, nlink: %d, rdev: 0x%x, size: 0x%x, mode: 0x%x, addrs[0]: 0x%x", ip->type, vp->nlink, vp->rdev, vp->size, vp->mode, ip->addrs[0]);
         put_block(bp);
         release_block(bp, 0);
         ip->valid = 1;
@@ -363,7 +364,7 @@ void v6_iunlock(struct v6_inode *ip)
     if (ip == 0 || !holdingsleep(&ip->lock) || ITOV(ip)->refcount < 0)
         panic("iunlock");
 
-    debug("relslock: ino=%d", ITOV(ip)->ino);
+    trace("relslock: ino=%d", ITOV(ip)->ino);
     releasesleep(&ip->lock);
 }
 
@@ -377,7 +378,7 @@ void v6_iput(struct v6_inode *ip)
 {
     struct vnode *vp = ITOV(ip);
 
-    debug("slock: ino=%d", ITOV(ip)->ino);
+    trace("slock: ino=%d", ITOV(ip)->ino);
     acquiresleep(&ip->lock);
     if (ip->valid && vp->nlink == 0) {
         //acquire(&v6_icache.lock);
@@ -392,7 +393,7 @@ void v6_iput(struct v6_inode *ip)
             ip->valid = 0;
         }
     }
-    debug("relslock: ino=%d", ITOV(ip)->ino);
+    trace("relslock: ino=%d", ITOV(ip)->ino);
     releasesleep(&ip->lock);
 
     // refcountはローカルではさわらない vfs_release_vnode()で行う
@@ -618,7 +619,7 @@ struct v6_inode *v6_dirlookup(struct v6_inode *dp, char *name)
     struct dirent de;
     struct vnode *vp = ITOV(dp);
 
-    debug("dp->ino: %d, name: %s", vp->ino, name);
+    trace("dp->ino: %d, name: %s", vp->ino, name);
 
     if (!S_ISDIR(vp->mode)) {
         error("dirlookup not DIR: dp->ino: 0x%x, mode: 0x%x, name: %s", vp->ino, vp->mode, name);
@@ -627,7 +628,7 @@ struct v6_inode *v6_dirlookup(struct v6_inode *dp, char *name)
     }
 
     if ((dir_find_entry_by_name(vp, name, &de, 0)) < 0) {
-        debug("no entry found by name: %s", name);
+        trace("no entry found by name: %s", name);
         return NULL;
     }
 

@@ -76,7 +76,7 @@ void trap(struct trapframe *tf)
         break;
 
     default:
-        info("unknown trap code: %d at 0x%llx with 0x%llx", ec, elr, far);
+        error("[%d] unknown trap code: %d at 0x%llx with 0x%llx", thisproc()->pid, ec, elr, far);
         exit(1);
     }
     softintr();

@@ -316,7 +316,7 @@ __attribute__((unused)) static char *syscall_names[] = {
     [SYS_fdatasync] = "sys_fdatasync",            // 83
     [SYS_utimensat] = "sys_utimensat",            // 88
     [SYS_exit] = "sys_exit",                      // 93
-    [SYS_exit_group] = "sys_exit",                // 94
+    [SYS_exit_group] = "sys_exit_group",          // 94
     [SYS_set_tid_address] = "sys_gettid",         // 96
     [SYS_nanosleep] = "sys_nanosleep",            // 101
     [SYS_getitimer] = "sys_getitimer",            // 102
@@ -387,7 +387,7 @@ long syscall1(struct trapframe *tf)
     int sysno = tf->x[8];
 
     if (sysno > 0 && sysno < ARRAY_SIZE(syscalls) && syscalls[sysno]) {
-        if (sysno != SYS_sched_yield && thisproc()->pid >= 7)
+        if (sysno != SYS_sched_yield && sysno != SYS_rt_sigprocmask && thisproc()->pid >= 7)
             trace("proc[%d] %s called", thisproc()->pid, syscall_names[sysno]);
         return syscalls[sysno]();
     } else {

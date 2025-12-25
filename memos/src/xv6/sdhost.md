@@ -3,7 +3,7 @@
 ```bash
 Welcome to minicom 2.8
 
-OPTIONS: 
+OPTIONS:
 Compiled on Jan  4 2021, 00:04:46.
 Port /dev/cu.usbserial-AI057C9L, 10:30:57
 Using character set conversion
@@ -14,8 +14,8 @@ Press Meta-Z for help on special keys
 [0]main: cpu 0 init finished
 [3]main: cpu 3 init finished
 [0]sdhost_probe: firmware sets clock divider
-[2]main: cpu 2 init finished                                          
-[1]main: cpu 1 init finished                                          
+[2]main: cpu 2 init finished
+[1]main: cpu 1 init finished
 [0]sdhost_set_ios: ios clock 400000, pwr 0, bus_width 0, timing 0, vdd 0, drv_type 0
 [0]sdhost_finish_command: error detected: CMD 0x4205, HSTS 0x40, EDM 0x10800
 [0]sdhost_finish_command: command 5 timeout
@@ -47,42 +47,42 @@ abc
 $ echo abc > test.txt
 $ cat test.txt
 abc
-$ 
+$
 ```
 
 ## ファイル修正
 
 ```bash
-$ git diff inc/sdhost.h 
+$ git diff inc/sdhost.h
 diff --git a/inc/sdhost.h b/inc/sdhost.h
 index 87f6903..558fff9 100644
 --- a/inc/sdhost.h
 +++ b/inc/sdhost.h
 @@ -5,7 +5,7 @@
- 
+
  #if RASPI == 3
  // FIXME: Use sdhost and reserve sdhci for wifi.
 -// #define USE_SDHOST
 +#define USE_SDHOST
  #endif
- 
+
  struct sg_mapping_iter
 
 $ git diff kern/emmc.c
 @@ -486,6 +486,7 @@ emmc_intr(struct emmc *self)
  #endif
  }
- 
+
 +#ifndef USE_SDHOST
  void
  emmc_clear_interrupt()
  {
 @@ -493,6 +494,7 @@ emmc_clear_interrupt()
-     debug("irpts: 0x%x", irpts);
+     trace("irpts: 0x%x", irpts);
      put32(EMMC_INTERRUPT, irpts);
  }
 +#endif
- 
+
  int
  emmc_init(struct emmc *self, void (*sleep_fn)(void *), void *sleep_arg)
 ```

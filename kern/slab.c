@@ -182,7 +182,7 @@ void slab_cache_init(void) {
 struct slab_cache *slab_cache_create(const char *name, size_t size, uint32_t alignment) {
     int i;
     struct slab_cache *cache;
-
+    trace("create %s, size: %d, alignment: %d", name, size, alignment);
     /* 1. 引数をチェックする */
     if (!size) {
         return NULL;
@@ -192,10 +192,12 @@ struct slab_cache *slab_cache_create(const char *name, size_t size, uint32_t ali
     }
 
     /* 2. slab lockをacquire */
+    trace("[195] lock slab");
     acquire(&slab_lock);
     /* 3. 新規スラブキャッシュを割り当てる */
     cache = slab_cache_new();
     /* 4. slab lock をrelease*/
+    trace("[200] release slab");
     release(&slab_lock);
 
     /* 5. 名前とオブジェクトサイズを設定する */
@@ -231,7 +233,9 @@ struct slab_cache *slab_cache_create(const char *name, size_t size, uint32_t ali
 void slab_cache_destroy(struct slab_cache *cache) {
     struct slab_header *header, *next_header;
 
+    trace("cache name: %s", cache->name);
     /* 1. lockをかける */
+    trace("[237] lock slab");
     acquire(&slab_lock);
 
     /* 2. このキャッシュの完全使用済みスラブを解放する */
@@ -252,6 +256,7 @@ void slab_cache_destroy(struct slab_cache *cache) {
     slab_cache_delete(cache);
 
     /* 4. lockを解除 */
+    trace("[258] release slab");
     release(&slab_lock);
 }
 
@@ -266,7 +271,10 @@ void *slab_cache_alloc(struct slab_cache *cache) {
     struct slab_header *header;
     uint32_t index = 0, next_index, *free_list = 0;
 
+    trace("cache name: %s", cache->name);
+
     /* 1. lockを取得する */
+    trace("[274] lock cache");
     acquire(&cache->lock);
 
     /* 2. 一部割り当て済みリストから割り当てる */
@@ -300,6 +308,7 @@ void *slab_cache_alloc(struct slab_cache *cache) {
     }
 
     /* 6. lockを開放する */
+    trace("[308] release cache");
     release(&cache->lock);
 
     /* 7. 割り当てたオブジェクトを返す */
@@ -320,6 +329,8 @@ void *slab_cache_alloc(struct slab_cache *cache) {
 void slab_cache_free(struct slab_cache *cache, void *obj) {
     uint32_t index, next_index, *free_list;
 
+    trace("cache: %s", cache->name, obj);
+
     // FIXME: 実際に使用した場合にこれで問題ないか確認すること
     // obj: 0xffff00000108d080, START: 0xffff000000660000
     // TODO: page_find_by_address()でobj - PAGE_STARTをしているので2重
@@ -330,6 +341,7 @@ void slab_cache_free(struct slab_cache *cache, void *obj) {
     trace("header: 0x%p", header);
     //debugdump(header, sizeof(*header), "SLAB cache header");
     /* 1. lockを取得する */
+    trace("[339] lock: cache");
     acquire(&cache->lock);
 
     /* 2. free_listを求める */
@@ -356,7 +368,8 @@ void slab_cache_free(struct slab_cache *cache, void *obj) {
                 h->next = cache->slabs_partial;
                 cache->slabs_partial = h;
                 /* lockを開放する */
-                release(&slab_lock);
+                trace("[366] release: slab");
+                release(&cache->lock);
                 /* 処理終了 */
                 return;
             }
@@ -369,5 +382,6 @@ void slab_cache_free(struct slab_cache *cache, void *obj) {
     }
 
     /* 7. lockを開放する */
+    trace("[380] release: cache");
     release(&cache->lock);
 }

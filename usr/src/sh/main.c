@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/wait.h>
-
+#include <errno.h>
 
 // Parsed command representation
 #define EXEC  1
@@ -53,10 +53,14 @@ struct backcmd {
     struct cmd *cmd;
 };
 
+char *envp[] = { "PATH=/bin", "TZ=JST-9", 0 };
+
 int fork1(void);                // Fork but panics on failure.
 void panic(char *);
 struct cmd *parsecmd(char *);
+void runcmd(struct cmd *)  __attribute__((noreturn));
 
+#if 0
 void *
 malloc1(size_t sz)
 {
@@ -69,6 +73,7 @@ malloc1(size_t sz)
     }
     return &mem[i - sz];
 }
+#endif
 
 // Execute cmd.  Never returns.
 void
@@ -82,7 +87,7 @@ runcmd(struct cmd *cmd)
     struct redircmd *rcmd;
 
     if (cmd == 0)
-        exit(0);
+        exit(1);
 
     switch (cmd->type) {
     default:
@@ -92,14 +97,14 @@ runcmd(struct cmd *cmd)
         ecmd = (struct execcmd *)cmd;
         if (ecmd->argv[0] == 0)
             exit(0);
-        execv(ecmd->argv[0], ecmd->argv);
-        fprintf(stderr, "exec %s failed\n", ecmd->argv[0]);
+        execve(ecmd->argv[0], ecmd->argv, envp);
+        perror("execve");
         break;
 
     case REDIR:
         rcmd = (struct redircmd *)cmd;
         close(rcmd->fd);
-        if (open(rcmd->file, rcmd->mode) < 0) {
+        if (open(rcmd->file, rcmd->mode, 0755) < 0) {
             fprintf(stderr, "open %s failed\n", rcmd->file);
             exit(1);
         }
@@ -110,7 +115,7 @@ runcmd(struct cmd *cmd)
         lcmd = (struct listcmd *)cmd;
         if (fork1() == 0)
             runcmd(lcmd->left);
-        wait(NULL);
+        wait(0);
         runcmd(lcmd->right);
         break;
 
@@ -134,8 +139,8 @@ runcmd(struct cmd *cmd)
         }
         close(p[0]);
         close(p[1]);
-        wait(NULL);
-        wait(NULL);
+        wait(0);
+        wait(0);
         break;
 
     case BACK:
@@ -150,10 +155,11 @@ runcmd(struct cmd *cmd)
 int
 getcmd(char *buf, int nbuf)
 {
+    char *ret;
     fprintf(stderr, "$ ");
     memset(buf, 0, nbuf);
-    fgets(buf, nbuf, stdin);
-    if (buf[0] == 0)            // EOF
+    ret = fgets(buf, nbuf, stdin);
+    if (ret == NULL || *ret == '\n')            // EOF
         return -1;
     return 0;
 }
@@ -161,6 +167,7 @@ getcmd(char *buf, int nbuf)
 int
 main(int argc, char *argv[])
 {
+#if 0
     for (int i = 0; i < argc; i++) {
         printf("sh: argv[%d] = '%s'\n", i, argv[i]);
     }
@@ -170,12 +177,12 @@ main(int argc, char *argv[])
     } else {
         printf("sh: testenv not found!\n");
     }
-
+#endif
     static char buf[100];
-    int fd;
+    int fd, ret;
 
     // Ensure that three file descriptors are open.
-    while ((fd = open("console", O_RDWR)) >= 0) {
+    while ((fd = open("/dev/tty1", O_RDWR)) >= 0) {
         if (fd >= 3) {
             close(fd);
             break;
@@ -183,19 +190,24 @@ main(int argc, char *argv[])
     }
 
     // Read and run input commands.
-    while (getcmd(buf, sizeof(buf)) >= 0) {
-        if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ') {
-            // Chdir must be called by the parent, not the child.
-            buf[strlen(buf) - 1] = 0;   // chop \n
-            if (chdir(buf + 3) < 0)
-                fprintf(stderr, "cannot cd %s\n", buf + 3);
-            continue;
+    while(1) {
+        ret = getcmd(buf, sizeof(buf));
+        if (ret >= 0) {
+            if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ') {
+                // Chdir must be called by the parent, not the child.
+                buf[strlen(buf) - 1] = 0;   // chop \n
+                if (chdir(buf + 3) < 0)
+                    fprintf(stderr, "cannot cd %s\n", buf + 3);
+                continue;
+            }
+            if (fork1() == 0)
+                runcmd(parsecmd(buf));
+            wait(NULL);
         }
-        if (fork1() == 0)
-            runcmd(parsecmd(buf));
-        wait(NULL);
     }
+    return 0;
 }
+
 
 void
 panic(char *s)
@@ -222,7 +234,7 @@ execcmd(void)
 {
     struct execcmd *cmd;
 
-    cmd = malloc1(sizeof(*cmd));
+    cmd = malloc(sizeof(*cmd));
     memset(cmd, 0, sizeof(*cmd));
     cmd->type = EXEC;
     return (struct cmd *)cmd;
@@ -233,7 +245,7 @@ redircmd(struct cmd *subcmd, char *file, char *efile, int mode, int fd)
 {
     struct redircmd *cmd;
 
-    cmd = malloc1(sizeof(*cmd));
+    cmd = malloc(sizeof(*cmd));
     memset(cmd, 0, sizeof(*cmd));
     cmd->type = REDIR;
     cmd->cmd = subcmd;
@@ -249,7 +261,7 @@ pipecmd(struct cmd *left, struct cmd *right)
 {
     struct pipecmd *cmd;
 
-    cmd = malloc1(sizeof(*cmd));
+    cmd = malloc(sizeof(*cmd));
     memset(cmd, 0, sizeof(*cmd));
     cmd->type = PIPE;
     cmd->left = left;
@@ -262,7 +274,7 @@ listcmd(struct cmd *left, struct cmd *right)
 {
     struct listcmd *cmd;
 
-    cmd = malloc1(sizeof(*cmd));
+    cmd = malloc(sizeof(*cmd));
     memset(cmd, 0, sizeof(*cmd));
     cmd->type = LIST;
     cmd->left = left;
@@ -275,7 +287,7 @@ backcmd(struct cmd *subcmd)
 {
     struct backcmd *cmd;
 
-    cmd = malloc1(sizeof(*cmd));
+    cmd = malloc(sizeof(*cmd));
     memset(cmd, 0, sizeof(*cmd));
     cmd->type = BACK;
     cmd->cmd = subcmd;

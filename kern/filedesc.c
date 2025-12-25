@@ -66,10 +66,10 @@ struct vfile *get_vnode(fd_table_t table, struct vnode *vnode)
 {
     for (int i = 0; i < OPEN_MAX; i++) {
         if (table[i]->vnode == vnode) {
-            debug("hit with %d", i);
+            trace("hit with %d", i);
             return table[i];
         }
     }
-    debug("no hit");
+    trace("no hit");
     return NULL;
 }

@@ -405,12 +405,13 @@ exit(int err)
         panic("init exit");
 
     if (err) {
-        warn("exit: pid %d, err %d", cp->pid, err);
+        debug("exit: pid %d, err %d", cp->pid, err);
     }
 
     // Close all open files.
     release_fd_table(cp->fd_table);
 
+    trace("ino: %d, refcount = %d", cp->cwd->ino, cp->cwd->refcount);
     vfs_release_vnode(cp->cwd);
     cp->cwd = 0;
 
