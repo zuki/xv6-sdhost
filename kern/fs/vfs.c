@@ -181,6 +181,9 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
         cur = root_fs->root_node;
         i += 1;
     }
+    while (path[i] == VFS_SEP)
+        i += 1;
+
     /* 変数 i は pathの次に処理する位置 */
     vfs_clone_vnode(cur);
     while (1) {
@@ -220,7 +223,7 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
         for (j = 0; j < VFS_FILENAME_MAX - 1 && path[i] && path[i] != VFS_SEP; i++, j++)
             component[j] = path[i];
         /* '/'を読み飛ばす */
-        if (path[i] == VFS_SEP)
+        while (path[i] == VFS_SEP)
             i += 1;
         /* componentをNULL終端する */
         component[j] = '\0';
@@ -241,7 +244,8 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
 
         // マウントされたファイルシステムのルートディレクトリで ".."に
         // アクセスする場合、検索前のルートノードにマウントノードを入れ替える
-        if (cur == cur->mp->root_node && !strcmp(component, "..")) {
+        if (cur == cur->mp->root_node && !strcmp(component, "..") && cur != root_fs->root_node) {
+            trace("cur: 0x%x, componet: %s, rootfs: 0x%x", cur, component, root_fs->root_node);
             mp = cur->mp;
             vfs_release_vnode(cur);
             cur = vfs_clone_vnode(mp->mount_node);
