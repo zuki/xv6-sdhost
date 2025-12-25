@@ -211,9 +211,9 @@ long sys_fstat(void)
     st->st_gid = file->vnode->gid;
     st->st_rdev = file->vnode->rdev;
     st->st_size = file->vnode->size;
-    memmove(&st->st_atime, &file->vnode->atime, sizeof(struct timespec));
-    memmove(&st->st_mtime, &file->vnode->mtime, sizeof(struct timespec));
-    memmove(&st->st_ctime, &file->vnode->ctime, sizeof(struct timespec));
+    st->st_atime = file->vnode->atime;
+    st->st_mtime = file->vnode->mtime;
+    st->st_ctime = file->vnode->ctime;
 
     return 0;
 }
@@ -255,10 +255,9 @@ long sys_fstatat(void)
     st->st_gid = vnode->gid;
     st->st_rdev = vnode->rdev;
     st->st_size = vnode->size;
-    memmove(&st->st_atime, &vnode->atime, sizeof(struct timespec));
-    memmove(&st->st_mtime, &vnode->mtime, sizeof(struct timespec));
-    memmove(&st->st_ctime, &vnode->ctime, sizeof(struct timespec));
-
+    st->st_atime = vnode->atime;
+    st->st_mtime = vnode->mtime;
+    st->st_ctime = vnode->ctime;
     vfs_release_vnode(vnode);
     return 0;
 }
