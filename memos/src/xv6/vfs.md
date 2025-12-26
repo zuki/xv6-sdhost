@@ -1533,6 +1533,7 @@ drwxrwxr-x    1 root wheel  4096  1  1 09:00 ..
 -rwxr-xr-x   13 root wheel 39032  1  1 09:00 udpecho
 -rwxr-xr-x   14 root wheel 11056  1  1 09:00 dns
 -rwxr-xr-x   15 root wheel 40616  1  1 09:00 tcpecho
+
 $ /bin/cat > test.txt
 [2]v6_dirlookup: dirlookup not DIR: dp->ino: 0x10, mode: 0x81ed, name: test.txt
 === dump vnode: 0x1c1208 ===
@@ -1551,4 +1552,202 @@ inode : 0x1c1208
  valid: 1
   type: 1
 ==========================
+```
+
+- lsで日付が正しくないのはilock()でv6_dinodeからv6_inodeにコピーする際に日付をコピーしていなかった
+- '/'が連続する場合、すべて呼び飛ばすようにした
+
+```bash
+$ /bin/ls /bin
+drwxrwxr-x    2 root wheel   832 12 25 14:52 .
+drwxrwxr-x    1 root wheel  4096 12 25 14:52 ..
+-rwxr-xr-x    5 root wheel 38568 12 25 14:52 cat
+-rwxr-xr-x    6 root wheel 22400 12 25 14:52 init
+-rwxr-xr-x    7 root wheel 39480 12 25 14:52 echo
+-rwxr-xr-x    8 root wheel 44184 12 25 14:52 ifconfig9
+-rwxr-xr-x    9 root wheel 49368 12 25 14:52 date
+-rwxr-xr-x   10 root wheel 54664 12 25 14:52 sh
+-rwxr-xr-x   11 root wheel 17744 12 25 14:52 utest
+-rwxr-xr-x   12 root wheel 53128 12 25 14:52 ls
+-rwxr-xr-x   13 root wheel 39032 12 25 14:52 udpecho
+-rwxr-xr-x   14 root wheel 11056 12 25 14:52 dns
+-rwxr-xr-x   15 root wheel 40616 12 25 14:52 tcpecho
+
+$ cd /bin                                                       // cdできるようになっている
+[2]sys_chdir: path: /bin
+[2]sys_chdir: p->cwd: 2, vnode: 2
+$ echo abc                                                      // カレントディレクトリのコマンドを実行できる
+abc
+$ cd ..                                                         // 親ディレクトリにcdできる
+[1]sys_chdir: path: ..
+[1]v6_lookup: vnode->ino: 2, mode: 0x41fd, ip->valid: 1, COMP: ..
+[1]sys_chdir: p->cwd: 1, vnode: 1
+$ /bin/ls /                                                     // ルートディレクトリのlsができる
+drwxrwxr-x    1 root wheel  4096 12 25 14:52 .
+drwxrwxr-x    1 root wheel  4096 12 25 14:52 ..
+drwxrwxr-x    2 root wheel   832 12 25 14:52 bin
+drwxrwxr-x    3 root wheel   192 12 25 14:52 dev
+$ /bin/ls .                                                     // カレントディレクトリのlsができる
+drwxrwxr-x    1 root wheel  4096 12 25 14:52 .
+drwxrwxr-x    1 root wheel  4096 12 25 14:52 ..
+drwxrwxr-x    2 root wheel   832 12 25 14:52 bin
+drwxrwxr-x    3 root wheel   192 12 25 14:52 dev
+$ /bin/ls                                                       // 何も指定しないとカレントディレクトリのlsをする
+drwxrwxr-x    1 root wheel  4096 12 25 14:52 .
+drwxrwxr-x    1 root wheel  4096 12 25 14:52 ..
+drwxrwxr-x    2 root wheel   832 12 25 14:52 bin
+drwxrwxr-x    3 root wheel   192 12 25 14:52 dev
+$ echo abc > test.txt                                           // リダイレクトができない
+[0]v6_lookup: vnode->ino: 1, mode: 0x41fd, ip->valid: 1, COMP: test.txt
+[0]v6_dirlookup: dirlookup not DIR: dp->ino: 0x10, mode: 0x81ed, name: test.txt
+```
+
+```bash
+$ /bin/echo abc > test.txt
+[1]sys_openat: vnode->ino: 1, path: test.txt, flags : 0x20041, mode: 0x1ed
+[1]v6_lookup: vnode->ino: 1, mode: 0x41fd, ip->valid: 1, COMP: test.txt
+[1]v6_dirlookup: dp->ino: 1, name: test.txt
+[1]v6_dirlink: dp->ino: 16, name: test.txt
+[1]v6_dirlookup: dp->ino: 16, name: test.txt
+[1]v6_dirlink: no hit
+```
+
+```bash
+$ /bin/echo abc > test.txt
+[0]sys_openat: vnode->ino: 1, path: test.txt, flags : 0x20041, mode: 0x1ed
+[0]vfs_open: cwd: 1, path: test.txt, create: 64
+[0]vfs_open: path: test.txt, vnode: 1
+[0]v6_lookup: vnode->ino: 1, mode: 0x41fd, ip->valid: 1, COMP: test.txt
+[0]v6_dirlookup: dp->ino: 1, name: test.txt
+[0]v6_create: parent->ino: 1, name: test.txt
+[0]v6_create: call v6_dirlink with: dp->ino: 1, name: test.txt, ino: 16, type: 2
+[0]v6_dirlink: dp->ino: 1, name: test.txt
+[0]v6_dirlookup: dp->ino: 1, name: test.txt
+[0]v6_dirlink: offset: 0x100
+[0]v6_dirlink: de: ino=16, type=2, name=test.txt, off=0x100
+[0]trap: [8] unknown trap code: 37 at 0xffff0000000a8a94 with 0x18  // Level1のdata abort
+[0]exit: exit: pid 8, err 1
+```
+
+```bash
+ffff0000000a8a70 <dev_read>:
+
+int dev_read(device_t dev, char *buffer, off_t offset, size_t size)
+{
+ffff0000000a8a70:   2a0003e4    mov w4, w0
+    major_t major = major(dev);
+    minor_t minor = minor(dev);
+ffff0000000a8a74:   12001c00    and w0, w0, #0xff
+    major_t major = major(dev);
+ffff0000000a8a78:   d3483c84    ubfx    x4, x4, #8, #8
+
+    if (major >= MAX_DRIVERS)
+ffff0000000a8a7c:   7100149f    cmp w4, #0x5
+ffff0000000a8a80:   54000108    b.hi    ffff0000000a8aa0 <dev_read+0x30>  // b.pmore
+        return -ENXIO;
+    return drv_table[major]->read(minor, buffer, offset, size);
+ffff0000000a8a84:   2a0403e4    mov w4, w4
+ffff0000000a8a88:   b00008e5    adrp    x5, ffff0000001c5000 <mountpoints+0x78>
+ffff0000000a8a8c:   9100a0a5    add x5, x5, #0x28
+ffff0000000a8a90:   f86478a4    ldr x4, [x5, x4, lsl #3]
+ffff0000000a8a94:   f9400c84    ldr x4, [x4, #24]           // ここ
+ffff0000000a8a98:   aa0403f0    mov x16, x4
+ffff0000000a8a9c:   d61f0200    br  x16                     // drv-table[major]->read
+}
+ffff0000000a8aa0:   128000a0    mov w0, #0xfffffffa             // #-6 (return -ENXIO;)
+ffff0000000a8aa4:   d65f03c0    ret
+```
+
+- v6_create()で新規作成したv6_inode()をディスクに書き出す際にv6_update(ITOV(ip))を使うと
+  内部でv6_ilock()を実行してまだ書き込んでいないv6_dinode()からipを取り込み、
+  ip->vnode->rdevが0になるのが原因のようだった
+- v6_iupdate(ip)で直接書き出すようにした。
+
+```bash
+$ /bin/echo abc > test.txt
+[3]sys_openat: vnode->ino: 1, path: test.txt, flags : 0x20041, mode: 0x1ed
+[3]v6_create: parent->ino: 1, name: test.txt
+[3]v6_create: call v6_dirlink with: dp->ino: 1, name: test.txt, ino: 16, type: 2, rdev: 0x101
+[3]v6_dirlink: dp->ino: 1, name: test.txt
+[3]v6_dirlink: write to dp->ino: 1, rdev: 0x101 with de: ino=16, type=2, name=test.txt, off=0x100
+[3]v6_writei: ip: ino:1, rdev: 0x101, off: 0x100, n: 64
+[3]v6_writei: get_block: dev: 0x101, bno: 0x28
+[3]v6_writei: put_block: dev: 0x101, bno: 0x28
+[3]v6_dirlink: ok                                               // direntの書き出しは成功
+[3]_read_entry: read: dev: 0x0, buffer: 0xb77000, bno: 0x20, size: 0x1000   // その後のv6_update()でdevが0に
+[3]trap: [8] unknown trap code: 37 at 0xffff0000000a8bf4 with 0x18
+[3]exit: exit: pid 8, err 1
+```
+
+- ただし、今度は /bin/echoの実行でストール. リダイレクトしないechoは正常動作
+
+```bash
+$ /bin/echo abc > /test.txt
+[0]sys_openat: vnode->ino: 1, path: /test.txt, flags : 0x20041, mode: 0x1ed
+[1]sys_openat: fd: 1, file->vnode->ino: 16, ref: 2
+[1]execve: path='/bin/echo', argv=0x40b008, envp=0x409ad0   // ここでストール
+    // vfs_open("/bin/echo")だとおもわれるがデバッグ出力もされない
+```
+
+- `usr/src/sh/main.c`
+
+```c
+    case REDIR:
+        rcmd = (struct redircmd *)cmd;
+        close(rcmd->fd);                                // close(1)
+        if (open(rcmd->file, rcmd->mode, 0755) < 0) {   // open("test.txt") -> fd = 1
+            fprintf(stderr, "open %s failed\n", rcmd->file);
+            exit(1);
+        }
+        runcmd(rcmd->cmd);                              // /bin/echo abcを実行
+        break;
+```
+
+- 現状
+
+```bash
+$ /bin/ls
+[1]execve: path='/bin/ls', argv=0x40b008, envp=0x409ad0
+[3]execve: exec ls ok
+[3]sys_openat: vnode->ino: 1, path: ., flags : 0x20000, mode: 0x0
+[3]sys_openat: fd: 3, file->vnode->ino: 1, ref: 15
+drwxrwxr-x    1 root wheel  4096 12 26 18:06 .
+drwxrwxr-x    1 root wheel  4096 12 26 18:06 ..
+drwxrwxr-x    2 root wheel   832 12 26 18:06 bin
+drwxrwxr-x    3 root wheel   192 12 26 18:06 dev
+$ /bin/echo abc
+[1]execve: path='/bin/echo', argv=0x40b008, envp=0x409ad0
+[2]execve: exec echo ok
+abc
+$ /bin/ls /bin
+[3]execve: path='/bin/ls', argv=0x40b008, envp=0x409ad0
+[3]execve: exec ls ok
+[3]sys_openat: vnode->ino: 1, path: /bin, flags : 0x20000, mode: 0x0
+[3]sys_openat: fd: 3, file->vnode->ino: 2, ref: 12
+drwxrwxr-x    2 root wheel   832 12 26 18:06 .
+drwxrwxr-x    1 root wheel  4096 12 26 18:06 ..
+-rwxr-xr-x    5 root wheel 38568 12 26 18:06 cat
+-rwxr-xr-x    6 root wheel 22400 12 26 18:06 init
+-rwxr-xr-x    7 root wheel 39480 12 26 18:06 echo
+-rwxr-xr-x    8 root wheel 44184 12 26 18:06 ifconfig
+-rwxr-xr-x    9 root wheel 49368 12 26 18:06 date
+-rwxr-xr-x   10 root wheel 54664 12 26 18:06 sh
+-rwxr-xr-x   11 root wheel 17744 12 26 18:06 utest
+-rwxr-xr-x   12 root wheel 53064 12 26 18:06 ls
+-rwxr-xr-x   13 root wheel 39032 12 26 18:06 udpecho
+-rwxr-xr-x   14 root wheel 11056 12 26 18:06 dns
+-rwxr-xr-x   15 root wheel 40616 12 26 18:06 tcpecho
+$ /bin/date
+[3]execve: path='/bin/date', argv=0x40b008, envp=0x409ad0
+[3]execve: exec date ok
+2025年12日26日 金曜日 18時29分 3秒 JST
+$ /bin/echo abc | /bin/cat
+[3]execve: path='/bin/echo', argv=0x40b008, envp=0x409ad0
+[1]trap: [14] unknown trap code: 37 at 0xffff000000091b0c with 0x8
+[3]execve: exec echo ok
+[1]
+xit: exit: pid 14, err 1
+[3]release: error: pipe is not locked
+[3]release: error: pipe is not locked
+$
 ```

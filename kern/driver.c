@@ -15,7 +15,7 @@ int register_driver(major_t major, struct driver *driver)
         return -1;
 
     drv_table[major] = driver;
-    trace("drv_table[%d] = 0x%x", major, driver);
+    debug("drv_table[%d] = 0x%x", major, driver);
     return 0;
 }
 

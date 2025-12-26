@@ -3,6 +3,7 @@
 #include <string.h>
 #include <arm.h>
 #include <console.h>
+#include <param.h>
 #include <vm.h>
 #include <mm.h>
 #include <clock.h>
@@ -38,7 +39,7 @@ struct mount_ops *filesystems[] = {
     NULL
 };
 
-device_t root_dev = makedev(DEVMAJOR_SD, 1);
+device_t root_dev = DEVV6;
 
 /*
  * Keep it in data segment by explicitly initializing by zero,

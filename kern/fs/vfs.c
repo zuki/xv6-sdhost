@@ -632,6 +632,7 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
     int error;
     mode_t required_mode = 0;
     struct vnode *vnode = NULL;
+    struct vfile *f;
 
     if (!file)
         return -EINVAL;
@@ -639,9 +640,10 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
     if (!(mode & S_IFMT))
         mode |= S_IFREG;
 
+    trace("cwd: %d, path: %s, create: %d", cwd->ino, path, flags & O_CREAT);
     if ((error = vfs_lookup(cwd, path, (flags & O_CREAT) ? VLOOKUP_PARENT_OF : VLOOKUP_NORMAL, uid, &vnode)) < 0)
         return error;
-
+    trace("path: %s, vnode: %d", path, vnode->ino);
     if (flags & O_CREAT) {
         const char *filename = path_last_component(path);
         if (!path_valid_component(filename)) {
@@ -649,16 +651,16 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
             return -EINVAL;
         }
 
-        // パスの最後の要素を検索する。エラーが発生した場合は新規ファイルを作成する
-        if (vnode->ops->lookup(vnode, filename, &vnode)) {
-            // 親ディレクトリが書き込み可能かチェックする
-            if (!verify_mode_access(uid, W_OK, vnode->uid, vnode->gid, vnode->mode)) {
+        if (!verify_mode_access(uid, W_OK, vnode->uid, vnode->gid, vnode->mode)) {
                 vfs_release_vnode(vnode);
                 return -EPERM;
-            }
+        }
+        struct vnode *parent = vnode;
 
-            struct vnode *parent = vnode;
+        // パスの最後の要素を検索する。エラーが発生した場合は新規ファイルを作成する
+        if ((vnode->ops->lookup(parent, filename, &vnode)) < 0) {
             error = parent->ops->create(parent, filename, mode, uid, &vnode);
+            trace("created %s with ino: %d under parent: %d", filename, vnode->ino, parent->ino);
             vfs_release_vnode(parent);
             if (error) {
                 vfs_release_vnode(vnode);
@@ -680,20 +682,21 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
         return -EPERM;
     }
 
-    if ((*file = alloc_file(vnode, flags)) == NULL)
+    if ((f = alloc_file(vnode, flags)) == NULL)
         return -EMFILE;
-
     if (flags & O_TRUNC && S_ISREG(vnode->mode))
         vnode->ops->truncate(vnode);
-
     if (flags & O_APPEND && S_ISREG(vnode->mode))
-        (*file)->offset = (*file)->vnode->size;
-
+        f->offset = vnode->size;
     if (S_ISCHR(vnode->mode) || S_ISBLK(vnode->mode))
-        (*file)->ops = &device_vfile_ops;
+        f->ops = &device_vfile_ops;
+    if ((error = f->ops->open(f, flags)) < 0) {
+        free_vfile(f);
+    } else {
+        if (file)
+            *file = f;
+    }
 
-    if ((error = (*file)->ops->open(*file, flags)) < 0)
-        free_vfile(*file);
     return error;
 }
 

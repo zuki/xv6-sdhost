@@ -260,6 +260,7 @@ void v6_iupdate(struct v6_inode *ip)
         dip->gid   = vp->gid;
 
         memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
+        mark_block_dirty(bp);
         put_block(bp);
         release_block(bp, 0);
     }
@@ -297,6 +298,7 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
     }
     // v6_inodeキャッシュエントリをリサイクル.
     ip = empty;
+    trace("mp: 0x%x, mount_node: 0x%x, dev: 0x%x", mp, mp->mount_node, mp->dev);
     vfs_init_vnode(&ip->vnode, &v6_vnode_ops, mp, 0, 1, 0, 0, mp->dev, ino, 0, 0, 0, 0);
     ip->valid = 0;
     ITOV(ip)->data = ip;
@@ -569,7 +571,7 @@ size_t v6_readi(struct v6_inode *ip, char *dst, off_t off, size_t n)
         return -EFAULT;
     if (off + n > vp->size)
         n = vp->size - off;
-
+    trace("ip: ino:%x, rdev: 0x%x, off: 0x%x, n: %d", vp->ino, vp->rdev, off, n);
     for (tot = 0; tot < n; tot += m, off += m, dst += m) {
         bp = get_block(vp->rdev, v6_bmap(ip, off / BLKSIZE));
         m = MIN(n - tot, BLKSIZE - off % BLKSIZE);
@@ -589,22 +591,25 @@ size_t v6_writei(struct v6_inode *ip, char *src, off_t off, size_t n)
     size_t tot, m;
     struct buf *bp;
     struct vnode *vp = ITOV(ip);
-
+    trace("ip: ino:%x, rdev: 0x%x, off: 0x%x, n: %d", vp->ino, vp->rdev, off, n);
     if (off > vp->size || off + n < off)
         return -EFAULT;
     if (off + n > MAXFILE * BLKSIZE)
         return -EFBIG;
 
     for (tot = 0; tot < n; tot += m, off += m, src += m) {
+        trace("get_block: dev: 0x%x, bno: 0x%x", vp->rdev, v6_bmap(ip, off / BLKSIZE));
         bp = get_block(vp->rdev, v6_bmap(ip, off / BLKSIZE));
         m = MIN(n - tot, BLKSIZE - off % BLKSIZE);
         memmove(bp->block + off % BLKSIZE, src, m);
+        trace("put_block: dev: 0x%x, bno: 0x%x", bp->dev, bp->blockno);
         put_block(bp);
         release_block(bp, 0);
     }
 
     if (n > 0 && off > vp->size) {
         vp->size = off;
+        trace("iupdate with ino: %d, rdev: 0x%x", ITOV(ip)->ino, ITOV(ip)->rdev);
         v6_iupdate(ip);
     }
     return n;
@@ -625,8 +630,7 @@ struct v6_inode *v6_dirlookup(struct v6_inode *dp, char *name)
     trace("dp->ino: %d, name: %s", vp->ino, name);
 
     if (!S_ISDIR(vp->mode)) {
-        error("dirlookup not DIR: dp->ino: 0x%x, mode: 0x%x, name: %s", vp->ino, vp->mode, name);
-        v6_dump(dp);
+        trace("dirlookup not DIR: dp->ino: 0x%x, mode: 0x%x, name: %s", vp->ino, vp->mode, name);
         return NULL;
     }
 
@@ -638,7 +642,7 @@ struct v6_inode *v6_dirlookup(struct v6_inode *dp, char *name)
     return v6_iget(vp->mp, de.ino);
 }
 
-/* 新規ディレクトリエントリ (name, ino) をディレクトリdpに書き込む. */
+/* 新規ディレクトリエントリ (name, ino, type) をディレクトリdpに書き込む. */
 int v6_dirlink(struct v6_inode *dp, char *name, uint32_t ino, uint16_t type)
 {
     off_t off;
@@ -647,6 +651,7 @@ int v6_dirlink(struct v6_inode *dp, char *name, uint32_t ino, uint16_t type)
     struct vnode *vp = ITOV(dp);
     int hit = 0;
 
+    trace("dp->ino: %d, name: %s", vp->ino, name);
     /* nameがすでに存在しないかチェックし、あればエラー. */
     if ((ip = v6_dirlookup(dp, name)) != NULL) {
         v6_iput(ip);
@@ -662,14 +667,16 @@ int v6_dirlink(struct v6_inode *dp, char *name, uint32_t ino, uint16_t type)
             hit = 1;
             break;
         }
-
     }
 
-    if (!hit) return -ENOMEM;
+    if (!hit) {
+        return -ENOMEM;
+    }
 
     strncpy(de.name, name, DIRSIZ);
     de.ino = ino;
     de.type = type;
+    trace("write to dp->ino: %d, rdev: 0x%x with de: ino=%d, type=%d, name=%s, off=0x%x", vp->ino, vp->rdev, de.ino, de.type, de.name, off);
     if (v6_writei(dp, (char *)&de, off, sizeof(de)) != sizeof(de))
        return -EIO;
 

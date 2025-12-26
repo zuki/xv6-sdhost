@@ -167,7 +167,7 @@ ssize_t sys_writev(void)
     int tot = 0;
     for (p = iov; p < iov + iovcnt; p++) {
         if (!in_user(p->iov_base, p->iov_len)) {
-            error("iov_base: 0x%x, len: 0x%x not in user", p->iov_base, p->iov_len)
+            trace("iov_base: 0x%x, len: 0x%x not in user", p->iov_base, p->iov_len)
             return -EFAULT;
         }
         tot += vfs_write(f, p->iov_base, p->iov_len);
@@ -429,7 +429,7 @@ long sys_openat(void)
     if (mode)
         mode = (mode & ~(thisproc()->umask)) & 0777;
 
-    trace("vnode->ino: %d, path: %s, flags : 0x%x, mode: 0x%x", vnode->ino, path, flags, mode);
+    debug("vnode->ino: %d, path: %s, flags : 0x%x, mode: 0x%x", vnode->ino, path, flags, mode);
 
     if ((error = vfs_open(vnode, path, flags, mode, thisproc()->uid, &file)) < 0) {
         error("vfs_open %s error: %d", path, error);
@@ -440,7 +440,7 @@ long sys_openat(void)
     if (flags & O_CLOEXEC)
         bit_add(thisproc()->fdflag, fd);
 
-    trace("fd: %d, file->vnode->ino: %d, ref: %d", fd, file->vnode->ino, file->vnode->refcount);
+    debug("fd: %d, file->vnode->ino: %d, ref: %d", fd, file->vnode->ino, file->vnode->refcount);
     return fd;
 }
 

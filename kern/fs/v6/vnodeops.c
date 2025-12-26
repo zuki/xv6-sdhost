@@ -27,8 +27,9 @@ struct vnode_ops v6_vnode_ops = {
     v6_rmdir,
 };
 
-int v6_create(struct vnode *vnode, const char *name, mode_t mode, uid_t uid, struct vnode **result)
+int v6_create(struct vnode *parent, const char *name, mode_t mode, uid_t uid, struct vnode **result)
 {
+    struct vnode *vnode;
     struct v6_inode *ip;
     struct timespec ts;
     struct proc *p = thisproc();
@@ -36,24 +37,28 @@ int v6_create(struct vnode *vnode, const char *name, mode_t mode, uid_t uid, str
     ino_t ino;
     uint16_t v6type = mode2v6type(mode);
 
+    trace("parent->ino: %d, name: %s", parent->ino, name);
+
     if (!result)
         return -EINVAL;
 
-    if (verify_mode_access(p->uid, X_OK, vnode->uid, vnode->gid, vnode->mode) < 0) {
+    if (verify_mode_access(p->uid, X_OK, parent->uid, parent->gid, parent->mode) < 0)
         return -EACCES;
-    }
 
-    if ((ip = v6_ialloc(vnode->mp, v6type)) == 0) {
+    if ((ip = v6_ialloc(parent->mp, v6type)) == 0) {
         return -ENOMEM;
     }
-    ino = ITOV(ip)->ino;
-
+    vnode = ITOV(ip);
     clock_gettime(CLOCK_REALTIME, &ts);
-
-    vfs_init_vnode(*result, vnode->ops, vnode->mp, mode, 1, uid, p->gid, vnode->rdev, ino, 0, &ts, &ts, &ts);
     ip->type = v6type;
+    ip->valid = 1;
+    vnode->rdev = parent->rdev;
+    vnode->mode = mode;
+    vnode->uid = uid;
+    memmove(&vnode->atime, &ts, sizeof(struct timespec));
+    memmove(&vnode->mtime, &ts, sizeof(struct timespec));
+    memmove(&vnode->ctime, &ts, sizeof(struct timespec));
     memset(ip->addrs, 0, sizeof(uint32_t)*(NDIRECT+2));
-    ip->vnode = **result;
 
     if (S_ISDIR(mode)) {  // Create . and .. entries.
         // No ip->nlink++ for ".": avoid cyclic ref count.
@@ -63,16 +68,22 @@ int v6_create(struct vnode *vnode, const char *name, mode_t mode, uid_t uid, str
         }
     }
 
-    if ((err = v6_dirlink(VTOI(vnode), name, ino, v6type)) < 0)
+
+    trace("call v6_dirlink with: dp->ino: %d, name: %s, ino: %d, type: %d, rdev: 0x%x", parent->ino, name, vnode->ino, v6type, vnode->rdev);
+    if ((err = v6_dirlink(VTOI(parent), name, vnode->ino, v6type)) < 0)
         goto fail;
 
     if (S_ISDIR(mode)){
         // now that success is guaranteed:
         vnode->nlink++;  // for ".."
-        v6_update(vnode);
+        v6_update(parent);
     }
-
-    v6_update(ITOV(ip));
+    trace("call v6_update with vnode: 0x%x, ino: %d, dev: 0x%x", ITOV(ip), ITOV(ip)->ino, ITOV(ip)->rdev);
+    //v6_update(ITOV(ip));
+    acquiresleep(&ip->lock);
+    v6_iupdate(ip);
+    v6_iunlockput(ip);
+    *result = ITOV(ip);
 
     return 0;
 

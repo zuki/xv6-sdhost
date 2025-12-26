@@ -21,17 +21,21 @@ int execve(const char *path, char *const argv[], char *const envp[])
     char *s;
     int err;
 
-    trace("path='%s', argv=0x%p, envp=0x%p", path, argv, envp);
+    debug("path='%s', argv=0x%p, envp=0x%p", path, argv, envp);
 
     // Save previous page table.
     struct proc *curproc = thisproc();
 
-    if (vfs_access(curproc->cwd, path, X_OK, curproc->uid))
+    if (vfs_access(curproc->cwd, path, X_OK, curproc->uid) < 0) {
+        error("uid %d can't access %s", curproc->uid, path);
         return -EPERM;
+    }
 
-    if ((err = vfs_open(curproc->cwd, path, O_RDONLY, 0, curproc->uid, &file)) < 0)
+    if ((err = vfs_open(curproc->cwd, path, O_RDONLY, 0, curproc->uid, &file)) < 0) {
+        error("failed open %s", path);
         return err;
-
+    }
+    trace("open ok: f->vnode->ino: %d", file->vnode->ino);
     if (!S_ISREG(file->vnode->mode)) {
         vfs_close(file);
         return -EISDIR;
@@ -238,7 +242,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
 
     uvm_switch(curproc->pgdir);
     vm_free(oldpgdir);
-    trace("exec %s ok", curproc->name);
+    debug("exec %s ok", curproc->name);
     return 0;
 
   bad:
