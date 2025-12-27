@@ -30,7 +30,7 @@ struct vnode_ops v6_vnode_ops = {
 int v6_create(struct vnode *parent, const char *name, mode_t mode, uid_t uid, struct vnode **result)
 {
     struct vnode *vnode;
-    struct v6_inode *ip;
+    struct v6_inode *ip, *dp = VTOI(parent);
     struct timespec ts;
     struct proc *p = thisproc();
     int err = -EINVAL;
@@ -42,48 +42,42 @@ int v6_create(struct vnode *parent, const char *name, mode_t mode, uid_t uid, st
     if (!result)
         return -EINVAL;
 
-    if (verify_mode_access(p->uid, X_OK, parent->uid, parent->gid, parent->mode) < 0)
-        return -EACCES;
-
+    v6_ilock(dp);
     if ((ip = v6_ialloc(parent->mp, v6type)) == 0) {
         return -ENOMEM;
     }
+    v6_ilock(ip);
+    //v6_dump(ip, "v6_create 1");
     vnode = ITOV(ip);
     clock_gettime(CLOCK_REALTIME, &ts);
     ip->type = v6type;
-    ip->valid = 1;
+    //ip->valid = 1;
     vnode->rdev = parent->rdev;
     vnode->mode = mode;
     vnode->uid = uid;
+    vnode->nlink = 1;
     memmove(&vnode->atime, &ts, sizeof(struct timespec));
     memmove(&vnode->mtime, &ts, sizeof(struct timespec));
     memmove(&vnode->ctime, &ts, sizeof(struct timespec));
     memset(ip->addrs, 0, sizeof(uint32_t)*(NDIRECT+2));
-
+    v6_iupdate(ip);
+    //v6_dump(ip, "v6_create 2");
     if (S_ISDIR(mode)) {  // Create . and .. entries.
-        // No ip->nlink++ for ".": avoid cyclic ref count.
+        vfs_clone_vnode(parent);
+        v6_iupdate(dp);
         if (v6_dirlink(ip, ".", ino, v6type) < 0 || v6_dirlink(ip, "..", vnode->ino, mode2v6type(vnode->mode)) < 0) {
             err = -ENOMEM;
             goto fail;
         }
     }
 
-
-    trace("call v6_dirlink with: dp->ino: %d, name: %s, ino: %d, type: %d, rdev: 0x%x", parent->ino, name, vnode->ino, v6type, vnode->rdev);
-    if ((err = v6_dirlink(VTOI(parent), name, vnode->ino, v6type)) < 0)
+    if ((err = v6_dirlink(dp, name, vnode->ino, v6type)) < 0)
         goto fail;
 
-    if (S_ISDIR(mode)){
-        // now that success is guaranteed:
-        vnode->nlink++;  // for ".."
-        v6_update(parent);
-    }
-    trace("call v6_update with vnode: 0x%x, ino: %d, dev: 0x%x", ITOV(ip), ITOV(ip)->ino, ITOV(ip)->rdev);
-    //v6_update(ITOV(ip));
-    acquiresleep(&ip->lock);
-    v6_iupdate(ip);
-    v6_iunlockput(ip);
     *result = ITOV(ip);
+    v6_iunlockput(dp);
+    v6_iunlockput(ip);
+    //v6_dump(VTOI(*result), "v6_create 3");
 
     return 0;
 
@@ -110,8 +104,8 @@ int v6_lookup(struct vnode *vnode, const char *filename, struct vnode **result)
     trace("vnode->ino: %d, mode: 0x%x, ip->valid: %d, COMP: %s", vnode->ino, vnode->mode, VTOI(vnode)->valid, filename);
     v6_ilock(VTOI(vnode));
     ip = v6_dirlookup(VTOI(vnode), filename);
+    v6_iunlockput(VTOI(vnode));
     if (ip) {
-        v6_iunlockput(VTOI(vnode));
         trace("OK: %s, ip->ino: %d", filename, ITOV(ip)->ino);
         v6_ilock(ip);
         v6_iunlock(ip);
@@ -201,12 +195,11 @@ int v6_truncate(struct vnode *vnode)
 
     v6_ilock(ip);
     v6_itrunc(ip);
-    v6_iunlockput(ip);
-
     clock_gettime(CLOCK_REALTIME, &tp);
     vnode->mtime.tv_sec = tp.tv_sec;
     vnode->mtime.tv_nsec = tp.tv_nsec;
     vnode->bits |= VBF_DIRTY;
+    v6_iunlockput(ip);
     return 0;
 }
 
