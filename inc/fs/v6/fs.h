@@ -112,6 +112,6 @@ int v6_dirlink(struct v6_inode *dp, char *name, uint32_t ino, uint16_t type);
 void sync_v6_inodes(void);
 
 int mode2v6type(mode_t mode);
-void v6_dump(struct v6_inode *inode);
+void v6_dump(struct v6_inode *inode, const char *title);
 
 #endif

@@ -302,7 +302,7 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
     vfs_init_vnode(&ip->vnode, &v6_vnode_ops, mp, 0, 1, 0, 0, mp->dev, ino, 0, 0, 0, 0);
     ip->valid = 0;
     ITOV(ip)->data = ip;
-    //v6_dump(ip);
+    v6_dump(ip, "v6_iget");
     release(&v6_icache.lock);
 
     return ip;
@@ -698,10 +698,10 @@ void sync_v6_inodes(void)
     release(&v6_icache.lock);
 }
 
-void v6_dump(struct v6_inode *inode)
+void v6_dump(struct v6_inode *inode, const char *title)
 {
     struct vnode *vnode = ITOV(inode);
-    cprintf("=== dump vnode: 0x%x ===\n", vnode);
+    cprintf("=== dump %s: 0x%x ===\n", title, vnode);
     cprintf("   ops: 0x%x\n", vnode->ops);
     cprintf("    mp: 0x%x\n", vnode->mp);
     cprintf("   ref: 0x%x\n", vnode->refcount);
