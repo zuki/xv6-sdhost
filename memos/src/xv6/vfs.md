@@ -1658,6 +1658,8 @@ ffff0000000a8aa0:   128000a0    mov w0, #0xfffffffa             // #-6 (return -
 ffff0000000a8aa4:   d65f03c0    ret
 ```
 
+## 12月26日
+
 - v6_create()で新規作成したv6_inode()をディスクに書き出す際にv6_update(ITOV(ip))を使うと
   内部でv6_ilock()を実行してまだ書き込んでいないv6_dinode()からipを取り込み、
   ip->vnode->rdevが0になるのが原因のようだった
@@ -1749,5 +1751,232 @@ $ /bin/echo abc | /bin/cat
 xit: exit: pid 14, err 1
 [3]release: error: pipe is not locked
 [3]release: error: pipe is not locked
+$
+```
+
+## 12月27日
+
+- v6_create()におけるparent, childのilock(), iunlockput()の整合性が取れて
+  いなかった
+
+```bash
+$ /bin/echo abc > test.txt
+[0]print_fd_table: [8] sys_openat_1
+    file[0] = 4
+    file[2] = 4
+[0]sys_openat: vnode->ino: 1, path: test.txt, flags : 0x20041, mode: 0x1ed
+=== dump v6_iget: 0x1c17f0 ===
+   ops: 0xb61c0
+    mp: 0x1c4f80
+   ref: 0x1
+  mode: 0x0
+ nlink: 0x1
+  bits: 0x0
+  rdev: 0x101
+   ino: 0x10
+  size: 0x0
+  data: 0x1c17f0
+inode : 0x1c17f0
+ vnode: 0x1c17f0
+ valid: 0
+  type: 0
+==========================
+=== dump v6_create 1: 0x1c17f0 ===
+   ops: 0xb61c0
+    mp: 0x1c4f80
+   ref: 0x1
+  mode: 0x0
+ nlink: 0x0                             // v6_ialloc()で設定された値が
+  bits: 0x0                             // v6_ilock()でクリアされる
+  rdev: 0x0
+   ino: 0x10
+  size: 0x0
+  data: 0x1c17f0
+inode : 0x1c17f0
+ vnode: 0x1c17f0
+ valid: 1
+  type: 2
+==========================
+=== dump v6_create 2: 0x1c17f0 ===
+   ops: 0xb61c0
+    mp: 0x1c4f80
+   ref: 0x1
+  mode: 0x81ed
+ nlink: 0x1                             // v6_ilock()後に再度設定する
+  bits: 0x0
+  rdev: 0x101
+   ino: 0x10
+  size: 0x0
+  data: 0x1c17f0
+inode : 0x1c17f0
+ vnode: 0x1c17f0
+ valid: 1
+  type: 2
+==========================
+=== dump v6_create 3: 0x1c17f0 ===
+   ops: 0xb61c0
+    mp: 0x1c4f80
+   ref: 0x1
+  mode: 0x81ed
+ nlink: 0x1
+  bits: 0x0
+  rdev: 0x101
+   ino: 0x10
+  size: 0x0
+  data: 0x1c17f0
+inode : 0x1c17f0
+ vnode: 0x1c17f0
+ valid: 1
+  type: 2
+==========================
+[3]sys_openat: fd: 1, file->vnode->ino: 16, ref: 2
+[3]print_fd_table: [8] sys_openat_2
+    file[0] = 4
+    file[1] = 16
+    file[2] = 4
+[3]print_fd_table: [8] sys_ecexve
+    file[0] = 4
+    file[1] = 16
+    file[2] = 4
+[3]execve: path='/bin/echo', argv=0x40b008, envp=0x409ad0
+=== dump v6_iget: 0x1c18c8 ===
+   ops: 0xb61c0
+    mp: 0x1c4f80
+   ref: 0x1
+  mode: 0x0
+ nlink: 0x1
+  bits: 0x0
+  rdev: 0x101
+   ino: 0x7
+  size: 0x0
+  data: 0x1c18c8
+inode : 0x1c18c8
+ vnode: 0x1c18c8
+ valid: 0
+  type: 0
+==========================
+=== dump v6_iget: 0x1c18c8 ===
+   ops: 0xb61c0
+    mp: 0x1c4f80
+   ref: 0x1
+  mode: 0x0
+ nlink: 0x1
+  bits: 0x0
+  rdev: 0x101
+   ino: 0x7
+  size: 0x0
+  data: 0x1c18c8
+inode : 0x1c18c8
+ vnode: 0x1c18c8
+ valid: 0
+  type: 0
+==========================
+[1]execve: exec echo ok                 // echoコマンドが正常終了
+$ /bin/ls
+[0]print_fd_table: [9] sys_ecexve
+    file[0] = 4
+    file[1] = 4
+    file[2] = 4
+[0]execve: path='/bin/ls', argv=0x40b008, envp=0x409ad0
+=== dump v6_iget: 0x1c19a0 ===
+   ops: 0xb61c0
+    mp: 0x1c4f80
+   ref: 0x1
+  mode: 0x0
+ nlink: 0x1
+  bits: 0x0
+  rdev: 0x101
+   ino: 0xc
+  size: 0x0
+  data: 0x1c19a0
+inode : 0x1c19a0
+ vnode: 0x1c19a0
+ valid: 0
+  type: 0
+==========================
+=== dump v6_iget: 0x1c19a0 ===
+   ops: 0xb61c0
+    mp: 0x1c4f80
+   ref: 0x1
+  mode: 0x0
+ nlink: 0x1
+  bits: 0x0
+  rdev: 0x101
+   ino: 0xc
+  size: 0x0
+  data: 0x1c19a0
+inode : 0x1c19a0
+ vnode: 0x1c19a0
+ valid: 0
+  type: 0
+==========================
+[2]execve: exec ls ok
+[2]print_fd_table: [9] sys_openat_1
+    file[0] = 4
+    file[1] = 4
+    file[2] = 4
+[2]sys_openat: vnode->ino: 1, path: ., flags : 0x20000, mode: 0x0
+[2]sys_openat: fd: 3, file->vnode->ino: 1, ref: 17
+[2]print_fd_table: [9] sys_openat_2
+    file[0] = 4
+    file[1] = 4
+    file[2] = 4
+    file[3] = 1
+drwxrwxr-x    1 root wheel  4096 12 26 18:06 .
+drwxrwxr-x    1 root wheel  4096 12 26 18:06 ..
+drwxrwxr-x    2 root wheel   832 12 26 18:06 bin
+drwxrwxr-x    3 root wheel   192 12 26 18:06 dev
+-rwxr-xr-x   16 root wheel     4 12 27 11:27 test.txt   // test.txtが作成されている
+$ /bin/cat test.txt
+[2]print_fd_table: [10] sys_ecexve
+    file[0] = 4
+    file[1] = 4
+    file[2] = 4
+[2]execve: path='/bin/cat', argv=0x40b008, envp=0x409ad0
+=== dump v6_iget: 0x1c1a78 ===
+   ops: 0xb61c0
+    mp: 0x1c4f80
+   ref: 0x1
+  mode: 0x0
+ nlink: 0x1
+  bits: 0x0
+  rdev: 0x101
+   ino: 0x5
+  size: 0x0
+  data: 0x1c1a78
+inode : 0x1c1a78
+ vnode: 0x1c1a78
+ valid: 0
+  type: 0
+==========================
+=== dump v6_iget: 0x1c1a78 ===
+   ops: 0xb61c0
+    mp: 0x1c4f80
+   ref: 0x1
+  mode: 0x0
+ nlink: 0x1
+  bits: 0x0
+  rdev: 0x101
+   ino: 0x5
+  size: 0x0
+  data: 0x1c1a78
+inode : 0x1c1a78
+ vnode: 0x1c1a78
+ valid: 0
+  type: 0
+==========================
+[3]execve: exec cat ok
+[3]print_fd_table: [10] sys_openat_1
+    file[0] = 4
+    file[1] = 4
+    file[2] = 4
+[3]sys_openat: vnode->ino: 1, path: test.txt, flags : 0x20000, mode: 0x0
+[3]sys_openat: fd: 3, file->vnode->ino: 16, ref: 3
+[3]print_fd_table: [10] sys_openat_2
+    file[0] = 4
+    file[1] = 4
+    file[2] = 4
+    file[3] = 16
+                                    // catは正常終了だが出力されていない
 $
 ```
