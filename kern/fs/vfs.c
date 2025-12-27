@@ -657,8 +657,8 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
         }
         struct vnode *parent = vnode;
 
-        // パスの最後の要素を検索する。エラーが発生した場合は新規ファイルを作成する
-        if ((vnode->ops->lookup(parent, filename, &vnode)) < 0) {
+        // パスの最後の要素を検索する。エラー(ENOENT)の場合は新規ファイルを作成する
+        if ((vnode->ops->lookup(parent, filename, &vnode)) == -ENOENT) {
             error = parent->ops->create(parent, filename, mode, uid, &vnode);
             trace("created %s with ino: %d under parent: %d", filename, vnode->ino, parent->ino);
             vfs_release_vnode(parent);
