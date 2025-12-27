@@ -414,6 +414,7 @@ long sys_openat(void)
     struct vnode *vnode;
     struct vfile *file;
     long error;
+    //print_fd_table(thisproc()->fd_table, "sys_openat_1");
 
     if ((error = argint(0, &dirfd)) < 0) return error;
     if ((error = argstr(1, &path)) < 0) return error;
@@ -441,6 +442,7 @@ long sys_openat(void)
         bit_add(thisproc()->fdflag, fd);
 
     debug("fd: %d, file->vnode->ino: %d, ref: %d", fd, file->vnode->ino, file->vnode->refcount);
+    //print_fd_table(thisproc()->fd_table, "sys_openat_2");
     return fd;
 }
 
@@ -523,7 +525,7 @@ long sys_execve(void)
     if ((error = argstr(0, &filename)) < 0) return error;
     if ((error = argu64(1, (uint64_t *)&argv)) < 0) return error;
     if ((error = argu64(2, (uint64_t *)&envp)) < 0) return error;
-
+    //print_fd_table(thisproc()->fd_table, "sys_ecexve");
     return execve(filename, argv, envp);
 }
 
