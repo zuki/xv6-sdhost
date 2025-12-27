@@ -73,3 +73,13 @@ struct vfile *get_vnode(fd_table_t table, struct vnode *vnode)
     trace("no hit");
     return NULL;
 }
+
+void print_fd_table(fd_table_t table, const char *title)
+{
+    debug("[%d] %s", thisproc()->pid, title);
+    for (int i = 0; i < OPEN_MAX; i++) {
+        if (table[i]) {
+            cprintf("    file[%d] = %d\n", i, table[i]->vnode->ino);
+        }
+    }
+}

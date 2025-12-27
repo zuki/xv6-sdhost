@@ -18,5 +18,6 @@ void set_fd(fd_table_t table, int fd, struct vfile *file);
 void dup_fd(fd_table_t table, int fd, struct vfile *file);
 void unset_fd(fd_table_t table, int fd);
 struct vfile *get_vnode(fd_table_t table, struct vnode *vnode);
+void print_fd_table(fd_table_t table, const char *title);
 
 #endif
