@@ -154,7 +154,8 @@ main(int argc, char *argv[])
     // Create /dev/tty1
     make_dev(devino, "tty1", TTYMAJOR, 1, 0, 0, S_IFCHR|0666);
 
-    copy_file(2, argc, argv, binino, 0, 0, S_IFREG|0755);
+    copy_file(2, 3, argv, rootino, 0, 0, S_IFREG|0755);
+    copy_file(3, argc, argv, binino, 0, 0, S_IFREG|0755);
 
     // fix size of root inode dir
     rinode(rootino, &din);

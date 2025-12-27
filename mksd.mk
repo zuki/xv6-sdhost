@@ -31,9 +31,9 @@ $(BOOT_IMG): $(KERN_IMG) $(shell find boot/*)
 mkfs/mkfs: mkfs/mkfs.c
 	cc -o mkfs/mkfs -Imkfs/ mkfs/mkfs.c
 
-$(FS_IMG): mkfs/mkfs $(USR_FILES)
+$(FS_IMG): mkfs/mkfs test.txt $(USR_FILES)
 	echo $^
-	./mkfs/mkfs $@ $(USR_FILES)
+	./mkfs/mkfs $@ test.txt $(USR_FILES)
 
 $(SD_IMG): $(BOOT_IMG) $(FS_IMG)
 	dd if=/dev/zero of=$@ seek=$$(($(SECTORS) - 1)) bs=$(SECTOR_SIZE) count=1
