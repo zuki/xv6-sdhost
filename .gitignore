@@ -14,3 +14,4 @@ memos/src/xv6/logs
 inc/config.h
 memos/src/work/*
 tools/dump
+mkfs/mkfs
