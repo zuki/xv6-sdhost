@@ -24,18 +24,14 @@ struct v6_superblock;
 /* ブロックあたりのinode数 : Inodes per block */
 #define IPB         (BLKSIZE / sizeof(struct v6_dinode))
 
-#define INOSTART    (2 + LOGSIZE)           /* Boot + Super + Log */
-#define INOBLKS     (NINODE / IPB + 1)
-#define BITSTART    (INOSTART + INOBLKS)
-
 /* inode iが含まれるブロック */
-#define IBLOCK(i)   ((i) / IPB + INOSTART)
+#define IBLOCK(i, sb)   ((i) / IPB + sb.inodestart)
 
 /* ブロックあたりのBitmapビット数 */
 #define BPB         (BLKSIZE*8)
 
 /* ブロック b を記録する未使用マップのあるブロック */
-#define BBLOCK(b) (b/BPB + BITSTART)
+#define BBLOCK(b, sb) ((b) / BPB + sb.bmapstart)
 
 /* ディレクトリエントリ名の最大サイズ */
 #define DIRSIZ  58

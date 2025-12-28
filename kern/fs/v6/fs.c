@@ -76,9 +76,9 @@ uint32_t v6_balloc(uint32_t dev)
     struct buf *bp;
 
     bp = 0;
-    for (b = 0; b < v6_sb.size; b += BPB) {
-        //bp = get_block(dev, BBLOCK(b, v6_sb));
-        bp = get_block(dev, BBLOCK(b));
+    for (b = 0; b < v6_sb.nblocks; b += BPB) {
+        trace("BBLOCK(%d): 0x%x", b, BBLOCK(b, v6_sb));
+        bp = get_block(dev, BBLOCK(b, v6_sb));
         for (bi = 0; bi < BPB && b + bi < v6_sb.size; bi++) {
             m = 1 << (bi % 8);
             if ((bp->block[bi / 8] & m) == 0) {  // Is block free?
@@ -86,6 +86,7 @@ uint32_t v6_balloc(uint32_t dev)
                 put_block(bp);
                 release_block(bp, 0);
                 v6_bzero(dev, b + bi);
+                trace("b: 0x%x, bi: 0x%x, [%d] = 0x%x", b, bi, bp->block[bi / 8]);
                 return b + bi;
             }
         }
@@ -101,8 +102,7 @@ void v6_bfree(device_t dev, uint32_t b)
     struct buf *bp;
     int bi, m;
 
-    //bp = get_block(dev, BBLOCK(b, v6_sb));
-    bp = get_block(dev, BBLOCK(b));
+    bp = get_block(dev, BBLOCK(b, v6_sb));
     bi = b % BPB;
     m = 1 << (bi % 8);
     if ((bp->block[bi / 8] & m) == 0)
@@ -219,8 +219,8 @@ struct v6_inode *v6_ialloc(struct mount *mp, uint16_t type)
     struct v6_dinode *dip;
 
     for (ino = 1; ino < v6_sb.ninodes; ino++) {
-        //bp = get_block(mp->dev, IBLOCK(ino, v6_sb));
-        bp = get_block(mp->dev, IBLOCK(ino));
+        bp = get_block(mp->dev, IBLOCK(ino, v6_sb));
+        //bp = get_block(mp->dev, IBLOCK(ino));
         dip = (struct v6_dinode *)bp->block + ino % IPB;
         if (dip->type == 0) {   // a free inode
             memset(dip, 0, sizeof(*dip));
@@ -249,7 +249,7 @@ void v6_iupdate(struct v6_inode *ip)
 
     trace("type: %d, mode: 0x%x, valid: %d", ip->type, vp->mode, ip->valid);
     if ((!S_ISBLK(vp->mode) && !S_ISCHR(vp->mode)) || ip->valid == 0) {
-        bp = get_block(vp->rdev, IBLOCK(vp->ino));
+        bp = get_block(vp->rdev, IBLOCK(vp->ino, v6_sb));
         dip = (struct v6_dinode *)(bp->block + vp->ino % IPB);
         dip->nlink = vp->nlink;
         dip->type  = ip->type;
@@ -263,6 +263,7 @@ void v6_iupdate(struct v6_inode *ip)
         mark_block_dirty(bp);
         put_block(bp);
         release_block(bp, 0);
+        dmb();
     }
 }
 
@@ -302,7 +303,7 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
     vfs_init_vnode(&ip->vnode, &v6_vnode_ops, mp, 0, 1, 0, 0, mp->dev, ino, 0, 0, 0, 0);
     ip->valid = 0;
     ITOV(ip)->data = ip;
-    v6_dump(ip, "v6_iget");
+    //v6_dump(ip, "v6_iget");
     release(&v6_icache.lock);
 
     return ip;
@@ -340,8 +341,8 @@ void v6_ilock(struct v6_inode *ip)
     trace("vp->ino: %d, valid: %d, type: %d, mode: 0x%x", vp->ino, ip->valid, ip->type, vp->mode);
 
     if (ip->valid == 0) {
-        //trace("bno: 0x%x, v6_sb: 0x%x, inostart: 0x%x", IBLOCK(vp->ino), v6_sb, v6_sb.inodestart);
-        bp = get_block(vp->rdev, IBLOCK(vp->ino));
+        //trace("bno: 0x%x, v6_sb: 0x%x, inostart: 0x%x", IBLOCK(vp->ino, v6_sb), v6_sb, v6_sb.inodestart);
+        bp = get_block(vp->rdev, IBLOCK(vp->ino, v6_sb));
         dip = (struct v6_dinode *)bp->block + (vp->ino % IPB);
         ip->type  = dip->type;
         vp->nlink = dip->nlink;
@@ -430,6 +431,8 @@ uint32_t v6_bmap(struct v6_inode *ip, uint32_t bn)
     if (bn < NDIRECT) {
         if ((addr = ip->addrs[bn]) == 0)
             ip->addrs[bn] = addr = v6_balloc(vp->rdev);
+        if (vp->ino == 17)
+        trace("[%d] addr: %x", thisproc()->pid, addr);
         return addr;
     }
     bn -= NDIRECT;
@@ -591,14 +594,14 @@ size_t v6_writei(struct v6_inode *ip, char *src, off_t off, size_t n)
     size_t tot, m;
     struct buf *bp;
     struct vnode *vp = ITOV(ip);
-    trace("ip: ino:%x, rdev: 0x%x, off: 0x%x, n: %d", vp->ino, vp->rdev, off, n);
+    trace("[%d] ip: ino: %d, rdev: 0x%x, size: 0x%x: off: 0x%x, n: %d", thisproc()->pid, vp->ino, vp->rdev, vp->size, off, n);
+
     if (off > vp->size || off + n < off)
         return -EFAULT;
     if (off + n > MAXFILE * BLKSIZE)
         return -EFBIG;
 
     for (tot = 0; tot < n; tot += m, off += m, src += m) {
-        trace("get_block: dev: 0x%x, bno: 0x%x", vp->rdev, v6_bmap(ip, off / BLKSIZE));
         bp = get_block(vp->rdev, v6_bmap(ip, off / BLKSIZE));
         m = MIN(n - tot, BLKSIZE - off % BLKSIZE);
         memmove(bp->block + off % BLKSIZE, src, m);
@@ -606,6 +609,7 @@ size_t v6_writei(struct v6_inode *ip, char *src, off_t off, size_t n)
         put_block(bp);
         release_block(bp, 0);
     }
+    dmb();
 
     if (n > 0 && off > vp->size) {
         vp->size = off;
