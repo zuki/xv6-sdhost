@@ -149,6 +149,15 @@ int tty_ioctl(minor_t minor, unsigned int request, void *argp, uid_t uid)
             return 0;
         }
 
+        case TIOCGWINSZ:
+            if (argp == NULL) return -EINVAL;
+            ((struct winsize *)argp)->ws_row = 24;
+            ((struct winsize *)argp)->ws_col = 80;
+            return 0;
+        case TIOCSWINSZ:
+            // Windowサイズ設定: 当面何もしない
+            return 0;
+
         case TIOCGPGRP: {
             *((int *) argp) = devices[minor-1].pgid;
             return 0;
