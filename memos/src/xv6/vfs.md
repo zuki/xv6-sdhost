@@ -1980,3 +1980,153 @@ inode : 0x1c1a78
                                     // catは正常終了だが出力されていない
 $
 ```
+
+- パイプでエラー
+
+```bash
+$ /bin/cat test.txt | /bin/echo
+[2]execve: path='/bin/cat', argv=0x40b008, envp=0x409ad0
+[1]trap: [18] unknown trap code: 37 at 0xffff000000091b0c with 0x8
+[2]execve: exec cat ok
+[1st it3
+aic: f
+208,-e2r 0
+ebetsu
+[2]release: error: pipe is not locked
+[2]release: error: pipe is not locked
+```
+
+- releaseエラーはpipe_close()内の不要なrelease()を削除で解決
+
+```bash
+$ /bin/cat test.txt | /bin/echo
+[3]execve: path='/bin/cat', argv=0x40b008, envp=0x409ad0
+[0]trap: [11] unknown trap code: 37 at 0xffff000000091b0c with 0x8  //
+[0]exit: exit: pid 11, err 1
+[1]execve: exec cat ok
+test 123
+abcdef
+2025-02-20
+ebetsu
+```
+
+```bash
+ffff000000091b00 <get_fd>:
+ffff000000091b00:   71004c3f    cmp w1, #0x13       // OPEN_MAX = 0x14
+ffff000000091b04:   540000cc    b.gt    ffff000000091b1c <get_fd+0x1c>
+ffff000000091b08:   f861d800    ldr x0, [x0, w1, sxtw #3]   // x0 = table[fd]
+ffff000000091b0c:   f9400401    ldr x1, [x0, #8]            // x1 = table[fd]->vnode
+ffff000000091b10:   f100003f    cmp x1, #0x0
+ffff000000091b14:   9a9f1000    csel    x0, x0, xzr, ne  // ne = any
+ffff000000091b18:   d65f03c0    ret
+ffff000000091b1c:   d2800000    mov x0, #0x0                    // return NULL
+ffff000000091b20:   d65f03c0    ret
+```
+
+```c
+struct vfile *get_fd(fd_table_t table, int fd)
+{
+    if (fd >= OPEN_MAX || !table[fd]->vnode)
+        return NULL;
+    return table[fd];
+}
+```
+
+- リダイレクト問題
+
+```bash
+$ [2]sys_read: [7] fd: 0, buf: 0x409e08, count: 0x400
+/bin/echo abc > test2.txt
+[2]execve: path='/bin/echo', argv=0x40b008, envp=0x409ad0
+[1]execve: exec echo ok
+[1]sys_ioctl: [8] fd: 1, file: 17, req: 0x5413
+[1]sys_writev: [8] fd 1, iovcnt: 2                  // test2.txtへのwrite
+[1]sys_writev: iov[0]: base=407d58, len=3
+[2]v6_writei: [8] ip: ino: 17, rdev: 0x101, size: 0x0: off: 0x0, n: 3
+[1]v6_bmap: [8] ino: 17, bno: 0
+[3]v6_balloc: BBLOCK(0): 0x22
+[3]v6_bmap: [8] addr: 0                             // ip->addrs[0] = 0 がおかしい
+[3]v6_writei: get_block: dev: 0x101, bno: 0x0       // bnoがゼロ
+=== v6_writei dump ===
++------+-------------------------------------------------+------------------+
+| 0000 | 61 62 63                                        | abc              |
++------+-------------------------------------------------+------------------+
+[1]sys_writev: iov[1]: base=ffffffffff1f, len=1
+[2]v6_writei: get_block: dev: 0x101, bno: 0x1
+=== v6_writei dump ===
++------+-------------------------------------------------+------------------+
+| 0000 | 0a                                              | .                |
++------+-------------------------------------------------+------------------+
+
+[2]sys_writev: [7] fd 2, iovcnt: 2              // '$' の書き出し
+[2]sys_writev: iov[0]: base=409e00, len=0
+[2]sys_writev: iov[1]: base=407d50, len=2
+$
+```
+
+balloc周りをチェック: dataブロックのbnoに換算していない?
+
+## 12月28日
+
+- mkfsでビットマップが作成されていなかったこととBBLOCK()が正しく計算されて
+  いなかったことの二重障害だった
+
+```bash
+$ /bin/echo abc > test2.txt
+[3]v6_writei: [8] ip: ino: 1, rdev: 0x101, size: 0x1000: off: 0x140, n: 64
+[1]execve: exec echo ok
+[1]sys_ioctl: [8] fd: 1, file: 17, req: 0x5413
+[1]v6_writei: [8] ip: ino: 17, rdev: 0x101, size: 0x0: off: 0x0, n: 3
+[1]v6_bmap: [8] ino: 17, rdev: 0x101, bno: 0
+[1]v6_balloc: BBLOCK(0): 0x27                   // bitmapブロックを正しく計算
+[3]v6_balloc: b: 0x0, bi: 0x98, [1] = 0x0
+[3]v6_bmap: [8] addr: 98                        // 空きブロックを正しく計算
+[3]v6_writei: get_block: dev: 0x101, bno: 0x98
+=== v6_writei dump ===
++------+-------------------------------------------------+------------------+
+| 0000 | 61 62 63                                        | abc              |
++------+-------------------------------------------------+------------------+
+
+[3]v6_writei: [8] ip: ino: 17, rdev: 0x101, size: 0x3: off: 0x3, n: 1
+[3]v6_bmap: [8] ino: 17, rdev: 0x101, bno: 0
+[3]v6_bmap: [8] addr: 98
+[3]v6_writei: get_block: dev: 0x101, bno: 0x98
+=== v6_writei dump ===
++------+-------------------------------------------------+------------------+
+| 0000 | 0a                                              | .                |
++------+-------------------------------------------------+------------------+
+
+$ /bin/ls
+[3]execve: exec ls ok
+[3]sys_ioctl: [9] fd: 1, file: 4, req: 0x5413
+drwxrwxr-x    1 root wheel  4096 12 28 10:52 .
+drwxrwxr-x    1 root wheel  4096 12 28 10:52 ..
+drwxrwxr-x    2 root wheel   832 12 28 10:52 bin
+drwxrwxr-x    3 root wheel   192 12 28 10:52 dev
+-rwxr-xr-x    5 root wheel    34 12 28 10:52 test.txt
+-rwxr-xr-x   17 root wheel     4 12 28 11:09 test2.txt
+$ /bin/cat test2.txt
+[1]execve: exec cat ok
+[1]v6_bmap: [10] ino: 17, rdev: 0x101, bno: 0
+[1]v6_bmap: [10] addr: 98
+[1]sys_ioctl: [10] fd: 1, file: 4, req: 0x5413
+abc                                                         // 正しく保存されている
+```
+
+- デバッグ行を削除
+
+```bash
+[2]netrun: running...
+$ /bin/echo abc > test2.txt
+$ /bin/ls
+drwxrwxr-x    1 root wheel  4096 12 28 10:52 .
+drwxrwxr-x    1 root wheel  4096 12 28 10:52 ..
+drwxrwxr-x    2 root wheel   832 12 28 10:52 bin
+drwxrwxr-x    3 root wheel   192 12 28 10:52 dev
+-rwxr-xr-x    5 root wheel    34 12 28 10:52 test.txt
+-rwxr-xr-x   17 root wheel     4 12 28 11:26 test2.txt
+$ /bin/cat test2.txt
+abc
+$ /bin/date
+2025年12日28日 日曜日 11時26分59秒 JST
+```
