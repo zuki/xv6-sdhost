@@ -340,6 +340,7 @@ balloc(int used)
     int used_blk = (used - 1) / (BLKSIZE * 8) + 1;
     for (j = 0; j < used_blk; j++) {
         bzero(buf, BLKSIZE);
+        k = min(BLKSIZE * 8, used - j * BLKSIZE * 8);
         for (i = 0; i < k; i++) {
             buf[i / 8] = buf[i / 8] | (0x1 << (i % 8));
         }
