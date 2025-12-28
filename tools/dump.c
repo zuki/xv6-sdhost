@@ -240,7 +240,7 @@ int main(int argc, char *argv[]) {
         printf("Boot      : 0x%08x (%d)\n", FS_ADDR, 1);
         printf("SuperBlock: 0x%08x (%d)\n", FS_ADDR + BSIZE, 1);
         printf("Log       : 0x%08x (%d)\n", FS_ADDR + BSIZE * 2, sb.nlog);
-        printf("INode     : 0x%08x (%d)\n", FS_ADDR + BSIZE * sb.inodestart, sb.ninodes);
+        printf("INode     : 0x%08x (%d)\n", FS_ADDR + BSIZE * sb.inodestart, sb.ninodes / IPB + 1);
         printf("Bitmap    : 0x%08x (%d)\n", FS_ADDR + BSIZE * sb.bmapstart, nbitmap);
         printf("Data      : 0x%08x\n\n", FS_ADDR + BSIZE * (sb.bmapstart + nbitmap));
     } else {
