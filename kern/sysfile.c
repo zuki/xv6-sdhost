@@ -53,25 +53,29 @@ long check_fdcwd(char *path, int dirfd, struct vnode **cwd)
     return 0;
 }
 
-
 /* int dup(int oldfd); */
 long sys_dup(void)
 {
+    int ofd, fd;
     struct vfile *f;
-    int fd;
     struct proc *p = thisproc();
     long error;
 
-    if ((error = argfd(0, 0, &f)) < 0)
-        return error;
-
-    trace("[%d] oldfd: %d", p->pid, fd);
     //print_fd_table(thisproc()->fd_table, "sys_dup 1");
-    if ((fd = find_unused_fd(p->fd_table, 0)) < 0)
-        return fd;
+    if ((error = argfd(0, &ofd, &f)) < 0) {
+        error("[%d] argfd err: %d fd: %d", p->pid, error, ofd);
+        return error;
+    }
 
-    set_fd(p->fd_table, fd, f);
-    trace("[%d] retrun fd: %d", p->pid, fd);
+    trace("[%d] oldfd: %d", p->pid, ofd);
+    //print_fd_table(thisproc()->fd_table, "sys_dup 1");
+    if ((fd = find_unused_fd(p->fd_table, 0)) < 0) {
+        error("[%d] no unused fd", p->pid);
+        return fd;
+    }
+
+    dup_fd(p->fd_table, fd, f);
+    trace("[%d] dup ofd: %d to fd: %d ref: %d", p->pid, ofd, fd, f->refcount);
     //print_fd_table(thisproc()->fd_table, "sys_dup 2");
     return fd;
 }
@@ -92,8 +96,6 @@ long sys_dup3(void)
     if (flags & ~O_CLOEXEC) return -EINVAL;
 
     if (fd1 == fd2) return fd1;
-
-
 
     if ((fd2 = find_unused_fd(p->fd_table, fd2)) < 0)
         return fd2;
@@ -169,7 +171,7 @@ ssize_t sys_writev(void)
     for (p = iov; p < iov + iovcnt; p++) {
         if (!in_user(p->iov_base, p->iov_len)) {
             trace("iov_base: 0x%x, len: 0x%x not in user", p->iov_base, p->iov_len);
-            hexdump(p->iov_base, p->iov_len, "sys_writev");
+            //hexdump(p->iov_base, p->iov_len, "sys_writev");
             continue;
             //return -EFAULT;
         }
@@ -185,9 +187,12 @@ long sys_close(void)
     struct vfile *f;
     long error;
 
-    if ((error = argfd(0, &fd, &f)) < 0)
+    if ((error = argfd(0, &fd, &f)) < 0) {
+        error("[%d] argfd err: %d fd: %d", thisproc()->pid, error, fd);
         return error;
+    }
 
+    trace("[%d] fd: %d, ref: %d", thisproc()->pid, fd, f->refcount);
     vfs_close(f);
     unset_fd(thisproc()->fd_table, fd);
     bit_remove(thisproc()->fdflag, fd);
