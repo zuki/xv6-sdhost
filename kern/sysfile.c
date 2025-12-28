@@ -535,36 +535,50 @@ long sys_execve(void)
 /* int pipe2(int pipefd[2], int flags); */
 long sys_pipe2(void)
 {
-    int fd[2], flags;
+    int *pipefd;
+    int fd[2];
+    int flags;
     struct vfile *file[2];
     struct proc *p = thisproc();
     long error;
 
     if ((error = argint(1, &flags)) < 0) return error;
-    if ((error = argptr(0, (void **)&fd, 2 * sizeof(int))) < 0) return error;
+    if ((error = argptr(0, (void **)&pipefd, 2 * sizeof(int))) < 0) return error;
 
     if (flags & ~O_CLOEXEC) {
         return -EINVAL;
     }
-    //print_fd_table(thisproc()->fd_table, "sys_pipe2 1");
+
     fd[0] = find_unused_fd(p->fd_table, 0);
-    set_fd(p->fd_table, fd[0], file[0]);
+    trace("[%d] fd0=%d", p->pid, fd[0]);
+    if (fd[0] < 0) return -EMFILE;
+    set_fd(p->fd_table, fd[0], (struct vfile *)&file[0]);    // fd[0]を仮押さえ
+
     fd[1] = find_unused_fd(p->fd_table, 0);
-    set_fd(p->fd_table, fd[0], NULL);
-
-    if (fd[0] < 0 || fd[1] < 0)
+    trace("[%d] fd1=%d", p->pid, fd[1]);
+    if (fd[1] < 0) {
+        unset_fd(p->fd_table, fd[0]);
         return -EMFILE;
-    if ((error = vfs_create_pipe(&file[0], &file[1])) < 0)
-        return error;
+    }
+    set_fd(p->fd_table, fd[1], (struct vfile *)&file[1]);    // fd[1]を仮押さえ
 
-    set_fd(p->fd_table, fd[0], file[0]);
+    if ((error = vfs_create_pipe(&file[0], &file[1])) < 0) {
+        error("[%d] failed create pipe", p->pid);
+        return error;
+    }
+
+    set_fd(p->fd_table, fd[0], file[0]);    // 本設定
     set_fd(p->fd_table, fd[1], file[1]);
+
+    memmove((void *)pipefd, &fd[0], sizeof(int));
+    memmove((void *)pipefd+sizeof(int), &fd[1], sizeof(int));
 
     if (flags & O_CLOEXEC) {
         bit_add(thisproc()->fdflag, fd[0]);
         bit_add(thisproc()->fdflag, fd[1]);
     }
-    //print_fd_table(thisproc()->fd_table, "sys_pipe2 1");
+
+    trace("pfd[0]: %d, pfd[1]: %d", fd[0], fd[1]);
     return 0;
 }
 
