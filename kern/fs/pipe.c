@@ -4,8 +4,9 @@
 #include <syscall.h>
 #include <proc.h>
 #include <vfs.h>
-#include <spinlock.h>
-#include <config.h>
+#include <sleeplock.h>
+#include <string.h>
+#include <console.h>
 
 #include <fs/nop.h>
 #include <fs/vfile.h>
@@ -52,7 +53,7 @@ struct pipe_vnode {
     size_t nwrite;              // number of bytes written
     int readopen;               // read fd is still open
     int writeopen;              // write fd is still open
-    struct spinlock lock;
+    struct sleeplock lock;
 };
 
 int vfs_create_pipe(struct vfile **rfile, struct vfile **wfile)
@@ -75,13 +76,15 @@ int vfs_create_pipe(struct vfile **rfile, struct vfile **wfile)
         free_vfile(*rfile);
         return -ENFILE;
     }
+    trace("rf: 0x%x, wf: 0x%x", *rfile, *wfile);
 
     pipe = (struct pipe_vnode *)vnode;
     pipe->readopen = 1;
     pipe->writeopen = 0;
     pipe->nread = 0;
     pipe->nwrite = 0;
-    initlock(&pipe->lock, "pipe");
+    memset(pipe->data, 0, PIPESIZE);
+    initsleeplock(&pipe->lock, "pipe");
 
     return 0;
 }
@@ -110,10 +113,10 @@ int pipe_read(struct vfile *file, char *buffer, size_t nbytes)
     struct pipe_vnode *pipe = (struct pipe_vnode *)(file->vnode);
     ssize_t i;
 
-    acquire(&pipe->lock);
+    acquiresleep(&pipe->lock);
     while (pipe->nread == pipe->nwrite && pipe->writeopen) {
         if (thisproc()->killed) {
-            release(&pipe->lock);
+            releasesleep(&pipe->lock);
             return -EIO;
         }
         sleep(&pipe->nread, &pipe->lock);
@@ -124,7 +127,7 @@ int pipe_read(struct vfile *file, char *buffer, size_t nbytes)
         buffer[i] = pipe->data[pipe->nread++ % PIPESIZE];
     }
     wakeup(&pipe->nwrite);
-    release(&pipe->lock);
+    releasesleep(&pipe->lock);
     return i;
 }
 
@@ -133,11 +136,11 @@ int pipe_write(struct vfile *file, const char *buffer, size_t nbytes)
     struct pipe_vnode *pipe = (struct pipe_vnode *)(file->vnode);
     ssize_t i;
 
-    acquire(&pipe->lock);
+    acquiresleep(&pipe->lock);
     for (i = 0; i < nbytes; i++) {
         while (pipe->nwrite == pipe->nread + PIPESIZE) {
             if (pipe->readopen == 0 || thisproc()->killed) {
-                release(&pipe->lock);
+                releasesleep(&pipe->lock);
                 return -EBADF;
             }
             wakeup(&pipe->nread);
@@ -146,7 +149,7 @@ int pipe_write(struct vfile *file, const char *buffer, size_t nbytes)
         pipe->data[pipe->nwrite++ % PIPESIZE] = buffer[i];
     }
     wakeup(&pipe->nread);
-    release(&pipe->lock);
+    releasesleep(&pipe->lock);
     return nbytes;
 }
 
