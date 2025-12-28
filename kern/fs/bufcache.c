@@ -57,7 +57,7 @@ struct buf *get_block(device_t dev, uint32_t blockno)
         if (cur->flags & BCF_ALLOCATED && cur->dev == dev && cur->blockno == blockno) {
             cur->refcount++;
             trace("hit: dev: 0x%x, bno: 0x%x", cur->dev, cur->blockno);
-            /* curをキャッスリストの先頭に移動させる */
+            /* curをキャッシュリストの先頭に移動させる */
             _queue_remove(&bufcache, &cur->node);
             _queue_insert(&bufcache, &cur->node);
             cur->flags |= BCF_BUSY;

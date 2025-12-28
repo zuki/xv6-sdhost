@@ -65,13 +65,14 @@ long sys_dup(void)
     if ((error = argfd(0, 0, &f)) < 0)
         return error;
 
-    trace("oldfd: %d", fd);
-
+    trace("[%d] oldfd: %d", p->pid, fd);
+    //print_fd_table(thisproc()->fd_table, "sys_dup 1");
     if ((fd = find_unused_fd(p->fd_table, 0)) < 0)
         return fd;
 
     set_fd(p->fd_table, fd, f);
-    trace("retrun fd: %d", fd);
+    trace("[%d] retrun fd: %d", p->pid, fd);
+    //print_fd_table(thisproc()->fd_table, "sys_dup 2");
     return fd;
 }
 
@@ -120,7 +121,7 @@ ssize_t sys_read(void)
         return error;
     if ((error = argptr(1, (void **)&buf, count)) < 0)
         return error;
-    trace("fd: %d, buf: 0x%x, count: 0x%x", fd, buf, count);
+    trace("[%d] fd: %d, buf: 0x%x, count: 0x%x", thisproc()->pid, fd, buf, count);
     return vfs_read(f, buf, count);
 }
 
@@ -158,7 +159,7 @@ ssize_t sys_writev(void)
         return error;
 
 #if 0
-    debug("fd %d, iovcnt: %d", fd, iovcnt);
+    debug("[%d] fd %d, iovcnt: %d", thisproc()->pid, fd, iovcnt);
     for (int i=0; i < iovcnt; i++) {
         debug("iov[%d]: base=%p, len=%lld", i, iov[i].iov_base, iov[i].iov_len);
     }
@@ -167,8 +168,10 @@ ssize_t sys_writev(void)
     int tot = 0;
     for (p = iov; p < iov + iovcnt; p++) {
         if (!in_user(p->iov_base, p->iov_len)) {
-            trace("iov_base: 0x%x, len: 0x%x not in user", p->iov_base, p->iov_len)
-            return -EFAULT;
+            trace("iov_base: 0x%x, len: 0x%x not in user", p->iov_base, p->iov_len);
+            hexdump(p->iov_base, p->iov_len, "sys_writev");
+            continue;
+            //return -EFAULT;
         }
         tot += vfs_write(f, p->iov_base, p->iov_len);
     }
@@ -430,7 +433,7 @@ long sys_openat(void)
     if (mode)
         mode = (mode & ~(thisproc()->umask)) & 0777;
 
-    debug("vnode->ino: %d, path: %s, flags : 0x%x, mode: 0x%x", vnode->ino, path, flags, mode);
+    trace("vnode->ino: %d, path: %s, flags : 0x%x, mode: 0x%x", vnode->ino, path, flags, mode);
 
     if ((error = vfs_open(vnode, path, flags, mode, thisproc()->uid, &file)) < 0) {
         error("vfs_open %s error: %d", path, error);
@@ -441,7 +444,7 @@ long sys_openat(void)
     if (flags & O_CLOEXEC)
         bit_add(thisproc()->fdflag, fd);
 
-    debug("fd: %d, file->vnode->ino: %d, ref: %d", fd, file->vnode->ino, file->vnode->refcount);
+    trace("fd: %d, file->vnode->ino: %d, ref: %d", fd, file->vnode->ino, file->vnode->refcount);
     //print_fd_table(thisproc()->fd_table, "sys_openat_2");
     return fd;
 }
@@ -543,7 +546,7 @@ long sys_pipe2(void)
     if (flags & ~O_CLOEXEC) {
         return -EINVAL;
     }
-
+    //print_fd_table(thisproc()->fd_table, "sys_pipe2 1");
     fd[0] = find_unused_fd(p->fd_table, 0);
     set_fd(p->fd_table, fd[0], file[0]);
     fd[1] = find_unused_fd(p->fd_table, 0);
@@ -561,7 +564,7 @@ long sys_pipe2(void)
         bit_add(thisproc()->fdflag, fd[0]);
         bit_add(thisproc()->fdflag, fd[1]);
     }
-
+    //print_fd_table(thisproc()->fd_table, "sys_pipe2 1");
     return 0;
 }
 
@@ -576,7 +579,7 @@ long sys_ioctl(void)
     if ((error = argfd(0, 0, &file)) < 0) return error;
     if ((error = argu64(1, &req)) < 0) return error;
     if ((error = argu64(2, &argp)) < 0) return error;
-
+    trace("[%d] fd: %d, file: %d, req: 0x%x", thisproc()->pid, fd, file->vnode->ino, req);
     return vfs_ioctl(file, req, (void *)argp, thisproc()->uid);
 }
 

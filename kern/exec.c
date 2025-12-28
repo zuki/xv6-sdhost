@@ -21,7 +21,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
     char *s;
     int err;
 
-    debug("path='%s', argv=0x%p, envp=0x%p", path, argv, envp);
+    trace("path='%s', argv=0x%p, envp=0x%p", path, argv, envp);
 
     // Save previous page table.
     struct proc *curproc = thisproc();
@@ -242,7 +242,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
 
     uvm_switch(curproc->pgdir);
     vm_free(oldpgdir);
-    debug("exec %s ok", curproc->name);
+    trace("exec %s ok", curproc->name);
     return 0;
 
   bad:

@@ -5,6 +5,7 @@
 #include <proc.h>
 #include <vfs.h>
 #include <spinlock.h>
+#include <config.h>
 
 #include <fs/nop.h>
 #include <fs/vfile.h>
@@ -100,7 +101,7 @@ int pipe_close(struct vfile *file)
     if (pipe->readopen == 0 && pipe->writeopen == 0) {
         kmfree(pipe);
     }
-    release(&pipe->lock);
+
     return 0;
 }
 
