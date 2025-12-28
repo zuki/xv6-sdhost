@@ -2116,7 +2116,6 @@ abc                                                         // 正しく保存�
 - デバッグ行を削除
 
 ```bash
-[2]netrun: running...
 $ /bin/echo abc > test2.txt
 $ /bin/ls
 drwxrwxr-x    1 root wheel  4096 12 28 10:52 .
@@ -2129,4 +2128,96 @@ $ /bin/cat test2.txt
 abc
 $ /bin/date
 2025年12日28日 日曜日 11時26分59秒 JST
+```
+
+- pipe処理のエラー
+
+```bash
+$ /bin/ls | /bin/cat
+[2]trap: [13] unknown trap code: 37 at 0xffff000000091b0c with 0x8
+[1]execve: exec ls ok
+[2]exit: exit: pid 13, err 1
+[1]sys_ioctl: [12] fd: 1, file: 4, req: 0x5413
+drwxrwxr-x    1 root wheel  4096 12 28 10:52 .
+drwxrwxr-x    1 root wheel  4096 12 28 10:52 ..
+drwxrwxr-x    2 root wheel   832 12 28 10:52 bin
+drwxrwxr-x    3 root wheel   192 12 28 10:52 dev
+-rwxr-xr-x    5 root wheel    34 12 28 10:52 test.txt
+-rwxr-xr-x   17 root wheel     4 12 28 11:09 test2.txt
+```
+
+```bash
+$ /bin/grep abc test.txt | /bin/wc      // [8] : コマンドグループ
+[1]get_fd: [9] fd: 1                    // [9] : grep
+[2]get_fd: [8] fd: 4234497              // [10] : wc
+[1]get_fd: [9] fd: 0
+[3]get_fd: [10] fd: 0
+[1]get_fd: [9] fd: 4234497
+[2]get_fd: [8] fd: 0
+[1]get_fd: [9] fd: 0
+[3]get_fd: [10] fd: 4234497
+[3]get_fd: [10] fd: 4234497
+[3]get_fd: [10] fd: 0
+[3]trap: [10] unknown trap code: 37 at 0xffff000000091b98 with 0x8
+[1]get_fd: [9] fd: 0
+[3]exit: exit: pid 10, err 1
+[1]get_fd: [9] fd: 1
+abcdef
+[1]get_fd: [9] fd: 0
+[1]get_fd: [9] fd: 0
+```
+
+```bash
+$ /bin/grep abc test.txt | /bin/wc
+[2]sys_pipe2: pfd[0]: 3, pfd[1]: 4
+[0]sys_close: [9] fd: 1, ref: 12                // close(1)
+[2]sys_close: [8] argfd err: -9 fd: 0           // close(p[0])
+[0]sys_dup: [9] dup ofd: 0 to fd: 1 ref: 15     // dup(p[1])
+[1]sys_close: [10] fd: 0, ref: 15               // close(0)
+[0]sys_close: [9] argfd err: -9 fd: 0           // close(p[0])
+[1]sys_dup: [10] argfd err: -9 fd: 0            // dup(p[0])
+[2]sys_close: [8] fd: 0, ref: 14                // close(p[1])
+[0]sys_close: [9] fd: 0, ref: 13                // close(p[0])
+[1]sys_close: [10] argfd err: -9 fd: 0          // close(p[0])
+            // [10] close(p[1])
+[1]trap: [10] unknown trap code: 37 at 0xffff000000091b0c with 0x8
+[3]sys_close: [9] fd: 0, ref: 1                 // close(0)
+[1]exit: exit: pid 10, err 1
+```
+
+```bash
+# proc[8]   grep | wc
+close(p[0])
+close(p[1])
+
+# proc[9] : grep
+close(1)
+dup(p[1])
+close(p[0])
+close(p[1])
+
+# proc[10] : wc
+close(0)
+dup(p[0])
+close(p[0])
+close(p[1])
+```
+
+- sys_pipe2()でユーザ領域のポインタに直接fdをセットしていたがセットされなかった。一旦、カーネル変数で受けて、ユーザ領域にmemmoveするようにした
+
+```bash
+$ /bin/grep abc test.txt | /bin/wc
+p[0]: 3, p[1]: 4
+[3]sys_close: [9] fd: 1, ref: 12
+[0]sys_close: [8] fd: 3, ref: 3
+[1]sys_close: [10] fd: 0, ref: 14
+[0]sys_close: [8] fd: 4, ref: 4
+[3]sys_dup: [9] dup ofd: 4 to fd: 1 ref: 3
+[1]sys_dup: [10] dup ofd: 3 to fd: 0 ref: 3
+[3]sys_close: [9] fd: 3, ref: 3
+[1]sys_close: [10] fd: 3, ref: 2
+[3]sys_close: [9] fd: 4, ref: 3
+[1]sys_close: [10] fd: 4, ref: 2
+kern/sdhost.c:1330: assertion failed.               // 発生しないこともあり
+kern/drivers/console.c:264: kernel panic at cpu 1.
 ```
