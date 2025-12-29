@@ -511,7 +511,7 @@ long sys_chdir(void)
     long error;
 
     if ((error = argstr(0, &path)) < 0) return error;
-    debug("path: %s", path);
+    trace("path: %s", path);
     if ((error = vfs_lookup(p->cwd, path, VLOOKUP_NORMAL, p->uid, &vnode)) < 0)
         return error;
 
@@ -519,7 +519,7 @@ long sys_chdir(void)
         return -ENOTDIR;
 
     p->cwd = vfs_clone_vnode(vnode);
-    debug("p->cwd: %d, vnode: %d", p->cwd->ino, vnode->ino);
+    trace("p->cwd: %d, vnode: %d", p->cwd->ino, vnode->ino);
     return 0;
 }
 

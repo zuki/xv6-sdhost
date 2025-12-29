@@ -310,7 +310,7 @@ fork(void)
     struct proc *np = proc_alloc();
 
     if (np == 0) {
-        debug("proc_alloc returns null");
+        error("proc_alloc returns null");
         return -1;
     }
 
@@ -321,7 +321,7 @@ fork(void)
         np->state = UNUSED;
         release(&ptable.lock);
 
-        debug("uvm_copy returns null");
+        error("uvm_copy returns null");
         return -1;
     }
 
