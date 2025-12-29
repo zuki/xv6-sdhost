@@ -4,7 +4,7 @@
 #include <syscall.h>
 #include <proc.h>
 #include <vfs.h>
-#include <sleeplock.h>
+#include <spinlock.h>
 #include <string.h>
 #include <console.h>
 
@@ -49,11 +49,11 @@ struct vnode_ops pipe_vnode_ops = {
 struct pipe_vnode {
     struct vnode vn;            // 先頭に置くことでvnode/pipe_vnodeとして使用
     char data[PIPESIZE];
-    size_t nread;               // number of bytes read
-    size_t nwrite;              // number of bytes written
-    int readopen;               // read fd is still open
-    int writeopen;              // write fd is still open
-    struct sleeplock lock;
+    size_t nread;               // 読み込んだバイト数
+    size_t nwrite;              // 書き出したバイト数
+    int readopen;               // read fdはopenしているか
+    int writeopen;              // write fdはopenしているか
+    struct spinlock lock;       // 以上を保護
 };
 
 int vfs_create_pipe(struct vfile **rfile, struct vfile **wfile)
@@ -65,6 +65,7 @@ int vfs_create_pipe(struct vfile **rfile, struct vfile **wfile)
         return -ENOMEM;
     vfs_init_vnode(vnode, &pipe_vnode_ops, NULL, 0600, 1, 0, 0, 0, 0, 0, 0, 0, 0);
     vfs_clone_vnode(vnode);
+
     *rfile = alloc_file(vnode, 0);
     if (!*rfile) {
         kmfree(vnode);
@@ -76,15 +77,18 @@ int vfs_create_pipe(struct vfile **rfile, struct vfile **wfile)
         free_vfile(*rfile);
         return -ENFILE;
     }
+    (*rfile)->flags |= O_RDONLY;
+    (*wfile)->flags |= (O_WRONLY | O_APPEND);
+
     trace("rf: 0x%x, wf: 0x%x", *rfile, *wfile);
 
     pipe = (struct pipe_vnode *)vnode;
     pipe->readopen = 1;
-    pipe->writeopen = 0;
+    pipe->writeopen = 1;
     pipe->nread = 0;
     pipe->nwrite = 0;
     memset(pipe->data, 0, PIPESIZE);
-    initsleeplock(&pipe->lock, "pipe");
+    initlock(&pipe->lock, "pipe");
 
     return 0;
 }
@@ -98,11 +102,21 @@ int pipe_release(struct vnode *vnode)
 int pipe_close(struct vfile *file)
 {
     struct pipe_vnode *pipe = (struct pipe_vnode *)(file->vnode);
-    pipe->writeopen = 0;
-    wakeup(&pipe->nread);
 
+    acquire(&pipe->lock);
+    trace("mode: 0x%x", file->flags);
+    if (file->flags & O_WRONLY) {
+        pipe->writeopen = 0;
+        wakeup(&pipe->nread);
+    } else {
+        pipe->readopen = 0;
+        wakeup(&pipe->nwrite);
+    }
     if (pipe->readopen == 0 && pipe->writeopen == 0) {
+        release(&pipe->lock);
         kmfree(pipe);
+    } else {
+        release(&pipe->lock);
     }
 
     return 0;
@@ -111,12 +125,13 @@ int pipe_close(struct vfile *file)
 int pipe_read(struct vfile *file, char *buffer, size_t nbytes)
 {
     struct pipe_vnode *pipe = (struct pipe_vnode *)(file->vnode);
-    ssize_t i;
+    struct proc *p = thisproc();
+    int i;
 
-    acquiresleep(&pipe->lock);
+    acquire(&pipe->lock);
     while (pipe->nread == pipe->nwrite && pipe->writeopen) {
-        if (thisproc()->killed) {
-            releasesleep(&pipe->lock);
+        if (p->killed) {
+            release(&pipe->lock);
             return -EIO;
         }
         sleep(&pipe->nread, &pipe->lock);
@@ -127,20 +142,21 @@ int pipe_read(struct vfile *file, char *buffer, size_t nbytes)
         buffer[i] = pipe->data[pipe->nread++ % PIPESIZE];
     }
     wakeup(&pipe->nwrite);
-    releasesleep(&pipe->lock);
+    release(&pipe->lock);
     return i;
 }
 
 int pipe_write(struct vfile *file, const char *buffer, size_t nbytes)
 {
     struct pipe_vnode *pipe = (struct pipe_vnode *)(file->vnode);
-    ssize_t i;
+    struct proc *p = thisproc();
+    int i;
 
-    acquiresleep(&pipe->lock);
+    acquire(&pipe->lock);
     for (i = 0; i < nbytes; i++) {
         while (pipe->nwrite == pipe->nread + PIPESIZE) {
-            if (pipe->readopen == 0 || thisproc()->killed) {
-                releasesleep(&pipe->lock);
+            if (pipe->readopen == 0 || p->killed) {
+                release(&pipe->lock);
                 return -EBADF;
             }
             wakeup(&pipe->nread);
@@ -149,20 +165,6 @@ int pipe_write(struct vfile *file, const char *buffer, size_t nbytes)
         pipe->data[pipe->nwrite++ % PIPESIZE] = buffer[i];
     }
     wakeup(&pipe->nread);
-    releasesleep(&pipe->lock);
-    return nbytes;
+    release(&pipe->lock);
+    return i;
 }
-
-#if 0
-int pipe_poll(struct vfile *file, int events)
-{
-    int revents = 0;
-    struct vnode *vnode = file->vnode;
-
-    if ((events & VFS_POLL_READ) && (vnode->size - file->offset > 0))
-        revents |= VFS_POLL_READ;
-    if ((events & VFS_POLL_WRITE) && vnode->size >= PIPESIZE)
-        revents |= VFS_POLL_WRITE;
-    return revents;
-}
-#endif
