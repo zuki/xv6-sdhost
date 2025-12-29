@@ -653,7 +653,6 @@ int v6_dirlink(struct v6_inode *dp, char *name, uint32_t ino, uint16_t type)
     struct dirent de;
     struct v6_inode *ip;
     struct vnode *vp = ITOV(dp);
-    int hit = 0;
 
     trace("dp->ino: %d, name: %s", vp->ino, name);
     /* nameがすでに存在しないかチェックし、あればエラー. */
@@ -662,19 +661,15 @@ int v6_dirlink(struct v6_inode *dp, char *name, uint32_t ino, uint16_t type)
         return -EEXIST;
     }
 
-    /* 空きディレクトリエントリを見つける. */
+    /* 空きディレクトリエントリがあればそれを使用し、なければ
+     * vpを拡張（次のブロックを使用）して追加する */
     for (off = 0; off < vp->size; off += DESIZE) {
         if (v6_readi(dp, (char *)&de, off, DESIZE) != DESIZE) {
             return -EIO;
         }
         if (de.ino == 0) {
-            hit = 1;
             break;
         }
-    }
-
-    if (!hit) {
-        return -ENOMEM;
     }
 
     strncpy(de.name, name, DIRSIZ);
