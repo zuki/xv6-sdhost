@@ -149,8 +149,8 @@ void usb_endpoint_skip_pid(usb_endpoint_t *self, unsigned packets, boolean ststa
             break;
 
         default:
-            info("bad next pid: %d", self->nextpid);
-            assert(0);
+            error("bad next pid: %d", self->nextpid);
+            self->nextpid = usb_pid_setup;
             break;
         }
     } else {
