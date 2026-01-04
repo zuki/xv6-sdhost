@@ -33,9 +33,11 @@ struct driver *drivers[] = {
 };
 
 extern struct mount_ops v6_mount_ops;
+extern struct mount_ops procfs_mount_ops;
 
 struct mount_ops *filesystems[] = {
     &v6_mount_ops,
+    &procfs_mount_ops,
     NULL
 };
 

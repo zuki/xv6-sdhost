@@ -199,6 +199,8 @@ forkret(void)
     #include <fs/v6/file.h>
 
     extern device_t root_dev;
+    extern struct mount_ops procfs_mount_ops;
+    int err;
 
     static int first = 1;
     if (first && thisproc() != thiscpu()->idle) {
@@ -208,6 +210,13 @@ forkret(void)
         //v6_init();
         sd_postinit();
         v6_set_super();
+        err = vfs_mount(NULL, "/proc", DEVPROCFS, &procfs_mount_ops, VFS_MBF_READ_ONLY, 0);
+        if (err) {
+            error("mount /proc is failed: %d", err);
+        } else {
+            debug("mount proc ok");
+        }
+
 #if 1
         usb_init();
         net_init();
@@ -426,17 +435,15 @@ exit(int err)
     LIST_FOREACH_ENTRY_SAFE(p, np, q, clink) {
         assert(p->parent == cp);
         p->parent = initproc;
-
         list_drop(&p->clink);
         list_push_back(&initproc->child, &p->clink);
-        if (p->state == ZOMBIE)
+        if (p->state == ZOMBIE) {
             wakeup1(initproc);
+        }
     }
     assert(list_empty(q));
-
     // Jump into the scheduler, never to return.
     cp->state = ZOMBIE;
-
     swtch(&cp->context, thiscpu()->scheduler);
     panic("zombie exit");
 }
@@ -511,4 +518,37 @@ void kthread_read_ether(void)
         //thisproc()->state = RUNNABLE;
         yield();
     }
+}
+
+struct proc *get_proc(pid_t pid)
+{
+    struct proc *p;
+
+    acquire(&ptable.lock);
+    for (p = ptable.proc; p < ptable.proc + NPROC; p++) {
+        if (p->pid == pid) {
+            release(&ptable.lock);
+            return p;
+        }
+    }
+    release(&ptable.lock);
+    return NULL;
+}
+
+void proc_iter_start(struct process_iter *iter)
+{
+    iter->slot = 0;
+}
+
+struct proc *proc_iter_next(struct process_iter *iter)
+{
+    struct proc *proc;
+
+    do {
+        if (iter->slot >= NPROC)
+            return NULL;
+        proc = &ptable.proc[iter->slot++];
+    } while (proc->pid == 0);
+
+    return proc;
 }

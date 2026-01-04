@@ -93,7 +93,7 @@ int
 main(int argc, char *argv[])
 {
     int i, cc, fd;
-    uint32_t rootino, inum, off, binino, devino;
+    uint32_t rootino, inum, off, binino, devino, procino;
     struct dirent de;
     char buf[BLKSIZE];
     struct dinode din;
@@ -153,6 +153,9 @@ main(int argc, char *argv[])
 
     // Create /dev/tty1
     make_dev(devino, "tty1", TTYMAJOR, 1, 0, 0, S_IFCHR|0666);
+
+    // Create /proc
+    procino = make_dir(rootino, "proc", 0, 0, S_IFDIR|0755);
 
     copy_file(2, 3, argv, rootino, 0, 0, S_IFREG|0755);
     copy_file(3, argc, argv, binino, 0, 0, S_IFREG|0755);

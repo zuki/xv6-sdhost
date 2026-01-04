@@ -5,6 +5,7 @@
 /* デバイス番号 */
 #define DEVFAT          makedev(1, 0)
 #define DEVV6           makedev(1, 1)
+#define DEVPROCFS       makedev(1, 2)
 #define DEVCONS         makedev(2, 1)
 #define DEVTTY1         makedev(3, 1)
 #define DEVTTY2         makedev(3, 2)

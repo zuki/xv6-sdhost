@@ -83,6 +83,15 @@ struct cpu {
     struct spinlock lock;
 };
 
+struct process_iter {
+    int slot;
+};
+
+struct procfs_position {
+    uint16_t slot;
+    struct process_iter iter;
+};
+
 extern struct cpu cpu[NCPU];
 
 static inline struct cpu *
@@ -109,5 +118,9 @@ int  fork(void);
 void procdump();
 void kthread_read_ether(void);
 void kthread_created(void(*func)(void));
+struct proc *get_proc(pid_t pid);
+void proc_iter_start(struct process_iter *iter);
+struct proc *proc_iter_next(struct process_iter *iter);
+
 
 #endif

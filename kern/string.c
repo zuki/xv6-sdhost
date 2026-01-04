@@ -3,10 +3,11 @@
 #include <linux/errno.h>
 #include <console.h>
 
-static void sprintint(int64_t x, int base, int sign, int zero, int col, char **p)
+static int sprintint(int64_t x, int base, int sign, int zero, int col, char **p)
 {
     static char digit[] = "0123456789abcdef";
     static char buf[64];
+    int ret = 0;
 
     if (sign && x < 0) {
         x = -x;
@@ -24,8 +25,10 @@ static void sprintint(int64_t x, int base, int sign, int zero, int col, char **p
         else if (zero == -1)
             buf[i] = ' ';
         else break;
+    ret = i;
     while (i--)
         *(*p)++ = buf[i];
+    return ret;
 }
 
 static int vsnprintfmt(char *str, size_t n, const char *fmt, va_list ap)
@@ -33,11 +36,13 @@ static int vsnprintfmt(char *str, size_t n, const char *fmt, va_list ap)
     int i, c, j;
     char *s;
     char *p = str;
+    int ret = 0;
 
     for (i = 0; (c = fmt[i] & 0xff) != 0; i++) {
         if (p - str > n) return -1;
         if (c != '%') {
             *p++ = c;
+            ret++;
             continue;
         }
 
@@ -65,27 +70,28 @@ static int vsnprintfmt(char *str, size_t n, const char *fmt, va_list ap)
         switch (c) {
         case 'u':
             if (l == 2)
-                sprintint(va_arg(ap, int64_t), 10, 0, z, n, &p);
+                ret += sprintint(va_arg(ap, int64_t), 10, 0, z, n, &p);
             else
-                sprintint(va_arg(ap, uint32_t), 10, 0, z, n, &p);
+                ret += sprintint(va_arg(ap, uint32_t), 10, 0, z, n, &p);
             break;
         case 'd':
             if (l == 2)
-                sprintint(va_arg(ap, int64_t), 10, 1, z, n, &p);
+                ret += sprintint(va_arg(ap, int64_t), 10, 1, z, n, &p);
             else
-                sprintint(va_arg(ap, int), 10, 1, z, n, &p);
+                ret += sprintint(va_arg(ap, int), 10, 1, z, n, &p);
             break;
         case 'x':
             if (l == 2)
-                sprintint(va_arg(ap, int64_t), 16, 0, z, n, &p);
+                ret += sprintint(va_arg(ap, int64_t), 16, 0, z, n, &p);
             else
-                sprintint(va_arg(ap, uint32_t), 16, 0, z, n, &p);
+                ret += sprintint(va_arg(ap, uint32_t), 16, 0, z, n, &p);
             break;
         case 'p':
-            sprintint((uint64_t) va_arg(ap, void *), 16, 0, 0, 16, &p);
+            ret += sprintint((uint64_t) va_arg(ap, void *), 16, 0, 0, 16, &p);
             break;
         case 'c':
             *p++ = (va_arg(ap, int));
+            ret++;
             break;
         case 's':
             j = 0;
@@ -96,26 +102,30 @@ static int vsnprintfmt(char *str, size_t n, const char *fmt, va_list ap)
             for (; *s; s++) {
                 *p++ = *s;
                 j++;
+                ret++;
             }
             if (n > j) {
                 n = n - j;
                 while(n--) {
                     *p++ = ' ';
+                    ret++;
                 }
             }
             break;
         case '%':
             *p++ = '%';
+            ret++;
             break;
         default:
             /* Print unknown % sequence to draw attention. */
             *p++ = '%';
             *p++ = c;
+            ret += 2;
             break;
         }
     }
     *p = '\0';
-    return 0;
+    return ret;
 }
 
 static int vsprintfmt(char *str, size_t n, const char *fmt, va_list ap)
