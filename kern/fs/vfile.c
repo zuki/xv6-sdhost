@@ -8,6 +8,7 @@
 
 #define FILE_TABLE_MAX  100
 
+/* 16 + 32 * 100 */
 struct file_table {
     struct spinlock lock;
     struct vfile file[FILE_TABLE_MAX];

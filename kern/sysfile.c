@@ -203,26 +203,29 @@ long sys_close(void)
 long sys_fstat(void)
 {
     struct vfile *file;
-    struct stat *st;
+    struct stat *st, sst;
     long error;
+    int fd;
 
-    if ((error = argfd(0, 0, &file)) < 0)
+    if ((error = argfd(0, &fd, &file)) < 0)
         return error;
-    if ((error = argptr(1, (void *)&st, sizeof(*st))) < 0)
+    if ((error = argptr(1, (void **)&st, sizeof(struct stat))) < 0)
         return error;
 
-    st->st_dev = 0;
-    st->st_ino = file->vnode->ino;
-    st->st_mode = file->vnode->mode;
-    st->st_nlink = file->vnode->nlink;
-    st->st_uid = file->vnode->uid;
-    st->st_gid = file->vnode->gid;
-    st->st_rdev = file->vnode->rdev;
-    st->st_size = file->vnode->size;
-    st->st_atime = file->vnode->atime;
-    st->st_mtime = file->vnode->mtime;
-    st->st_ctime = file->vnode->ctime;
+    sst.st_dev = 0;
+    sst.st_ino = file->vnode->ino;
+    sst.st_mode = file->vnode->mode;
+    sst.st_nlink = file->vnode->nlink;
+    sst.st_uid = file->vnode->uid;
+    sst.st_gid = file->vnode->gid;
+    sst.st_rdev = file->vnode->rdev;
+    sst.st_size = file->vnode->size;
+    sst.st_atime = file->vnode->atime;
+    sst.st_mtime = file->vnode->mtime;
+    sst.st_ctime = file->vnode->ctime;
+    memmove(st, &sst, sizeof(struct stat));
 
+    trace("fd: %d, ino: %d", fd, st->st_ino);
     return 0;
 }
 
@@ -231,7 +234,7 @@ long sys_fstatat(void)
 {
     int dirfd, flags;
     char *path;
-    struct stat *st;
+    struct stat *st, sst;
     struct vnode *vnode, *cwd = NULL;
     long error;
 
@@ -255,18 +258,21 @@ long sys_fstatat(void)
     if ((error = vfs_lookup(cwd, path, flags, thisproc()->uid, &vnode)) < 0)
         return error;
 
-    st->st_dev = vnode->mp->dev;
-    st->st_ino = vnode->ino;
-    st->st_mode = vnode->mode;
-    st->st_nlink = vnode->nlink;
-    st->st_uid = vnode->uid;
-    st->st_gid = vnode->gid;
-    st->st_rdev = vnode->rdev;
-    st->st_size = vnode->size;
-    st->st_atime = vnode->atime;
-    st->st_mtime = vnode->mtime;
-    st->st_ctime = vnode->ctime;
+    sst.st_dev = vnode->mp->dev;
+    sst.st_ino = vnode->ino;
+    sst.st_mode = vnode->mode;
+    sst.st_nlink = vnode->nlink;
+    sst.st_uid = vnode->uid;
+    sst.st_gid = vnode->gid;
+    sst.st_rdev = vnode->rdev;
+    sst.st_size = vnode->size;
+    sst.st_atime = vnode->atime;
+    sst.st_mtime = vnode->mtime;
+    sst.st_ctime = vnode->ctime;
+    memmove(st, &sst, sizeof(struct stat));
     vfs_release_vnode(vnode);
+
+    trace("dirfd: %d, path: %s, ino: %d", dirfd, path, st->st_ino);
     return 0;
 }
 
@@ -444,7 +450,7 @@ long sys_openat(void)
         error("vfs_open %s error: %d", path, error);
         return error;
     }
-
+    trace("vfs_open ok: set file->vnode->ino: %d to fd=%d", file->vnode->ino, fd);
     set_fd(thisproc()->fd_table, fd, file);
     if (flags & O_CLOEXEC)
         bit_add(thisproc()->fdflag, fd);

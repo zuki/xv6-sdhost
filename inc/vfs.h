@@ -8,6 +8,7 @@
 #include <linux/stat.h>
 #include <linux/time.h>
 #include <sleeplock.h>
+#include <console.h>
 
 #define VFS_SEP             '/'
 #define VFS_FILENAME_MAX    14
@@ -98,27 +99,27 @@ struct mount {
 
 /* vnode構造体 */
 struct vnode {
-    struct vnode_ops *ops;
-    struct mount *mp;           /*  このvnodeが属しているマウントポイント */
-    int refcount;               /*  このvnodeを使用中の参照カウント */
+    struct vnode_ops *ops;      /*  0: */
+    struct mount *mp;           /*  8: このvnodeが属しているマウントポイント */
+    int refcount;               /* 16: このvnodeを使用中の参照カウント */
 
-    mode_t mode;
-    int nlink;
-    uid_t uid;
-    gid_t gid;
-    uint32_t bits;              /* vnodeビットフラグ*/
-    device_t rdev;
-    ino_t ino;
-    off_t size;
+    mode_t mode;                /* 20: */
+    int nlink;                  /* 24: */
+    uid_t uid;                  /* 28: */
+    gid_t gid;                  /* 32: */
+    uint32_t bits;              /* 36: vnodeビットフラグ*/
+    device_t rdev;              /* 40: */
+    ino_t ino;                  /* 44: */
+    off_t size;                 /* 48: */
 
-    struct timespec atime;
-    struct timespec mtime;
+    struct timespec atime;      /* 54:  */
+    struct timespec mtime;      /* */
     struct timespec ctime;
 
     void *data;                 /*  ファイルシステム固有のデータ */
 };
 
-/* vfile構造体 */
+/* vfile構造体 : 32 byte */
 struct vfile {
     struct vfile_ops *ops;
     struct vnode *vnode;
@@ -281,6 +282,17 @@ static inline void vfs_update_time(struct vnode *vnode, char update)
         vnode->ctime.tv_sec = t.tv_sec;
     }
     vnode->bits |= VBF_DIRTY;
+}
+
+static inline void dump_mp(struct mount *mp, const char *title)
+{
+    debug("=== dump mount point from %s ===", title);
+    debug("fstype: %s", mp->ops ? mp->ops->fstype : "ND");
+    debug("mount_node: 0x%llx (%d)", mp->mount_node, mp->mount_node ? mp->mount_node->ino : -1);
+    debug("root_node: 0x%llx (%d)", mp->root_node, mp->root_node->ino);
+    debug("super: 0x%llx", mp->super);
+    debug("dev: 0x%x", mp->dev);
+    debug("bits: 0x%x\n", mp->bits);
 }
 
 #endif

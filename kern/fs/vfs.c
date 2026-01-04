@@ -60,10 +60,10 @@ struct mount *vfs_mount_iter_next(struct mount_iter *iter)
         if (iter->slot >= VFS_MOUNT_MAX)
             return NULL;
         mp = &mountpoints[iter->slot++];
+        //if (mp->dev != 0) dump_mp(mp, "vfs_mount_iter_next");
     } while (mp->dev == 0);
     return mp;
 }
-
 
 int vfs_mount(struct vnode *cwd, const char *path, device_t dev, struct mount_ops *ops, int mountflags, uid_t uid)
 {
@@ -79,7 +79,7 @@ int vfs_mount(struct vnode *cwd, const char *path, device_t dev, struct mount_op
             return error;
         }
     }
-
+    trace("path: %s, vnode->ino: %d", path, vnode ? vnode->ino : -1);
     if (vnode && (vnode->bits & VBF_MOUNTED)) {
         vfs_release_vnode(vnode);
         return -EBUSY;
@@ -100,15 +100,25 @@ int vfs_mount(struct vnode *cwd, const char *path, device_t dev, struct mount_op
             mountpoints[i].bits = mountflags;
 
             if ((error = ops->mount(&mountpoints[i], dev, vnode)) < 0) {
+                error("ops->mount is failed");
                 mountpoints[i].dev = 0;
                 vfs_release_vnode(vnode);
                 return error;
             }
-
-            if (vnode)
+#if 0
+            if (vnode) {
+                debug("mount %s with flags 0x%x to mp[%d] mount_node->ino: %d, fs: %s, dev: 0x%x, bits: 0x%x", path, mountflags, i, mountpoints[i].mount_node->ino, mountpoints[i].ops->fstype, mountpoints[i].dev, mountpoints[i].bits);
+            } else {
+                debug("mount %s to mp[%d] mount_node is null", path, i);
+                debug("set root_fs with mp[%d]", i);
+            }
+#endif
+            if (vnode) {
                 vnode->bits |= VBF_MOUNTED;
-            else
+            } else {
                 root_fs = &mountpoints[i];
+            }
+            //dump_mp(&mountpoints[i], "vfs_mount");
             return 0;
         }
     }
@@ -172,7 +182,15 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
     struct mount *mp;
     struct vnode *cur;
     char component[VFS_FILENAME_MAX];
-    trace("cwd->ino: %d, path: %s, flags: 0x%x", cwd->ino, path, flags);
+
+#if 0
+    if (cwd) {
+        debug("start with [[%s]] cwd->ino: %d, path: %s, flags: 0x%x", cwd->mp->ops->fstype, cwd->ino, path, flags);
+    } else {
+        debug("start with [[UD]] cwd->ino: -1, path: %s, flags: 0x%x", path, flags);
+    }
+#endif
+
     if (!result)
         return -EINVAL;
 
@@ -180,29 +198,33 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
     if (path[0] == VFS_SEP) {
         cur = root_fs->root_node;
         i += 1;
+        while (path[i] == VFS_SEP) {
+            i += 1;
+        }
     }
-    while (path[i] == VFS_SEP)
-        i += 1;
 
     /* 変数 i は pathの次に処理する位置 */
     vfs_clone_vnode(cur);
     while (1) {
         k++;
-        trace("LP[%d] cur->ino: %d, ref: %d", k, cur->ino, cur->refcount);
+        trace("[[%s]] LP[%d] cur->ino: %d, ref: %d, bits: 0x%x", cur->mp->ops->fstype, k, cur->ino, cur->refcount, cur->bits);
         /* curにファイルシステムがマウントされている場合、curを
-         * マウントされたファイルシステムのルートノードに置き換える */
+         * マウントされているファイルシステムのルートノードに置き換える */
         if (cur->bits & VBF_MOUNTED) {
             mp = _find_mount_by_vnode(cur);
             vfs_release_vnode(cur);
-            if (!mp)
+            if (!mp) {
+                error("%d has not mount_vnode");
                 return -ENXIO;
+            }
+
             cur = vfs_clone_vnode(mp->root_node);
-            trace("CHG: cur->ino: %d, ref: %d", cur->ino, cur->refcount);
+            trace("CHG: cur to [[%s]] %d", cur->mp->ops->fstype, cur->ino);
         }
 
         // pathの終端にきたら、resultにvnodeをセットして成功で復帰
         if (path[i] == '\0') {
-            trace("OK: cur->ino: %d, ref: %d", cur->ino, cur->refcount);
+            trace("[[%s]] OK: cur->ino: %d, ref: %d", cur->mp->ops->fstype, cur->ino, cur->refcount);
             *result = cur;
             return 0;
         }
@@ -227,7 +249,7 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
             i += 1;
         /* componentをNULL終端する */
         component[j] = '\0';
-        //trace("COMP[%d]: %s", k, component);
+        trace("COMP[%d]: '%s'", k, component);
         if (j >= VFS_FILENAME_MAX) {
             vfs_release_vnode(cur);
             error("componet too long");
@@ -236,28 +258,30 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
 
         // 最後のコンポーネントの手前で停止する必要がある場合、検索を
         // スキップし、ループの先頭に戻って終了する(curは一つ前のvnode)
-        //trace("FLG (%s), path[i]: '%c'", flags ? "PARENT" : "SELF", path[i]);
+        trace("FLG (%s), path[i]: '%c'", flags ? "PARENT" : "SELF", path[i]);
         if ((flags & VLOOKUP_PARENT_OF) && path[i] == '\0') {
             trace("find parent and stop");
             continue;
         }
 
-        // マウントされたファイルシステムのルートディレクトリで ".."に
-        // アクセスする場合、検索前のルートノードにマウントノードを入れ替える
+        // TODO: 現在、マウントされたファイルシステムのルートディレクトリにあり、
+        // ".."にアクセスしようとする場合、マウントポイントノードを入れ替える
+        trace("fs of cur->ino %d is [[%s]] root_node: %d", cur->ino, cur->mp->ops->fstype,  cur->mp->root_node->ino);
         if (cur == cur->mp->root_node && !strcmp(component, "..") && cur != root_fs->root_node) {
-            trace("cur: 0x%x, componet: %s, rootfs: 0x%x", cur, component, root_fs->root_node);
             mp = cur->mp;
             vfs_release_vnode(cur);
             cur = vfs_clone_vnode(mp->mount_node);
+            trace("CHG cur to [[%s]]'s mount_node: %d", mp->ops->fstype, mp->mount_node->ino);
         }
 
         // fs固有のlookupを呼び出して参照されたノードを取得する
+        trace("call ops->lookup with [[%s]] cur: 0x%llx (%d), component: %s, &cur: 0x%llx", cur->mp->ops->fstype, cur, cur->ino, component, &cur);
         if ((error = cur->ops->lookup(cur, component, &cur)) < 0) {
             vfs_release_vnode(cur);
             return error;
         }
     }
-
+    trace("not found");
     return -ENOENT;
 }
 
@@ -270,9 +294,11 @@ int vfs_reverse_lookup(struct vnode *cwd, char *buf, size_t size, uid_t uid)
     struct vnode *cur;
     struct dirent dir;
     struct vfile *file;
-
-    if (!cwd)
+    trace("[[%s]] cwd->ino: %d, buf: 0x%llx, size: 0x%x, uid: %d", (cwd ? cwd->mp->ops->fstype: "ND"), (cwd ? cwd->ino : -1), buf, size, uid);
+    if (!cwd) {
         cwd = root_fs->root_node;
+        trace("cwd is NUll and set to [[%s]] rootf_fs->rooot_node: ino: %d", cwd->mp->ops->fstype, cwd->ino);
+    }
 
     if (!S_ISDIR(cwd->mode))
         return -ENOTDIR;
@@ -280,17 +306,22 @@ int vfs_reverse_lookup(struct vnode *cwd, char *buf, size_t size, uid_t uid)
     j = size;
     buf[--j] = '\0';
     cur = vfs_clone_vnode(cwd);
+    trace("start while loop from [[%s]] cur: 0x%llx (%d), root_fs->root_node: 0x%llx (%d)", cur->mp->ops->fstype, cur, cur->ino, root_fs->root_node, root_fs->root_node->ino);
     while (cur != root_fs->root_node) {
-        // カレントノードがファイルシステムのルートノードである場合、
-        // それがマウントされているvnodeに切り替える。そうしないと
+        // カレントノードがファイルシステムのルートノードの場合、
+        // それがマウントしているvnodeに切り替える。そうしないと
         // inode番号が合わない
+        trace("check [[%s]] cur: 0x%llx (%d) with cur->mp->root_node: 0x%llx (%d)", cur->mp->ops->fstype, cur, cur->ino, cur->mp->root_node, cur->mp->root_node->ino);
         if (cur == cur->mp->root_node) {
+            trace("change cur from %d to %d", cur->ino, cur->mp->mount_node->ino);
             mp = cur->mp;
             vfs_release_vnode(cur);
             cur = vfs_clone_vnode(mp->mount_node);
+            trace("CHG to [[%s]]", cur->mp->ops->fstype);
         }
-
+        trace("cur/..");
         if ((error = vfs_open(cur, "..", O_RDONLY, 0, uid, &file)) < 0) {
+            error("vfs_open error: %d", error);
             vfs_release_vnode(cur);
             return error;
         }
@@ -330,6 +361,9 @@ int vfs_reverse_lookup(struct vnode *cwd, char *buf, size_t size, uid_t uid)
         buf[--j] = VFS_SEP;
 
     strncpy(buf, &buf[j], strlen(&buf[j]));
+    len = strlen(&buf[j]);
+    trace("buf: %s, j: %d, len: %d", buf, j, len);
+
     return 0;
 }
 
@@ -640,7 +674,7 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
     if (!(mode & S_IFMT))
         mode |= S_IFREG;
 
-    trace("cwd: %d, path: %s, create: %d", cwd->ino, path, flags & O_CREAT);
+    trace("[[%s]] cwd: %d, path: %s, create: %d", cwd->mp->ops->fstype, cwd->ino, path, flags & O_CREAT);
     if ((error = vfs_lookup(cwd, path, (flags & O_CREAT) ? VLOOKUP_PARENT_OF : VLOOKUP_NORMAL, uid, &vnode)) < 0)
         return error;
     trace("path: %s, vnode: %d", path, vnode->ino);
@@ -669,9 +703,10 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
         }
     }
 
+    trace("cwd: ino: %d, rdev: 0x%x, mp->dev: 0x%x, mp->ops: 0x%x; child: %s, ino: %d, rdev: 0x%x, mp->dev: 0x%x, mp->ops: 0x%x", cwd->ino, cwd->rdev, cwd->mp->dev, cwd->mp->ops, path, vnode->ino, vnode->rdev, vnode->mp->dev, vnode->mp->ops);
+
     // これから使用するvnodega削除されないようclone
     vfs_clone_vnode(vnode);
-
     // 処理を進める前にパーミッションをチェックする
     if ((flags & O_ACCMODE) != O_WRONLY)
         required_mode |= R_OK;
@@ -691,6 +726,7 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
     if (S_ISCHR(vnode->mode) || S_ISBLK(vnode->mode))
         f->ops = &device_vfile_ops;
     if ((error = f->ops->open(f, flags)) < 0) {
+        error("failed file open");
         free_vfile(f);
     } else {
         if (file)
