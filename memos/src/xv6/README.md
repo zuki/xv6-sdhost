@@ -13,4 +13,5 @@
     - [Gloworm OSのVFS機能を導入](vfs_gloworm.md)
     - [SVR4のvfsシステムの調査](svr4_vfs.md)
     - [SVR4のs5ファイルシステムの関数](s5functions.md)
+- [procfsの移植](procfs.md)
 - [v6ファイルダンプツール](dumptool.md)
