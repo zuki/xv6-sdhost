@@ -123,8 +123,11 @@ ssize_t sys_read(void)
         return error;
     if ((error = argptr(1, (void **)&buf, count)) < 0)
         return error;
-    trace("[%d] fd: %d, buf: 0x%x, count: 0x%x", thisproc()->pid, fd, buf, count);
-    return vfs_read(f, buf, count);
+
+    int ret = vfs_read(f, buf, count);
+    trace("[%d] fd: %d, buf: 0x%llx ('%s'), count: 0x%x, ret: 0x%x", thisproc()->pid, fd, buf, buf, count, ret);
+    return ret;
+    //return vfs_read(f, buf, count);
 }
 
 /*  ssize_t write(int fd, const void *buf, size_t count);  */
@@ -225,7 +228,7 @@ long sys_fstat(void)
     sst.st_ctime = file->vnode->ctime;
     memmove(st, &sst, sizeof(struct stat));
 
-    trace("fd: %d, ino: %d", fd, st->st_ino);
+    trace("fd: %d, ino: %d, mode: 0x%x", fd, st->st_ino, st->st_mode);
     return 0;
 }
 

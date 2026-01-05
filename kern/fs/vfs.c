@@ -309,7 +309,7 @@ int vfs_reverse_lookup(struct vnode *cwd, char *buf, size_t size, uid_t uid)
     trace("start while loop from [[%s]] cur: 0x%llx (%d), root_fs->root_node: 0x%llx (%d)", cur->mp->ops->fstype, cur, cur->ino, root_fs->root_node, root_fs->root_node->ino);
     while (cur != root_fs->root_node) {
         // カレントノードがファイルシステムのルートノードの場合、
-        // それがマウントしているvnodeに切り替える。そうしないと
+        // そのマウントポイントのvnodeに切り替える。そうしないと
         // inode番号が合わない
         trace("check [[%s]] cur: 0x%llx (%d) with cur->mp->root_node: 0x%llx (%d)", cur->mp->ops->fstype, cur, cur->ino, cur->mp->root_node, cur->mp->root_node->ino);
         if (cur == cur->mp->root_node) {

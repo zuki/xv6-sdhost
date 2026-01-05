@@ -214,7 +214,7 @@ forkret(void)
         if (err) {
             error("mount /proc is failed: %d", err);
         } else {
-            debug("mount proc ok");
+            trace("mount proc ok");
         }
 
 #if 1
@@ -414,7 +414,7 @@ exit(int err)
         panic("init exit");
 
     if (err) {
-        debug("exit: pid %d, err %d", cp->pid, err);
+        trace("exit: pid %d, err %d", cp->pid, err);
     }
 
     // Close all open files.

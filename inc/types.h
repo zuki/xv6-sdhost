@@ -93,7 +93,7 @@ typedef int             boolean;
 
 #define ARRAY_SIZE(a)  (sizeof(a) / sizeof((a)[0]))
 #define ALIGN(p, n) (((p) + ((1 << (n)) - 1)) & ~((1 << (n)) - 1))
-#define ARRAY_SIZE(a)  (sizeof(a) / sizeof((a)[0]))
+//#define ARRAY_SIZE(a)  (sizeof(a) / sizeof((a)[0]))
 #define IS_POWER_OF_2(n)    (!((n) & ((n)-1)))
 
 #define offsetof(type, member) __builtin_offsetof(type, member)
