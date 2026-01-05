@@ -9,6 +9,7 @@
 #include <fs/procfs/procfs.h>
 #include <fs/nop.h>
 #include <console.h>
+#include <clock.h>
 
 #define PROCFS_POSITION(x)    ((struct procfs_position *) &(x))
 
@@ -253,20 +254,20 @@ int procfs_readdir(struct vfile *file, struct dirent *dir)
     trace("PROCFS_DATA(file->vnode).filenum: %d", PROCFS_DATA(file->vnode).filenum);
 
     if (PROCFS_DATA(file->vnode).filenum == PFN_ROOTDIR) {
-        if (PROCFS_POSITION(file->offset)->slot == 0 && (proc = proc_iter_next(&PROCFS_POSITION(file->offset)->iter))) {
-            dir->ino = file->offset;
+        if (PROCFS_POSITION(file->offset)->slot == 0 && (proc = proc_iter_next(&PROCFS_POSITION(file->offset)->iter))) {            // 実行中のpidを表示
+            //dir->ino = file->offset;
+            dir->ino = PFN_PROCDIR;
             snprintf(dir->name, VFS_FILENAME_MAX, "%d", proc->pid);
             dir->name[VFS_FILENAME_MAX - 1] = '\0';
             dir->type = 1;          // TODO: typeは要検討
-            trace("(1-1) dir->name: %s", dir->name);
-        } else {
+            trace("(1-1) dir: ino: 0x%x, name: %s", dir->ino, dir->name);
+        } else {                            // root_filesを表示
             slot = ++PROCFS_POSITION(file->offset)->slot;
 
             if (!root_files[slot - 1].filename) {
                 trace("root_files is fin");
                 return 0;
             }
-
 
             dir->ino = file->offset;
             strncpy(dir->name, root_files[slot - 1].filename, VFS_FILENAME_MAX);
@@ -338,10 +339,13 @@ static struct vnode *_find_vnode(pid_t pid, procfs_filenum_t filenum, mode_t mod
 
 static struct vnode *_alloc_vnode(pid_t pid, procfs_filenum_t filenum, mode_t mode, struct mount *mp)
 {
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+
     trace("pid: %d, filenum: %d, mode: 0x%x, mp->root_node: 0x%x", pid, filenum, mode, mp->root_node->ino);
     for (int i = 0; i < MAX_VNODES; i++) {
         if (vnode_table[i].vn.refcount <= 0) {
-            vfs_init_vnode(&vnode_table[i].vn, &procfs_vnode_ops, mp, mode, 1, 0, 0, 0, filenum, 0, 0, 0, 0);
+            vfs_init_vnode(&vnode_table[i].vn, &procfs_vnode_ops, mp, mode, 1, 0, 0, 0, filenum, 0, &now, &now, &now);
             PROCFS_DATA(&vnode_table[i]).pid = pid;
             PROCFS_DATA(&vnode_table[i]).filenum = filenum;
             trace("[%d] ALLOC: vnode->ino: %d, mode: 0x%x, filenum: %d", i, vnode_table[i].vn.ino, vnode_table[i].vn.mode, PROCFS_DATA(&vnode_table[i]).filenum);

@@ -36,7 +36,7 @@ int get_data_stat(struct proc *proc, char *buffer, int max)
         proc->pid,
         proc->name,
         get_proc_state(proc),
-        proc->parent ? proc->parent->pid : -1,
+        proc->parent ? proc->parent->pid : 0,
         0,
         0,
         0,

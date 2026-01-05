@@ -771,3 +771,37 @@ $ /bin/cat /proc/7/statm
 $ /bin/cat /proc/7/cmdline
 sh
 ```
+
+- `ls /proc`で実行中のpidも出力されるようにした
+- inoは`PFN_PROCDIR`とした
+
+```bash
+$ /bin/ls /proc
+drwxr-xr-x    1 root wheel     0  1  5 16:08 1
+drwxr-xr-x    1 root wheel     0  1  5 16:08 2
+drwxr-xr-x    1 root wheel     0  1  5 16:08 3
+drwxr-xr-x    1 root wheel     0  1  5 16:08 4
+drwxr-xr-x    1 root wheel     0  1  5 16:08 5
+drwxr-xr-x    1 root wheel     0  1  5 16:08 6
+drwxr-xr-x    1 root wheel     0  1  5 16:08 7
+drwxr-xr-x    1 root wheel     0  1  5 16:08 8
+drwxr-xr-x    0 root wheel     0  1  5 16:08 .
+drwxrwxr-x    1 root wheel  4096  1  3 11:12 ..
+drwxr-xr-x   10 root wheel     0  1  5 16:08 mounts
+$ /bin/cat /proc
+12345679...mounts$              // pid=8は`/bin/ls /proc`ですでに終了, 9は`/bin/cat /proc`
+$ /bin/ls /proc/7
+drwxr-xr-x    1 root wheel     0  1  5 16:09 .
+drwxr-xr-x    0 root wheel     0  1  5 16:09 ..
+drwxr-xr-x    2 root wheel     0  1  5 16:09 cmdline
+drwxr-xr-x    3 root wheel     0  1  5 16:09 stat
+drwxr-xr-x    4 root wheel     0  1  5 16:09 statm
+$ /bin/cat /proc/7/stat
+7 sh S 1 0 0 0 0 4236272
+$ /bin/cat /proc/7/statm
+4236272 400000 a000 0 0 1b9898 bfded0 bfdd70
+$ /bin/cat /proc/7/cmdline
+sh
+$ /bin/cat /proc/1/cmdline
+init
+```
