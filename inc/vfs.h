@@ -11,7 +11,7 @@
 #include <console.h>
 
 #define VFS_SEP             '/'
-#define VFS_FILENAME_MAX    14
+#define VFS_FILENAME_MAX    58
 
 #define MAXSYMLINKS         20
 #define MAXPATHLEN          1024
@@ -132,14 +132,12 @@ struct vfile {
 #define VLOOKUP_PARENT_OF    0x01
 
 /* ディレクトリエントリ */
-/* ディレクトリ名の最大値 */
-#define DIRSIZ 58
 
 /* ディレクトリエントリ構造体 */
 struct dirent {
     uint32_t  ino;
     uint16_t  type;
-    char name[DIRSIZ];
+    char name[VFS_FILENAME_MAX];
 };
 
 #define DESIZE (sizeof(struct dirent))

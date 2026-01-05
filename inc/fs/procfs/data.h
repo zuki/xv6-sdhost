@@ -10,4 +10,7 @@ int get_data_statm(struct proc *proc, char *buffer, int max);
 
 int get_data_mounts(struct proc *proc, char *buffer, int max);
 
+int get_dir_entry(struct vfile *file, char *buffer, int max);
+int get_proc_dir(struct vfile *file, char *buffer, int max);
+
 #endif

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <proc.h>
 #include <fs/procfs/data.h>
+#include <fs/procfs/procfs.h>
 #include <console.h>
 
 static inline char get_proc_state(struct proc *proc);
@@ -110,4 +111,27 @@ int get_data_mounts(struct proc *proc, char *buffer, int max)
     }
     trace("buffer: %s, i: %d", buffer, i);
     return i;
+}
+
+int get_dir_entry(struct vfile *file, char *buffer, int max)
+{
+    int err;
+    struct dirent de;
+    memset(&de, 0, DESIZE);
+    //extern struct procfs_dir_entry *root_files;
+
+
+    if ((err = procfs_readdir(file, &de)) < 0) {
+        error("err: %d", err);
+        return err;
+    } else if (err == 0) {
+        trace("readdir is fine");
+        return 0;
+    }
+
+    trace("return code: 0x%x, file->offset: 0x%x", err, file->offset);
+    trace("dirent ino: %d, type: %d, name: %s", de.ino, de.type, de.name);
+    //hexdump(&de, DESIZE, "dirent");
+    memmove(buffer, &de, DESIZE);
+    return DESIZE;
 }

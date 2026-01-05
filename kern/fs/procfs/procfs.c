@@ -47,30 +47,20 @@ struct mount_ops procfs_mount_ops = {
     nop_sync,
 };
 
-#if 0
-#define PFN_ROOTDIR     0
-#define PFN_PROCDIR     1
-#define PFN_CMDLINE     2
-#define PFN_STAT        3
-#define PFN_STATM       4
-
-#define PFN_MOUNTS      10
-#endif
-
 struct procfs_dir_entry root_files[] = {
-    { PFN_ROOTDIR,  ".",        NULL },
-    { PFN_ROOTDIR,  "..",       NULL },
-    { PFN_MOUNTS,   "mounts",   get_data_mounts },
-    { 0, NULL, NULL },
+    { PFN_ROOTDIR,  ".",        NULL, get_dir_entry },
+    { PFN_ROOTDIR,  "..",       NULL, NULL },
+    { PFN_MOUNTS,   "mounts",   get_data_mounts, NULL },
+    { 0, NULL, NULL, NULL },
 };
 
 struct procfs_dir_entry proc_files[] = {
-    { PFN_PROCDIR,  ".",        NULL },
-    { PFN_ROOTDIR,  "..",       NULL },
-    { PFN_CMDLINE,  "cmdline",  get_data_cmdline },
-    { PFN_STAT,     "stat",     get_data_stat },
-    { PFN_STATM,    "statm",    get_data_statm },
-    { 0, NULL, NULL },
+    { PFN_PROCDIR,  ".",        NULL, get_dir_entry },
+    { PFN_ROOTDIR,  "..",       NULL, get_dir_entry },
+    { PFN_CMDLINE,  "cmdline",  get_data_cmdline, NULL },
+    { PFN_STAT,     "stat",     get_data_stat, NULL },
+    { PFN_STATM,    "statm",    get_data_statm, NULL },
+    { 0, NULL, NULL, NULL },
 };
 
 #define MAX_VNODES    6
@@ -184,8 +174,11 @@ int procfs_read(struct vfile *file, char *buf, size_t nbytes)
     struct proc *proc;
     char buffer[MAX_BUFFER];
     struct procfs_dir_entry *entry;
+#if 0
     trace("file: pid: %d, ino: %d, nbytes: 0x%x", PROCFS_DATA(file->vnode).pid, file->vnode->ino, nbytes);
     trace("PROCFS_DATA(file->vnode): pid: %d, filenum: %d", PROCFS_DATA(file->vnode).pid, PROCFS_DATA(file->vnode).filenum);
+#endif
+
     proc = get_proc(PROCFS_DATA(file->vnode).pid);
     if (PROCFS_DATA(file->vnode).pid != 0 && !proc) {
         error("pid: %d and proc is null", PROCFS_DATA(file->vnode).pid)
@@ -193,17 +186,28 @@ int procfs_read(struct vfile *file, char *buf, size_t nbytes)
     }
 
     entry = _get_entry_by_num(proc_files, PROCFS_DATA(file->vnode).filenum);
-    if (entry)
-        trace("entry from proc_files");
+    if (entry) {
+        trace("entry from proc_files: filenum: %d", PROCFS_DATA(file->vnode).filenum);
+    }
+
     if (!entry) {
         entry = _get_entry_by_num(root_files, PROCFS_DATA(file->vnode).filenum);
-        if (entry)
-            trace("entry from root_files");
+        if (entry) {
+            trace("entry from root_files: filenum: %d", PROCFS_DATA(file->vnode).filenum);
+        }
     }
+
     if (entry && entry->func) {
         trace("exec func: 0x%llx with proc->pid: %d", entry->func, proc->pid);
         limit = entry->func(proc, buffer, MAX_BUFFER);
         trace("%s", buffer);
+    }
+
+    if (entry && entry->func2) {
+        trace("exec func2: 0x%llx with file->vnode: %d", entry->func2, file->vnode->ino);
+        limit = entry->func2(file, buf, nbytes);
+        trace("file->offset: 0x%x", file->offset);
+        return limit;
     }
 
     trace("[0] offset: 0x%x, nbytes: 0x%x, limit: 0x%x", file->offset, nbytes, limit);
@@ -239,7 +243,7 @@ int procfs_readdir(struct vfile *file, struct dirent *dir)
     short slot;
     struct proc *proc;
 
-    trace("file->vnode: ino: %d, mode: 0x%x", file->vnode->ino, file->vnode->mode);
+    trace("file->vnode: ino: %d, mode: 0x%x, offset: %d", file->vnode->ino, file->vnode->mode, file->offset);
 
     if (!S_ISDIR(file->vnode->mode)) {
         trace("file mode: 0x%x is not dir", file->vnode->mode);
@@ -253,12 +257,13 @@ int procfs_readdir(struct vfile *file, struct dirent *dir)
             dir->ino = file->offset;
             snprintf(dir->name, VFS_FILENAME_MAX, "%d", proc->pid);
             dir->name[VFS_FILENAME_MAX - 1] = '\0';
+            dir->type = 1;          // TODO: typeは要検討
             trace("(1-1) dir->name: %s", dir->name);
         } else {
             slot = ++PROCFS_POSITION(file->offset)->slot;
 
             if (!root_files[slot - 1].filename) {
-                trace("filename is null and return 0");
+                trace("root_files is fin");
                 return 0;
             }
 
@@ -266,14 +271,19 @@ int procfs_readdir(struct vfile *file, struct dirent *dir)
             dir->ino = file->offset;
             strncpy(dir->name, root_files[slot - 1].filename, VFS_FILENAME_MAX);
             dir->name[VFS_FILENAME_MAX - 1] = '\0';
+            dir->type = 1;          // TODO
             trace("(1-2) dir->name: %s", dir->name);
         }
     } else if (PROCFS_DATA(file->vnode).filenum == PFN_PROCDIR) {
-        if (!proc_files[file->offset].filename)
+        if (!proc_files[file->offset].filename) {
+            trace("prof_files is fin");
             return 0;
+        }
+
         dir->ino = (PROCFS_DATA(file->vnode).pid << 8) | proc_files[file->offset].filenum;
         strncpy(dir->name, proc_files[file->offset].filename, VFS_FILENAME_MAX);
         dir->name[VFS_FILENAME_MAX - 1] = '\0';
+        dir->type = 1;
         file->offset += 1;
         trace("(2) dir->name: %s, dir->ino: 0x%x, offset: %d", dir->name, dir->ino, file->offset);
     } else {
@@ -339,5 +349,18 @@ static struct vnode *_alloc_vnode(pid_t pid, procfs_filenum_t filenum, mode_t mo
         }
     }
     trace("return NULL");
+    return NULL;
+}
+
+struct procfs_dir_entry *get_dir_entry_by_index(const char *dir, int index)
+{
+    if (!strncmp(dir, "root", 4)) {
+        if (index >= 0 && index < (ARRAY_SIZE(root_files) - 1))
+            return &root_files[index];
+    } else if (!strncmp(dir, "proc", 4)) {
+        if (index >= 0 && index < (ARRAY_SIZE(proc_files) - 1))
+            return &proc_files[index];
+    }
+
     return NULL;
 }

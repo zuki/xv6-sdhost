@@ -623,3 +623,151 @@ $ /bin/cat /proc/7/cmdline
 <vfs_lookup>
 ffff0000000a56f8:   b9402401    ldr w1, [x0, #36]		# w1 = cwd->bits
 ```
+
+- `ls`出力を検討
+
+```bash
+$ /bin/ls /proc
+[3]syscall1: proc[8] sys_gettid called
+[3]syscall1: proc[8] sys_openat called
+[3]syscall1: proc[8] sys_fstat called
+[3]syscall1: proc[8] sys_read called
+[3]syscall1: proc[8] sys_close called
+[3]syscall1: proc[8] sys_exit_group called
+$ /bin/ls /proc/7
+[1]syscall1: proc[8] sys_gettid called
+[1]syscall1: proc[8] sys_openat called
+[1]syscall1: proc[8] sys_fstat called
+[1]syscall1: proc[8] sys_read called
+[1]syscall1: proc[8] sys_close called
+[1]syscall1: proc[8] sys_exit_group called
+$ /bin/ls /proc/7/stat
+[1]syscall1: proc[10] sys_gettid called
+[1]syscall1: proc[10] sys_openat called
+[1]syscall1: proc[10] sys_fstat called
+[1]syscall1: proc[10] sys_read called
+[1]syscall1: proc[10] sys_close called
+[1]syscall1: proc[10] sys_exit_group called
+
+$ /bin/ls /proc
+[1]sys_fstat: fd: 3, ino: 0, mode: 0x41ed
+[3]sys_read: [8] fd: 3, buf: 0xfffffffffc70 (''), count: 0x40, ret: 0x0
+$ /bin/ls /proc/7
+[3]sys_fstat: fd: 3, ino: 1, mode: 0x41ed
+[1]sys_read: [9] fd: 3, buf: 0xfffffffffc70 (''), count: 0x40, ret: 0x0
+$ /bin/ls /proc/7/stat
+[0]sys_fstat: fd: 3, ino: 3, mode: 0x41ed
+[3]sys_read: [10] fd: 3, buf: 0xfffffffffc70 ('7 sh S 1 0 0 0 0 4236272
+'), count: 0x40, ret: 0x19
+```
+
+- root_filesの'.'にfuncを追加
+
+```bash
+$ /bin/ls /proc
+[3]sys_read: [7] fd: 0, buf: 0x409e08 ('/bin/ls /proc
+'), count: 0x400, ret: 0xe
+[1]sys_fstat: fd: 3, ino: 0, mode: 0x41ed
+[1]procfs_read: exec func: 0xffff0000000a52d0 with proc->pid: 0  // get_root_dir
+[1]sys_read: [8] fd: 0, buf: 0x0 ('(null)'), count: 0x0, ret: 0x40
+[1]trap: [8] unknown trap code: 34 at 0x73746e75 with 0x73746e75
+[1]exit: exit: pid 8, err 1
+
+$ /bin/cat /proc/mounts
+[3]sys_read: [7] fd: 0, buf: 0x409e08 ('/bin/cat /proc/mounts
+'), count: 0x400, ret: 0x16
+[2]_find_filenum_by_name: fn mounts == ent[2] mounts and return 10
+[2]procfs_read: exec func: 0xffff0000000a5270 with proc->pid: 0
+[2]sys_read: [9] fd: 3, buf: 0xfffffffffd50 ('/ 101 v6 rw
+/proc 102 procfs ro
+'), count: 0x200, ret: 0x20
+/ 101 v6 rw
+/proc 102 procfs ro
+[2]procfs_read: exec func: 0xffff0000000a5270 with proc->pid: 0
+[2]sys_read: [9] fd: 3, buf: 0xfffffffffd50 ('/ 101 v6 rw
+/proc 102 procfs ro
+'), count: 0x200, ret: 0x0
+$ /bin/ls /proc
+[3]sys_read: [7] fd: 0, buf: 0x409e08 ('/bin/ls /proc
+/mounts
+'), count: 0x400, ret: 0xe
+[2]sys_fstat: fd: 3, ino: 0, mode: 0x41ed
+[2]procfs_read: exec func: 0xffff0000000a5350 with proc->pid: 0
+[2]sys_read: [10] fd: 0, buf: 0x0 ('(null)'), count: 0x0, ret: 0x40
+[2]trap: [10] unknown trap code: 34 at 0x73746e75 with 0x73746e75
+[2]exit: exit: pid 10, err 1
+$ /bin/ls /proc/1
+[1]sys_read: [7] fd: 0, buf: 0x409e08 ('/bin/ls /proc/1
+'), count: 0x400, ret: 0x22
+[2]execve: uid 0 can't access /bin/ls
+execve: Operation not permitted
+$ /bin/ls
+[1]sys_read: [7] fd: 0, buf: 0x409e08 ('/bin/ls
+/bin/ls /proc/1
+'), count: 0x400, ret: 0x8
+[3]sys_fstat: fd: 3, ino: 1, mode: 0x41fd
+[3]sys_read: [12] fd: 3, buf: 0xfffffffffc80 (''), count: 0x40, ret: 0x40
+drwxrwxr-x    1 root wheel  4096  1  3 11:12 .
+[3]sys_read: [12] fd: 3, buf: 0xfffffffffc80 (''), count: 0x40, ret: 0x40
+drwxrwxr-x    1 root wheel  4096  1  3 11:12 ..
+```
+
+## 1月5日
+
+```bash
+$ /bin/ls /proc
+[2]sys_fstat: fd: 3, ino: 0, mode: 0x41ed
+1234a567g
+[2]procfs_readdir: file->vnode: ino: 0, mode: 0x41ed, offset: 0
+=== struct dirent dump ===
++------+-------------------------------------------------+------------------+
+| 0000 | 00 00 00 00 00 00 31 00 01 00 00 00 00 00 00 00 | ......1......... |
+| 0010 | 54 50 21 00 00 00 ff ff 40 50 21 3f 00 00 ff ff | TP!.....@P!?.... |
+| 0020 | c0 7c ba 00 00 00 ff ff 01 00 00 00 00 00 00 00 | .|.............. |
+| 0030 | 00 00 00 00 00 00 00 00 00 90 40 00 00 00 00 00 | ..........@..... |
++------+-------------------------------------------------+------------------+
+
+h8
+[2]procfs_read: [0] offset: 0x0, nbytes: 0x40, limit: 0x40
+[2]trap: [8] unknown trap code: 37 at 0xffff0000000a4c9c with 0xffff000100ba7d60
+[2]exit: exit: pid 8, err 1
+```
+
+```bash
+$ /bin/ls /proc
+[2]sys_fstat: fd: 3, ino: 0, mode: 0x41ed
+1234a567g
+[2]procfs_readdir: file->vnode: ino: 0, mode: 0x41ed, offset: 0
+[2]get_root_dir: nbytes: 0x1, file->offset: 0x0
+[2]trap: [8] unknown trap code: 37 at 0xffff0000000a56c0 with 0xffff000100ba7d5f
+[2]exit: exit: pid 8, err 1
+```
+
+- `ls`コマンド用に`struct vfile`を引数に持つ`procfs_data_t`とは異なる関数を追加し、
+  root_filesとproc_filesの`.`に設定
+
+```bash
+$ /bin/ls /proc
+drwxr-xr-x    0 root wheel     0  1  1 09:00 .
+drwxrwxr-x    1 root wheel  4096  1  3 11:12 ..
+drwxr-xr-x   10 root wheel     0  1  1 09:00 mounts
+$ /bin/ls /proc/7
+drwxr-xr-x    1 root wheel     0  1  1 09:00 .
+drwxr-xr-x    0 root wheel     0  1  1 09:00 ..
+drwxr-xr-x    2 root wheel     0  1  1 09:00 cmdline
+drwxr-xr-x    3 root wheel     0  1  1 09:00 stat
+drwxr-xr-x    4 root wheel     0  1  1 09:00 statm
+$ /bin/cat /proc
+123456710...mounts$
+$ /bin/cat /proc/mounts
+/ 101 v6 rw
+/proc 102 procfs ro
+$ /bin/cat /proc/7/stat
+7 sh S 1 0 0 0 0 4236272
+$ /bin/cat /proc/7
+...cmdlinestatstatm$
+$ /bin/cat /proc/7/statm
+4236272 400000 a000 0 0 1b9898 bb8ed0 bb8d70
+$ /bin/cat /proc/7/cmdline
+sh
+```

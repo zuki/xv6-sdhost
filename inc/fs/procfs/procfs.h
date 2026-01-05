@@ -18,11 +18,13 @@
 
 typedef int procfs_filenum_t;
 typedef int (*procfs_data_t)(struct proc *proc, char *buffer, int max);
+typedef int (*procfs_func2_t)(struct vfile *file, char *buffer, int max);
 
 struct procfs_dir_entry {
     procfs_filenum_t filenum;
     char *filename;
     procfs_data_t func;
+    procfs_func2_t func2;
 };
 
 struct procfs_data {
@@ -34,7 +36,6 @@ struct procfs_vnode {
     struct vnode vn;
     struct procfs_data data;
 };
-
 
 int procfs_init();
 int procfs_mount(struct mount *mp, device_t dev, struct vnode *parent);
@@ -50,5 +51,7 @@ int procfs_write(struct vfile *file, const char *buf, size_t nbytes);
 int procfs_ioctl(struct vfile *file, unsigned int request, void *argp, uid_t uid);
 off_t procfs_seek(struct vfile *file, off_t position, int whence);
 int procfs_readdir(struct vfile *file, struct dirent *dir);
+
+struct procfs_dir_entry *get_dir_entry_by_index(const char *dir, int index);
 
 #endif
