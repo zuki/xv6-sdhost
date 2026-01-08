@@ -22,7 +22,7 @@ struct vfile_ops procfs_vfile_ops = {
     nop_poll,
     procfs_seek,
     procfs_readdir,
-    nop_getdents,
+    procfs_getdents,
 };
 
 struct vnode_ops procfs_vnode_ops = {
@@ -202,9 +202,7 @@ int procfs_read(struct vfile *file, char *buf, size_t nbytes)
         trace("exec func: 0x%llx with proc->pid: %d", entry->func, proc->pid);
         limit = entry->func(proc, buffer, MAX_BUFFER);
         trace("%s", buffer);
-    }
-
-    if (entry && entry->func2) {
+    } else if (entry && entry->func2) {
         trace("exec func2: 0x%llx with file->vnode: %d", entry->func2, file->vnode->ino);
         limit = entry->func2(file, buf, nbytes);
         trace("file->offset: 0x%x", file->offset);
@@ -280,18 +278,110 @@ int procfs_readdir(struct vfile *file, struct dirent *dir)
             trace("prof_files is fin");
             return 0;
         }
-
+        trace("(2) source: pid: %d, num: %d, name: '%s', offset: %d", PROCFS_DATA(file->vnode).pid, proc_files[file->offset].filenum, proc_files[file->offset].filename, file->offset);
         dir->ino = (PROCFS_DATA(file->vnode).pid << 8) | proc_files[file->offset].filenum;
         strncpy(dir->name, proc_files[file->offset].filename, VFS_FILENAME_MAX);
         dir->name[VFS_FILENAME_MAX - 1] = '\0';
         dir->type = 1;
         file->offset += 1;
-        trace("(2) dir->name: %s, dir->ino: 0x%x, offset: %d", dir->name, dir->ino, file->offset);
+        trace("(2) dir->name: '%s', dir->ino: 0x%x, offset: %d", dir->name, dir->ino, file->offset);
     } else {
         error("PROCFS_DATA(file->vnode).filenum is not dir");
         return -ENOTDIR;
     }
     trace("dir ino: %d, type: %d, name: %s", dir->ino, dir->type, dir->name);
+
+    return 1;
+}
+
+static int procfs_set_dirent64(struct dirent64 *dir, int ino, off64_t offset, uint8_t type, char *name)
+{
+    int namelen, reclen;
+
+    namelen = MIN(name, VFS_FILENAME_MAX) + 1;
+    reclen = (size_t)(&((struct dirent64 *)0)->d_name) + namelen;
+    reclen = (reclen + 0x7) & ~0x7;
+    dir->d_ino = ino;
+    dir->d_off = offset;
+    dir->d_reclen = reclen;
+    dir->d_type = type;
+    memmove(dir->d_name, name, namelen);
+    return reclen;
+}
+int procfs_getdents(struct vfile *file, void *buffer, size_t size)
+{
+    int i, slot, ino;
+    int reclen, tlen = 0;
+    struct proc *proc;
+    struct dirent64 dir;
+    off_t offset = file->offset;
+    char name[VFS_FILENAME_MAX];
+
+    trace("file->vnode: ino: %d, mode: 0x%x, offset: %d", file->vnode->ino, file->vnode->mode, file->offset);
+
+    trace("PROCFS_DATA(file->vnode).filenum: %d", PROCFS_DATA(file->vnode).filenum);
+
+    if (PROCFS_DATA(file->vnode).filenum == PFN_ROOTDIR) {
+        if (PROCFS_POSITION(file->offset)->slot == 0 && (proc = proc_iter_next(&PROCFS_POSITION(file->offset)->iter))) {            // 実行中のpidを表示
+            ino = file->offset;
+            //dir.d_ino = PFN_PROCDIR;
+            snprintf(name, VFS_FILENAME_MAX, "%d", proc->pid);
+            reclen = procfs_set_dirent64(&dir, ino, offset, IFTODT(file->vnode->mode), name);
+
+            if ((tlen + reclen) > size) {
+                trace("break; tlen: %d, reclen: %d, size: %d", tlen, reclen, size);
+                return tlen;
+            }
+            memmove(buffer + tlen, (char *)&dir, reclen);
+            tlen += reclen;
+            offset = file->offset;
+            trace("(1-1) dir: ino: 0x%x, name: %s", dir.d_ino, dir.d_name);
+        } else {                            // root_filesを表示
+            slot = ++PROCFS_POSITION(file->offset)->slot;
+
+            if (!root_files[slot - 1].filename) {
+                trace("root_files is fin");
+                return 0;
+            }
+            trace("(1-2) source: slot: %d, name: '%s', offset: %d", slot - 1, root_files[slot - 1].filename, offset);
+            ino = file->offset;
+            strncpy(name, root_files[slot - 1].filename, VFS_FILENAME_MAX);
+            name[VFS_FILENAME_MAX - 1] = '\0';
+            reclen = procfs_set_dirent64(&dir, ino, offset, IFTODT(file->vnode->mode), name);
+
+            if ((tlen + reclen) > size) {
+                trace("break; tlen: %d, reclen: %d, size: %d", tlen, reclen, size);
+                return tlen;
+            }
+            memmove(buffer + tlen, (char *)&dir, reclen);
+            tlen += reclen;
+            offset = file->offset;
+            trace("(1-2) dir.d_name: %s", dir.d_name);
+        }
+    } else if (PROCFS_DATA(file->vnode).filenum == PFN_PROCDIR) {
+        if (!proc_files[file->offset].filename) {
+            trace("prof_files is fin");
+            return 0;
+        }
+        ino = (PROCFS_DATA(file->vnode).pid << 8) | proc_files[file->offset].filenum;
+        trace("(2) source pid: %d, num: %d, ino: 0x%x, name: '%s', offset: %d", PROCFS_DATA(file->vnode).pid, proc_files[file->offset].filenum, ino, proc_files[file->offset].filename, file->offset);
+        strncpy(name, proc_files[file->offset].filename, VFS_FILENAME_MAX);
+        name[VFS_FILENAME_MAX - 1] = '\0';
+
+        reclen = procfs_set_dirent64(&dir, ino, offset, IFTODT(file->vnode->mode), name);
+        if ((tlen + reclen) > size) {
+            trace("break; tlen: %d, reclen: %d, size: %d", tlen, reclen, size);
+            return tlen;
+        }
+        memmove(buffer + tlen, (char *)&dir, reclen);
+        tlen += reclen;
+        offset = ++file->offset;
+        trace("(2) dir.d_name: %s, dir.d_ino: 0x%x, offset: %d", dir.d_name, dir.d_ino, file->offset);
+    } else {
+        error("PROCFS_DATA(file->vnode).filenum is not dir");
+        return -ENOTDIR;
+    }
+    trace("dir ino: 0x%x, type: %d, name: %s", dir.d_ino, dir.d_type, dir.d_name);
 
     return 1;
 }

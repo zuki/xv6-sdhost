@@ -31,7 +31,7 @@ static int sprintint(int64_t x, int base, int sign, int zero, int col, char **p)
     return ret;
 }
 
-static int vsnprintfmt(char *str, size_t n, const char *fmt, va_list ap)
+static int vsnprintfmt(char *str, size_t size, const char *fmt, va_list ap)
 {
     int i, c, j;
     char *s;
@@ -39,7 +39,7 @@ static int vsnprintfmt(char *str, size_t n, const char *fmt, va_list ap)
     int ret = 0;
 
     for (i = 0; (c = fmt[i] & 0xff) != 0; i++) {
-        if (p - str > n) return -1;
+        if (p - str > size) return -1;
         if (c != '%') {
             *p++ = c;
             ret++;

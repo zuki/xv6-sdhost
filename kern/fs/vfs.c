@@ -788,6 +788,14 @@ int vfs_getdents(struct vfile *file, void *buffer, size_t size)
     return file->ops->getdents(file, buffer, size);
 }
 
+int vfs_writeback(struct vfile *file, off_t offset, uint64_t addr)
+{
+    if (file == NULL || !FILE_WRITABLE(file) || !S_ISREG(file->vnode->mode))
+        return 0;
+
+    return file->ops->writeback(file, offset, addr);
+}
+
 int vfs_release_vnode(struct vnode *vnode)
 {
     if (!vnode) return 0;

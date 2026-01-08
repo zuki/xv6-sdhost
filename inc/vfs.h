@@ -80,6 +80,7 @@ struct vfile_ops {
     off_t (*seek)(struct vfile *file, off_t offset, int whence);
     int (*readdir)(struct vfile *file, struct dirent *dir);
     int (*getdents)(struct vfile *file, void *buffer, size_t size);
+    int (*writeback)(struct vfile *file, off_t offset, uint64_t addr);
 };
 
 /* マウント済みファイルシステムの数を表し、マウント済みファイルシステムの走査に使用する */
@@ -194,6 +195,7 @@ int vfs_poll(struct vfile *file, int events);
 off_t vfs_seek(struct vfile *file, off_t offset, int whence);
 int vfs_readdir(struct vfile *file, struct dirent *dir);
 int vfs_getdents(struct vfile *file, void *buffer, size_t size);
+int vfs_writeback(struct vfile *file, off_t offset, uint64_t addr);
 
 int vfs_create_pipe(struct vfile **rfile, struct vfile **wfile);
 

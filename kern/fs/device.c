@@ -17,6 +17,7 @@ struct vfile_ops device_vfile_ops = {
 	device_ops_seek,
 	nop_readdir,
     nop_getdents,
+    nop_writeback,
 };
 
 int device_ops_open(struct vfile *file, int flags)

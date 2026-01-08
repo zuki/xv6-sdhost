@@ -3,6 +3,10 @@
 #include <console.h>
 #include <vm.h>
 #include <syscall.h>
+#include <filedesc.h>
+#include <mmap.h>
+#include <vfs.h>
+#include <fs/vfile.h>
 #include <linux/mman.h>
 #include <linux/errno.h>
 
@@ -35,44 +39,126 @@ size_t sys_brk(void)
             return oldsz;
         p->sz = sz;
     }
-    trace("[%d] new p->sz: 0x%x", p->pid, p->sz);
+    trace("[%d] return new p->sz: 0x%x", p->pid, p->sz);
     return p->sz;
 }
 
-long sys_mmap(void)
+// void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+void *sys_mmap(void)
 {
     void *addr;
-    size_t len, off;
+    size_t length, offset;
     int prot, flags, fd;
+    struct vfile *f;
+
     if (argu64(0, (uint64_t *) & addr) < 0 ||
-        argu64(1, &len) < 0 ||
+        argu64(1, &length) < 0 ||
         argint(2, &prot) < 0 ||
-        argint(3, &flags) < 0 || argint(4, &fd) < 0 || argu64(5, &off) < 0)
-        return -1;
+        argint(3, &flags) < 0 ||
+        argint(4, &fd) < 0 ||
+        argu64(5, &offset) < 0)
+        return (void *)-EINVAL;
 
-    if ((flags & MAP_PRIVATE) == 0 || (flags & MAP_ANON) == 0 || fd != -1
-        || off != 0) {
-        warn("non-private mmap unimplemented: flags 0x%x, fd %d, off %d",
-             flags, fd, off);
-        return -1;
-    }
-
-    if (addr) {
-        if (prot != PROT_NONE) {
-            warn("mmap unimplemented");
-            return -1;
-        }
-        trace("map none at 0x%p", addr);
-        return (size_t)addr;
+    if (flags & MAP_ANONYMOUS) {
+        if (fd != -1) return (void *)-EINVAL;
+        f = NULL;
     } else {
-        if (prot != (PROT_READ | PROT_WRITE)) {
-            warn("non-rw unimplemented");
-            return -1;
-        }
-        error("addr: 0x%x, len: %d, prot: 0x%x, flags: 0x%x", addr, len, prot, flags);
-        return -ENODEV;
+        if (fd < 0 || fd >= OPEN_MAX) return (void *)-EBADF;
+        struct vfile *get_fd(fd_table_t table, int fd);
+        if ((f = get_fd(thisproc()->fd_table, fd)) == NULL) return (void *)-EBADF;
     }
+
+    if ((flags & (MAP_PRIVATE | MAP_SHARED)) == 0) {
+        warn("invalid flags: 0x%x", flags);
+        return (void *)-EINVAL;
+    }
+
+    if ((ssize_t)length <= 0 || (ssize_t)offset < 0) {
+        warn("invalid length: %lld or offset: %lld", length, offset);
+        return (void *)-EINVAL;
+    }
+
+    // MAP_FIXEDの場合、addrが指定されていなければならない
+    if ((flags & MAP_FIXED) && addr == NULL) {
+        warn("MAP_FIXED and addr is NULL");
+        return (void *)-EINVAL;
+    }
+
+    // バックにあるファイルはreadableでなければならない
+    if (!(flags & MAP_ANONYMOUS) && !FILE_READABLE(f)) {
+        warn("file is not readable");
+        return (void *)-EACCES;
+    }
+
+    // MAP_SHAREかつPROT_WRITEの場合はバックにあるファイルがwritableでなければならない
+    if (!(flags & MAP_ANONYMOUS) && (flags & MAP_SHARED)
+     && (prot & PROT_WRITE) && !FILE_WRITABLE(f)) {
+        warn("file is not writable");
+        return (void *)-EACCES;
+    }
+
+    trace("addr: 0x%llx, length: 0x%x, prot: 0x%x, flags: 0x%x, f: %d, offset: 0x%x",
+        addr, length, prot, flags, f ? f->vnode->ino : -1, offset);
+    return mmap(addr, length, prot, flags, f, offset);
 }
+
+// int munmap(void *addr, size_t length);
+long sys_munmap(void)
+{
+    void *addr;
+    size_t length;
+
+    if (argu64(0, (uint64_t *)&addr) < 0 || argu64(1, &length) < 0)
+        return -EINVAL;
+
+    trace("addr: 0x%llx, length: 0x%llx", addr, length);
+
+    return munmap(addr, length);
+}
+
+// void *mremap(void *old_address, size_t old_size, size_t new_size, int flags, void *new_address);
+void *sys_mremap(void)
+{
+    void *old_addr, *new_addr;
+    size_t old_size, new_size;
+    int flags;
+
+    if (argu64(0, (uint64_t *)&old_addr) < 0 || argu64(1, &old_size) < 0
+     || argu64(2, &new_size) < 0 || argint(3, &flags) < 0
+     || argu64(4, (uint64_t *)&new_addr) < 0)
+        return -EINVAL;
+
+    return mremap(old_addr, old_size, new_size, flags, new_addr);
+}
+
+// int mprotect(void *addr, size_t len, int prot);
+long sys_mprotect(void)
+{
+    void *addr;
+    size_t length;
+    int prot;
+
+    if (argu64(0, (uint64_t *)&addr) < 0 || argu64(1, &length) < 0
+     || argint(2, &prot) < 0)
+        return -EINVAL;
+
+    return mprotect(addr, length, prot);
+}
+
+// int msync(void *addr, size_t length, int flags);
+long sys_msync(void)
+{
+    void *addr;
+    size_t length;
+    int flags;
+
+    if (argu64(0, (uint64_t *)&addr) < 0 || argu64(1, &length) < 0
+     || argint(2, &flags) < 0)
+        return -EINVAL;
+
+    return msync(addr, length, flags);
+}
+
 
 long sys_clone(void)
 {

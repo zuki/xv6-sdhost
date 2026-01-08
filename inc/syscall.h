@@ -71,7 +71,7 @@ long sys_gettid(void);
 long sys_getpid(void);
 long sys_getppid(void);
 long sys_set_tid_address(void);
-long sys_mmap(void);
+void *sys_mmap(void);
 long sys_munmap(void);
 long sys_msync(void);
 void *sys_mremap(void);

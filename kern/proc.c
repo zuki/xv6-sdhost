@@ -14,6 +14,7 @@
 #include <usb.h>
 #include <net/net.h>
 #include <config.h>
+#include <slab.h>
 
 extern int sd_postinit(void);
 
@@ -36,6 +37,8 @@ struct {
 } ptable;
 
 struct proc *initproc;
+struct slab_cache *VMA;
+
 static int pid = 0;
 
 void
@@ -45,6 +48,7 @@ proc_init(void)
     list_init(&ptable.sched_que);
     for (int i = 0; i < SQSIZE; i++)
         list_init(&ptable.slpque[i]);
+    VMA = slab_cache_create("vma", sizeof(struct vma), 0);
 
     info("proc_init ok");
 }
@@ -126,6 +130,7 @@ proc_initx(char *name, char *code, size_t len)
     p->uid = p->gid = 0;
     p->fdflag = 0;
     p->umask = 0002;
+    p->vmas = NULL;
 
     p->tf->elr = 0;
 
@@ -315,12 +320,23 @@ wakeup(void *chan)
 int
 fork(void)
 {
+    int ret = 0;
     struct proc *cp = thisproc();
     struct proc *np = proc_alloc();
 
     if (np == 0) {
         error("proc_alloc returns null");
         return -1;
+    }
+
+    // 親プロセスから子プロセスにvmasをコピーする
+    if ((ret = copy_vmas(cp, np)) < 0) {
+        //debug("ret=%d", ret);
+        acquire(&ptable.lock);
+        np->state = UNUSED;
+        release(&ptable.lock);
+        error("failed copy_vmas");
+        return ret;
     }
 
     if ((np->pgdir = uvm_copy(cp->pgdir)) == 0) {
@@ -416,6 +432,20 @@ exit(int err)
     if (err) {
         trace("exit: pid %d, err %d", cp->pid, err);
     }
+
+    // vmaを解除する
+    //print_mmap_list(p, "before exit");
+    if (cp->vmas) {
+        struct vma *vma = cp->vmas;
+        while (vma) {
+            if (vma->f)
+                trace("pid[%d] f->ip: %d refcnt[1]: %d", cp->pid, vma->f->vnode->ino, vma->f->vnode->refcount);
+            munmap(vma->addr, vma->length);
+            vma = vma->next;
+        }
+        cp->vmas = NULL;
+    }
+    //print_mmap_list(p, "after  exit");
 
     // Close all open files.
     release_fd_table(cp->fd_table);

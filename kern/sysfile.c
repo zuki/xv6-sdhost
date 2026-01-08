@@ -623,6 +623,8 @@ long sys_fcntl(void)
     if ((error = argint(1, &cmd)) < 0) return error;
     if ((error = argint(2, &args)) < 0) return error;
 
+    trace("fd: %d, cmd: 0x%x", fd, cmd);
+
     switch (cmd) {
         case F_DUPFD:
             if ((fd1 = find_unused_fd(p->fd_table, args)) < 0)

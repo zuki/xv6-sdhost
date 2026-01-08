@@ -8,10 +8,13 @@
 #include <spinlock.h>
 #include <list.h>
 #include <filedesc.h>
+#include <slab.h>
 
 #define NPROC           100     /* 最大プロセス数 */
 #define NCPU            4       /* コア数 */
 #define NGROUPS         32      /* ユーザが所属できる最大グループ数 */
+
+extern struct slab_cache *VMA;
 
 /* Stack must always be 16 bytes aligned. */
 struct context {
@@ -21,7 +24,19 @@ struct context {
     // uint64_t q0[2];             /* V0 */
 };
 
+/* vma (virtual memory map area)構造体 */
+struct vma {
+    void *          addr;       /* 先頭アドレス */
+    size_t          length;     /* 領域長 */
+    int             prot;       /* vma属性 */
+    int             flags;      /* vmaフラグ */
+    struct vfile *  f;          /* mapしているファイル */
+    off_t           offset;     /* この領域のファイル内のオフセット */
+    struct vma *    next;       /* 次のvmaへのポインタ */
+};
+
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+
 
 /* Per-process state */
 struct proc {
@@ -44,8 +59,9 @@ struct proc {
      * +----------+  0
      *
      */
-    size_t base, sz;
-    size_t stksz;
+    size_t base;                /* プロセスのベースアドレス */
+    size_t sz;                  /* プロセスメモリサイズ */
+    size_t stksz;               /* プロセスのスタックサイズ */
 
     void *pgdir;                /* ユーザ空間のページテーブル */
     void *kstack;               /* カーネルスタック￥ */
@@ -59,19 +75,24 @@ struct proc {
     struct context *context;    /* コンテキスト: swtch() here to run process. */
     struct list_head link;      /* 実行プロセスリストへのリンク用 */
     void *chan;                 /* スリープチャンネル */
-    uid_t   uid;
-    gid_t   gid;
-    mode_t  umask;
+    uid_t   uid;                /* ユーザID */
+    gid_t   gid;                /* グループID */
 #if 0
     uid_t uid, euid, suid, fsuid;   /* ユーザID */
     gid_t gid, egid, sgid, fsgid;   /* グループID */
     gid_t groups[NGROUPS];      /* 所属グループ */
 #endif
+    mode_t  umask;              /* umask */
+
     int killed;                 /* killされたか否か */
+
     int fdflag;                 /* ファイルディスクリプタフラグ */
     fd_table_t fd_table;        /* オープンファイル管理 */
+
     struct vnode *cwd;          /* カレントディレクトリ */
     char name[16];              /* プロセス名（デバッグ用） */
+
+    struct vma  *vmas;          /* vma領域のリストの先頭のポインタ */
 };
 
 /* Per-CPU state */

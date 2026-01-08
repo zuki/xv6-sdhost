@@ -108,3 +108,8 @@ int nop_getdents(struct vfile *file, void *buffer, size_t size)
 {
     return 0;
 }
+
+int nop_writeback(struct vfile *file, off_t offset, uint64_t addr)
+{
+    return 0;
+}

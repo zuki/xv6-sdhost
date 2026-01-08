@@ -27,6 +27,7 @@ struct vfile_ops sock_vfile_ops = {
     nop_seek,
     nop_readdir,
     nop_getdents,
+    nop_writeback,
 };
 
 struct vnode_ops sock_vnode_ops = {

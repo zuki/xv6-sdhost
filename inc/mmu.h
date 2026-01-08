@@ -7,6 +7,10 @@
  */
 #define PGSIZE 4096
 
+#define PGROUNDUP(sz)   (((sz)+PGSIZE-1) & ~(PGSIZE-1))
+#define PGROUNDDOWN(a)  (((a)) & ~(PGSIZE-1))
+#define PGALINED(a)     (((uint64_t)(a) & (PGSIZE-1)) == 0UL)
+
 /* Memory region attributes */
 #define MT_DEVICE_nGnRnE        0x0
 #define MT_NORMAL               0x1
@@ -19,15 +23,6 @@
                                 (MT_NORMAL_FLAGS << (8 * MT_NORMAL)) | \
                                 (MT_NORMAL_NC_FLAGS << (8 * MT_NORMAL_NC)))
 
-#define SH_OUTER        (2 << 8)
-#define SH_INNER        (3 << 8)       /* Inner shareable */
-#define AF_USED         (1 << 10)
-
-#define PTE_NORMAL_NC   ((MT_NORMAL_NC << 2) | AF_USED | SH_OUTER)
-#define PTE_NORMAL      ((MT_NORMAL << 2) | AF_USED | SH_OUTER)
-// #define PTE_NORMAL      ((MT_NORMAL << 2) | AF_USED | SH_INNER)
-#define PTE_DEVICE      ((MT_DEVICE_nGnRnE << 2) | AF_USED)
-
 /* PTE flags */
 #define PTE_VALID       0x1
 
@@ -37,7 +32,21 @@
 
 #define PTE_KERN        (0 << 6)
 #define PTE_USER        (1 << 6)
+#define PTE_RW          (0 << 7)      /* 読み書き可 */
+#define PTE_RO          (1 << 7)      /* 読み込みのみ可 */
+#define PTE_SH          (3 << 8)      /* キャッシュ可能なメモリでインナ共有可 */
+#define SH_OUTER        (2 << 8)
+#define SH_INNER        (3 << 8)       /* Inner shareable */
+#define AF_USED         (1 << 10)
+#define PTE_AF          (1 << 10)     /* アクセスフラグ（0だとアクセスフォル発生） P2066 */
 #define PTE_NG          (1 << 11)
+#define PTE_PXN         (1UL<<53)   /* EL1以上での実行不可 */
+#define PTE_UXN         (1UL<<54)   /* EL0での実行不可 */
+
+#define PTE_NORMAL_NC   ((MT_NORMAL_NC << 2) | AF_USED | SH_OUTER)
+#define PTE_NORMAL      ((MT_NORMAL << 2) | AF_USED | SH_OUTER)
+// #define PTE_NORMAL      ((MT_NORMAL << 2) | AF_USED | SH_INNER)
+#define PTE_DEVICE      ((MT_DEVICE_nGnRnE << 2) | AF_USED)
 
 /* 1GB/2MB block for kernel, and 4KB page for user. */
 #define PTE_KDATA       (PTE_KERN | PTE_NORMAL | PTE_BLOCK)
@@ -47,11 +56,13 @@
 // #define PTE_UDATA       (PTE_USER | PTE_NORMAL | PTE_PAGE | PTE_NG)
 
 /* Address in table or block entry, only support 32 bit physical address. */
-#define PTE_ADDR(pte)   ((pte) & ~0xFFF)
-#define PTE_FLAGS(pte)  ((pte) &  0xFFF)
+#define PTE_ADDR(pte)   ((uint64_t)(pte) & ~0xFFFF000000000FFFUL)
+#define PTE_FLAGS(pte)  ((uint64_t)(pte) &  0xFFFF000000000FFFUL)
+#define PTE_FLAGS_LOW(pte)  ((uint64_t)(pte) &  0x0000000000000FFFUL)
+#define PTE_FLAGS_HIGH(pte)  ((uint64_t)(pte) &  0xFFFF000000000000UL)
 
 /* Translation Control Register */
-#define TCR_T0SZ        (64 - 48) 
+#define TCR_T0SZ        (64 - 48)
 #define TCR_T1SZ        ((64 - 48) << 16)
 #define TCR_TG0_4K      (0 << 14)
 #define TCR_TG1_4K      (2 << 30)           /* Different from TG0 */

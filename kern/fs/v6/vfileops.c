@@ -22,6 +22,7 @@ struct vfile_ops v6_file_ops = {
     v6_seek,
     v6_readdir,
     v6_getdents,
+    v6_writeback,
 };
 
 
@@ -187,4 +188,21 @@ int v6_getdents(struct vfile *file, void *buffer, size_t size)
         offset = file->offset;
     }
     return tlen;
+}
+
+int v6_writeback(struct vfile *file, off_t offset, uint64_t addr)
+{
+    int r;
+    struct timespec ts;
+    struct vnode *vnode = file->vnode;
+    struct v6_inode *ip = VTOI(vnode);
+
+    size_t n = offset * PGSIZE > vnode->size ? vnode->size - offset : PGSIZE;
+    v6_ilock(ip);
+    r = v6_writei(ip, addr, offset, n);
+    clock_gettime(CLOCK_REALTIME, &ts);
+    memmove(&vnode->mtime, &ts, sizeof(struct timespec));
+    memmove(&vnode->atime, &ts, sizeof(struct timespec));
+    v6_iunlock(ip);
+    return r == n ? r : -EIO;
 }

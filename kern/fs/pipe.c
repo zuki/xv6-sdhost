@@ -29,6 +29,7 @@ struct vfile_ops pipe_vfile_ops = {
     nop_seek,
     nop_readdir,
     nop_getdents,
+    nop_writeback,
 };
 
 struct vnode_ops pipe_vnode_ops = {

@@ -21,10 +21,18 @@
 int in_user(void *s, size_t n)
 {
     struct proc *p = thisproc();
-    if ((p->base <= (uint64_t) s && (uint64_t) s + n <= p->sz) ||
-        (USERTOP - p->stksz <= (uint64_t) s
-         && (uint64_t) s + n <= USERTOP))
+    if ((p->base <= (uint64_t) s && (uint64_t) s + n <= p->sz)
+     || (USERTOP - p->stksz <= (uint64_t) s && (uint64_t) s + n <= USERTOP))
         return 1;
+
+    struct vma *vma = p->vmas;
+    while (vma) {
+        if ((uint64_t)vma->addr <= (uint64_t)s
+         && ((uint64_t)s + n) <= ((uint64_t)vma->addr + vma->length))
+            return 1;
+        vma = vma->next;
+    }
+
     return 0;
 }
 
@@ -179,7 +187,7 @@ static func syscalls[] = {
     //[SYS_getcwd] = (func)sys_getcwd,            // 17
     [SYS_dup] = sys_dup,                        // 23
     [SYS_dup3] = sys_dup3,                      // 24
-    //[SYS_fcntl] = sys_fcntl,                    // 25
+    [SYS_fcntl] = sys_fcntl,                    // 25
     [SYS_ioctl] = sys_ioctl,                    // 29
     [SYS_mknodat] = sys_mknodat,                // 33
     [SYS_mkdirat] = sys_mkdirat,                // 34
@@ -261,14 +269,14 @@ static func syscalls[] = {
     [SYS_sendto] = sys_sendto,                  // 206
     [SYS_recvfrom] = sys_recvfrom,              // 207
     [SYS_brk] = (func)sys_brk,                  // 214
-    //[SYS_munmap] = sys_munmap,                  // 215
-//    [SYS_mremap] = (func)sys_mremap,            // 216
+    [SYS_munmap] = sys_munmap,                  // 215
+    [SYS_mremap] = (func)sys_mremap,            // 216
     [SYS_clone] = sys_clone,                    // 220
     [SYS_execve] = sys_execve,                  // 221
     [SYS_mmap] = (func)sys_mmap,                // 222
     //[SYS_fadvise64] = sys_fadvise64,            // 223
-//    [SYS_mprotect] = sys_mprotect,              // 226
-    //[SYS_msync] = sys_msync,                    // 227
+    [SYS_mprotect] = sys_mprotect,              // 226
+    [SYS_msync] = sys_msync,                    // 227
     //[SYS_madvise] = sys_madvise,                // 233
     [SYS_wait4] = sys_wait4,                    // 260
     //[SYS_prlimit64] = sys_prlimit64,            // 261
@@ -387,7 +395,7 @@ long syscall1(struct trapframe *tf)
     int sysno = tf->x[8];
 
     if (sysno > 0 && sysno < ARRAY_SIZE(syscalls) && syscalls[sysno]) {
-        if (sysno != SYS_sched_yield && sysno != SYS_rt_sigprocmask && thisproc()->pid >= 7)
+        if (sysno != SYS_sched_yield && sysno != SYS_rt_sigprocmask && thisproc()->pid == 8)
             trace("proc[%d] %s called", thisproc()->pid, syscall_names[sysno]);
         return syscalls[sysno]();
     } else {

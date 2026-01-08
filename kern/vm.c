@@ -29,7 +29,7 @@ vm_init()
  * pgdir that corresponds to virtual address va.
  * if alloc != 0, create any required page table pages.
  */
-static uint64_t *
+uint64_t *
 pgdir_walk(uint64_t * pgdir, void *vap, int alloc)
 {
     uint64_t *pgt = pgdir, va = (uint64_t) vap;
@@ -42,7 +42,7 @@ pgdir_walk(uint64_t * pgdir, void *vap, int alloc)
                 memset(p, 0, PGSIZE);
                 pgt[idx] = V2P(p) | PTE_TABLE;
             } else {
-                warn("failed");
+                warn("failed: pgt[%d]: 0x%x", idx, pgt[idx]);
                 return 0;
             }
         }
@@ -147,10 +147,10 @@ vm_free(uint64_t * pgdir)
 }
 
 /*
- * Create PTEs for virtual addresses starting at va that refer to
- * physical addresses starting at pa. va and size might not
- * be page-aligned.
- * Return -1 if failed else 0.
+ * paから始まる物理アドレスを参照するvaから始まる
+ * 仮想アドレスのPTEを作成する. vaとsizeはページ
+ * アラインされていない場合がある。失敗したら -1,
+ * それ以外は0を返す.
  */
 int
 uvm_map(uint64_t * pgdir, void *va, size_t sz, uint64_t pa)
@@ -205,6 +205,42 @@ uvm_alloc(uint64_t * pgdir, size_t base, size_t stksz, size_t oldsz,
     }
 
     return newsz;
+}
+
+/*
+ * vaから始まるマッピングをnpagesページ削除する。vaはページアライン
+ * されていなければならない。マッピングは存在しなければならない。
+ * オプションで物理メモリを解放する。
+ */
+void uvm_unmap(uint64_t *pgdir, uint64_t va, uint64_t npages, int do_free)
+{
+    uint64_t a;
+    uint64_t *pte;
+
+    trace("papetable: 0x%llx, va: 0x%llx, np: %lld, free: %d", pgdir, va, npages, do_free);
+
+    if ((va % PGSIZE) != 0)
+        panic("uvm_unmap: not aligned");
+
+    for (a = va; a < va + npages*PGSIZE; a += PGSIZE) {
+        if ((pte = pgdir_walk(pgdir, a, 0)) == 0) {
+            trace("no pte for va: 0x%lx", a);
+            continue;
+        }
+
+        // uvm_copyと同じ理由
+        if ((pte && *pte & PTE_VALID) == 0) {
+            trace("[%d] pte: %p, *pte: 0x%lx", a, pte, *pte);
+            continue;
+        }
+        if ((PTE_FLAGS(*pte) & 0x3ff) == PTE_VALID)
+            panic("uvm_unmap: not a leaf");
+        if (do_free) {
+            uint64_t pa = PTE_ADDR(*pte);
+            kfree(P2V(pa));
+        }
+        *pte = 0;
+    }
 }
 
 /*

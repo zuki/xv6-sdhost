@@ -26,6 +26,7 @@ int v6_poll(struct vfile *file, int events);
 off_t v6_seek(struct vfile *file, off_t offset, int whence);
 int v6_readdir(struct vfile *file, struct dirent *dir);
 int v6_getdents(struct vfile *file, void *buffer, size_t size);
+int v6_writeback(struct vfile *file, off_t offset, uint64_t addr);
 
 /* v6vnodeops.c */
 int v6_create(struct vnode *vnode, const char *filename, mode_t mode, uid_t uid, struct vnode **result);

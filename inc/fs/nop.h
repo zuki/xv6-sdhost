@@ -27,5 +27,6 @@ int nop_poll(struct vfile *file, int events);
 off_t nop_seek(struct vfile *file, off_t offset, int whence);
 int nop_readdir(struct vfile *file, struct dirent *dir);
 int nop_getdents(struct vfile *file, void *buffer, size_t size);
+int nop_writeback(struct vfile *file, off_t offset, uint64_t addr);
 
 #endif
