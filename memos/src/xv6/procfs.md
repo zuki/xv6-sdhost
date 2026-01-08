@@ -805,3 +805,101 @@ sh
 $ /bin/cat /proc/1/cmdline
 init
 ```
+
+## 1月6日
+
+- lsコマンドの実装がxv6とglowormで異なる(direntの取得を前者はread()で校舎はreaddir())で
+  行っていたので後者の実装をls2としてxv6に移植
+- ただし、muslではreaddir()はライブラリ関数で内部でgetdents64()を呼んでいるので
+  procfsでもgetdents()を実装
+
+```bash
+$ /bin/ls /proc
+drwxr-xr-x    1 root wheel     0  1  6 12:08 1
+drwxr-xr-x    1 root wheel     0  1  6 12:08 2
+drwxr-xr-x    1 root wheel     0  1  6 12:08 3
+drwxr-xr-x    1 root wheel     0  1  6 12:08 4
+drwxr-xr-x    1 root wheel     0  1  6 12:08 5
+drwxr-xr-x    1 root wheel     0  1  6 12:08 6
+drwxr-xr-x    1 root wheel     0  1  6 12:08 7
+drwxr-xr-x    1 root wheel     0  1  6 12:08 8
+drwxr-xr-x    0 root wheel     0  1  6 12:08 .
+drwxrwxr-x    1 root wheel  4096  1  6 11:56 ..
+drwxr-xr-x   10 root wheel     0  1  6 12:08 mounts
+
+$ /bin/ls2
+[2]sys_fcntl: fd: 3, cmd: 0x2
+[2]sys_mmap: addr: 0x0, len: 8192, prot: 0x3, flags: 0x22
+[2]trap: [12] unknown trap code: 36 at 0x40033c with 0xc
+```
+
+- sys_mmap()の実装が必要だった
+
+## 1月8日
+
+- sys_mmap()を実装（xv6-milkv-muslで改造したものをベースにarm部分は
+  mac-rpi-osの実装を使用した。
+
+```bash
+$ /bin/ls /proc
+drwxr-xr-x    1 root wheel     0  1  8 16:07 1
+drwxr-xr-x    1 root wheel     0  1  8 16:07 2
+drwxr-xr-x    1 root wheel     0  1  8 16:07 3
+drwxr-xr-x    1 root wheel     0  1  8 16:07 4
+drwxr-xr-x    1 root wheel     0  1  8 16:07 5
+drwxr-xr-x    1 root wheel     0  1  8 16:07 6
+drwxr-xr-x    1 root wheel     0  1  8 16:07 7
+drwxr-xr-x    1 root wheel     0  1  8 16:07 8
+drwxr-xr-x    0 root wheel     0  1  8 16:07 .
+drwxrwxr-x    1 root wheel  4096  1  8 15:04 ..
+drwxr-xr-x   10 root wheel     0  1  8 16:07 mounts
+$ /bin/ls2 /proc
+drwxr-xr-x      0 2026-01-08 07:07:36 1
+drwxr-xr-x      0 2026-01-08 07:07:36 2
+drwxr-xr-x      0 2026-01-08 07:07:36 3
+drwxr-xr-x      0 2026-01-08 07:07:36 4
+drwxr-xr-x      0 2026-01-08 07:07:36 5
+drwxr-xr-x      0 2026-01-08 07:07:36 6
+drwxr-xr-x      0 2026-01-08 07:07:36 7
+drwxr-xr-x      0 2026-01-08 07:07:36 9
+drwxr-xr-x      0 2026-01-08 07:07:23 .
+drwxrwxr-x   4096 2026-01-08 06:04:44 ..
+drwxr-xr-x      0 2026-01-08 07:07:36 mounts
+$ /bin/ls /proc/7
+drwxr-xr-x    1 root wheel     0  1  8 16:07 .
+drwxr-xr-x    0 root wheel     0  1  8 16:07 ..
+drwxr-xr-x    2 root wheel     0  1  8 16:07 cmdline
+drwxr-xr-x    3 root wheel     0  1  8 16:07 stat
+drwxr-xr-x    4 root wheel     0  1  8 16:07 statm
+$ /bin/ls2 /proc/7
+drwxr-xr-x      0 2026-01-08 07:07:50 .
+drwxr-xr-x      0 2026-01-08 07:07:59 ..
+drwxr-xr-x      0 2026-01-08 07:07:59 cmdline
+drwxr-xr-x      0 2026-01-08 07:07:59 stat
+drwxr-xr-x      0 2026-01-08 07:07:59 statm
+$ /bin/cat /proc/mounts
+/ 101 v6 rw
+/proc 102 procfs ro
+$ /bin/cat /proc/7/stat
+7 sh S 1 0 0 0 0 4236272
+$ /bin/cat /proc/7/statm
+4236272 400000 a000 0 0 1bc8f0 bb8ed0 bb8d50
+$ /bin/cat /proc/7/cmdline
+sh
+$ /bin/ls .
+drwxrwxr-x    1 root wheel  4096  1  8 15:04 .
+drwxrwxr-x    1 root wheel  4096  1  8 15:04 ..
+drwxrwxr-x    2 root wheel  1152  1  8 15:04 bin
+drwxrwxr-x    3 root wheel   192  1  8 15:04 dev
+drwxr-xr-x    0 root wheel     0  1  8 16:07 proc
+-rwxr-xr-x    6 root wheel    34  1  8 15:04 test.txt
+$ /bin/ls2 /
+drwxrwxr-x   4096 2026-01-08 06:04:44 .
+drwxrwxr-x   4096 2026-01-08 06:04:44 ..
+drwxrwxr-x   1152 2026-01-08 06:04:44 bin
+drwxrwxr-x    192 2026-01-08 06:04:44 dev
+drwxr-xr-x      0 2026-01-08 07:07:23 proc
+-rwxr-xr-x     34 2026-01-08 06:04:44 test.txt
+```
+
+- mmaptest, mmaptest2共にまともに動かないので要チェック
