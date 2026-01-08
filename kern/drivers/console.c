@@ -200,7 +200,8 @@ void vprintfmt(void (*putch)(int), const char *fmt, va_list ap)
                 printint(va_arg(ap, uint32_t), 16, 0, z, n);
             break;
         case 'p':
-            printint((uint64_t) va_arg(ap, void *), 16, 0, z, n);
+            putch('0'); putch('x');
+            printint((uint64_t) va_arg(ap, void *), 16, 0, z, n-2);
             break;
         case 'c':
             putch(va_arg(ap, int));
