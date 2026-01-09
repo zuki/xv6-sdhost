@@ -15,6 +15,9 @@
 #include <net/net.h>
 #include <config.h>
 #include <slab.h>
+#include <linux/resources.h>
+#include <linux/wait.h>
+#include <linux/errno.h>
 
 extern int sd_postinit(void);
 
@@ -127,8 +130,10 @@ proc_initx(char *name, char *code, size_t len)
     p->sz = PGSIZE;
     p->base = 0;
 
+    p->pgid = p->sid = p->pid;
     p->uid = p->gid = 0;
     p->fdflag = 0;
+    init_fd_table(p->fd_table);
     p->umask = 0002;
     p->vmas = NULL;
 
@@ -363,6 +368,8 @@ fork(void)
 
     dup_fd_table(np->fd_table, cp->fd_table);
     np->cwd = vfs_clone_vnode(cp->cwd);
+    np->pgid = cp->pgid;
+    np->sid = cp->sid;
     np->uid = cp->uid;
     np->gid = cp->gid;
     np->fdflag = cp->fdflag;
@@ -375,7 +382,7 @@ fork(void)
     np->state = RUNNABLE;
     release(&ptable.lock);
 
-    trace("'%s'(%d) fork '%s'(%d)", cp->name, cp->pid, np->name, np->pid);
+    debug("'%s'(%d) fork '%s'(%d)", cp->name, cp->pid, np->name, np->pid);
 
     return pid;
 }
@@ -385,8 +392,8 @@ fork(void)
  * Wait for a child process to exit and return its pid.
  * Return -1 if this process has no children.
  */
-int
-wait(void)
+#if 0
+int wait(void)
 {
     struct proc *cp = thisproc();
 
@@ -416,6 +423,58 @@ wait(void)
     release(&ptable.lock);
     return -1;
 }
+#endif
+
+/*
+ * Wait for a child process to exit and return its pid.
+ * Return -1 if this process has no children.
+ */
+int
+wait4(pid_t pid, int *status, int options, struct rusage *ru)
+{
+    struct proc *cp = thisproc();
+    struct list_head *que = &cp->child;
+    struct proc *p, *np;
+
+    acquire(&ptable.lock);
+    while (!list_empty(que)) {
+        LIST_FOREACH_ENTRY_SAFE(p, np, que, clink) {
+            if (p->parent != cp) continue;
+            if (pid > 0) {
+                if (p->pid != pid)
+                    continue;
+            } else if (pid == 0) {
+                if (p->pgid != cp->pgid)
+                    continue;
+            } else if (pid != -1) {
+                if (p->pgid != -pid)
+                    continue;
+            }
+            if (p->state == ZOMBIE
+             || (options & WUNTRACED && p->state == SLEEPING)
+             || (options & WNOHANG)) {
+                //assert(p->parent == cp);
+
+                if (status) *status = p->xstate << 8;
+                if (ru) memset(ru, 0, sizeof(struct rusage));
+
+                list_drop(&p->clink);
+
+                kfree(p->kstack);
+                vm_free(p->pgdir);
+                p->state = UNUSED;
+
+                int pid = p->pid;
+                release(&ptable.lock);
+                return pid;
+            }
+        }
+        sleep(cp, &ptable.lock);
+    }
+    release(&ptable.lock);
+    return -ECHILD;
+}
+
 
 /*
  * Exit the current process.  Does not return.
@@ -473,7 +532,9 @@ exit(int err)
     }
     assert(list_empty(q));
     // Jump into the scheduler, never to return.
+    cp->xstate = err & 0x7f;
     cp->state = ZOMBIE;
+
     swtch(&cp->context, thiscpu()->scheduler);
     panic("zombie exit");
 }

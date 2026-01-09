@@ -176,29 +176,49 @@ static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t
     long ret;
     uint64_t cur;
 
+    // サイズが0のファイルに書き込むために1ページ分uvm_map()する
+    if (f->vnode->size == 0) {
+        char *mem = kalloc();
+        if (!mem) {
+            error("no memory");
+            return -ENOMEM;
+        }
+        memset(mem, 0, PGSIZE);
+        if ((ret = uvm_map(p->pgdir, addr, PGSIZE, V2P(mem))) < 0) {
+            error("0 size uvm_map failed: addr: %p, mem: %p", addr, V2P(mem));
+            kfree(mem);
+            return ret;
+        }
+        return 0;
+    }
+
     for (cur = 0; cur < length; cur += PGSIZE) {
         f->offset = offset;
         int len = (f->vnode->size - f->offset) > PGSIZE ? PGSIZE : (f->vnode->size - f->offset);
-        if (len == 0)
-            break;
+        if (len == 0) break;
+        trace("size: 0x%x, offset: 0x%x, len: 0x%x, cur: 0x%x", f->vnode->size, f->offset, len, cur);
         //trace("addr=%p, length=0x%x, offset=0x%x", addr, length, offset);
         char *mem = kalloc();
         if (!mem) {
+            error("no memory");
             ret = -ENOMEM;
             goto err;
         }
         memset(mem, 0, PGSIZE);
-        if ((ret = vfs_read(f, mem, len)) < 0) {
-            error("fileread failed");
+
+        ret = vfs_read(f, mem, len);
+        if (ret < 0 || ret != len) {
+            error("vfs_read failed: len: 0x%x, ret: 0x%x", len, ret);
             kfree(mem);
             goto err;
         }
 
+        trace("pid[%d] mapping: addr=%p, mem=%p (V2P: %p), offset: 0x%x, len: 0x%x", p->pid, addr+cur, mem, V2P(mem), offset, len);
         // メモリをユーザプロセスにマッピング
-        trace("pid[%d] mapping: addr=%p, mem=%p, offset: 0x%x, len: 0x%x", p->pid, addr+cur, mem, offset, len);
-        if ((ret = uvm_map(p->pgdir, addr + cur, len, V2P(mem)) < 0)) {
+        if ((ret = uvm_map(p->pgdir, addr + cur, len, V2P(mem))) < 0) {
+            error("uvm_map failed: addr: %p, len: 0x%x, mem: %p", addr + cur, len, V2P(mem));
             kfree(mem);
-            return ret;
+            goto err;
         }
         offset += len;
     }
@@ -247,7 +267,7 @@ err:
 long mmap_load_pages(void *addr, uint64_t length, int prot, int flags, struct vfile *f, off_t offset)
 {
     struct proc *p = thisproc();
-
+    trace("addr: %p, length: 0x%llx, prot: 0x%x, flags: 0x%x, f: %d, offset: 0x%llx", addr, length, prot, flags, f ? f->vnode->ino : -1, offset);
     uint64_t perm = get_perm(prot, flags);
     //if (flags & MAP_SHARED) perm |= PTE_W;
 
@@ -255,6 +275,7 @@ long mmap_load_pages(void *addr, uint64_t length, int prot, int flags, struct vf
         return map_anon_pages(p, addr, length, perm);
     else
         return map_file_pages(p, addr, length, perm, f, offset);
+
 }
 
 
@@ -676,8 +697,10 @@ select_addr:
 
 load_pages:
 
-    if ((error = mmap_load_pages(addr, length, prot, flags, f, offset)) < 0)
+    if ((error = mmap_load_pages(addr, length, prot, flags, f, offset)) < 0) {
+        trace("mmap_load_pages: error: %d, addr: %p, length: 0x%llx, prot: 0x%x, flags: 0x%x, f: %d, offset: 0x%llx", error, addr, length, prot, flags, f ? f->vnode->ino : -1, offset);
         goto out;
+    }
 
     vma->addr = addr;
     // ファイルオフセットを正しく処理するためにlengthはここで切り上げる

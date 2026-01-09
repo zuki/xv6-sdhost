@@ -67,6 +67,8 @@ struct proc {
     void *kstack;               /* カーネルスタック￥ */
     enum procstate state;       /* プロセスの状態 */
     int pid;                    /* プロセスID. */
+    pid_t pgid;                 // プロセスグループID
+    pid_t sid;                  // セッションID
     struct proc *parent;        /* 親プロセス */
     struct list_head child;     /* このプロセスの子供リスト */
     struct list_head clink;     /* 親の子供リストへのリンク用 */
@@ -85,7 +87,7 @@ struct proc {
     mode_t  umask;              /* umask */
 
     int killed;                 /* killされたか否か */
-
+    int xstate;                 // waitで待っていてる親に返すexit status
     int fdflag;                 /* ファイルディスクリプタフラグ */
     fd_table_t fd_table;        /* オープンファイル管理 */
 

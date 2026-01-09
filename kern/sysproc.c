@@ -46,12 +46,12 @@ size_t sys_brk(void)
 // void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
 void *sys_mmap(void)
 {
-    void *addr;
+    uint64_t addr;
     size_t length, offset;
     int prot, flags, fd;
     struct vfile *f;
 
-    if (argu64(0, (uint64_t *) & addr) < 0 ||
+    if (argu64(0, &addr) < 0 ||
         argu64(1, &length) < 0 ||
         argint(2, &prot) < 0 ||
         argint(3, &flags) < 0 ||
@@ -59,12 +59,14 @@ void *sys_mmap(void)
         argu64(5, &offset) < 0)
         return (void *)-EINVAL;
 
+    trace("addr: 0x%llx, length: 0x%x, prot: 0x%x, flags: 0x%x, fd: %d, offset: 0x%x",
+        addr, length, prot, flags, fd, offset);
+
     if (flags & MAP_ANONYMOUS) {
         if (fd != -1) return (void *)-EINVAL;
         f = NULL;
     } else {
         if (fd < 0 || fd >= OPEN_MAX) return (void *)-EBADF;
-        struct vfile *get_fd(fd_table_t table, int fd);
         if ((f = get_fd(thisproc()->fd_table, fd)) == NULL) return (void *)-EBADF;
     }
 
@@ -79,7 +81,7 @@ void *sys_mmap(void)
     }
 
     // MAP_FIXEDの場合、addrが指定されていなければならない
-    if ((flags & MAP_FIXED) && addr == NULL) {
+    if ((flags & MAP_FIXED) && addr == 0) {
         warn("MAP_FIXED and addr is NULL");
         return (void *)-EINVAL;
     }
@@ -99,74 +101,77 @@ void *sys_mmap(void)
 
     trace("addr: 0x%llx, length: 0x%x, prot: 0x%x, flags: 0x%x, f: %d, offset: 0x%x",
         addr, length, prot, flags, f ? f->vnode->ino : -1, offset);
-    return mmap(addr, length, prot, flags, f, offset);
+    return mmap((void *)addr, length, prot, flags, f, offset);
 }
 
 // int munmap(void *addr, size_t length);
 long sys_munmap(void)
 {
-    void *addr;
+    uint64_t addr;
     size_t length;
 
-    if (argu64(0, (uint64_t *)&addr) < 0 || argu64(1, &length) < 0)
+    if (argu64(0, &addr) < 0 || argu64(1, &length) < 0)
         return -EINVAL;
 
     trace("addr: 0x%llx, length: 0x%llx", addr, length);
 
-    return munmap(addr, length);
+    return munmap((void *)addr, length);
 }
 
 // void *mremap(void *old_address, size_t old_size, size_t new_size, int flags, void *new_address);
 void *sys_mremap(void)
 {
-    void *old_addr, *new_addr;
+    uint64_t old_addr, new_addr;
     size_t old_size, new_size;
     int flags;
 
-    if (argu64(0, (uint64_t *)&old_addr) < 0 || argu64(1, &old_size) < 0
+    if (argu64(0, &old_addr) < 0 || argu64(1, &old_size) < 0
      || argu64(2, &new_size) < 0 || argint(3, &flags) < 0
-     || argu64(4, (uint64_t *)&new_addr) < 0)
+     || argu64(4, &new_addr) < 0)
         return -EINVAL;
 
-    return mremap(old_addr, old_size, new_size, flags, new_addr);
+    return mremap((void *)old_addr, old_size, new_size, flags, (void *)new_addr);
 }
 
 // int mprotect(void *addr, size_t len, int prot);
 long sys_mprotect(void)
 {
-    void *addr;
+    uint64_t addr;
     size_t length;
     int prot;
 
-    if (argu64(0, (uint64_t *)&addr) < 0 || argu64(1, &length) < 0
+    if (argu64(0, &addr) < 0 || argu64(1, &length) < 0
      || argint(2, &prot) < 0)
         return -EINVAL;
 
-    return mprotect(addr, length, prot);
+    return mprotect((void *)addr, length, prot);
 }
 
 // int msync(void *addr, size_t length, int flags);
 long sys_msync(void)
 {
-    void *addr;
+    uint64_t addr;
     size_t length;
     int flags;
 
-    if (argu64(0, (uint64_t *)&addr) < 0 || argu64(1, &length) < 0
+    if (argu64(0, &addr) < 0 || argu64(1, &length) < 0
      || argint(2, &flags) < 0)
         return -EINVAL;
 
-    return msync(addr, length, flags);
+    return msync((void *)addr, length, flags);
 }
 
 
 long sys_clone(void)
 {
-    void *childstk;
+    uint64_t childstk;
     uint64_t flag;
-    if (argu64(0, &flag) < 0 || argu64(1, (uint64_t *) & childstk) < 0)
-        return -1;
-    trace("flags 0x%llx, child stack 0x%p", flag, childstk);
+    if (argu64(0, &flag) < 0 || argu64(1, &childstk) < 0) {
+        error("param is wrong: flag: 0x%llx, childstk: 0x%llx", flag, childstk);
+        return -EINVAL;
+    }
+
+    debug("flags 0x%llx, child stack 0x%p", flag, childstk);
     if (flag != 17) {
         warn("flags other than SIGCHLD are not supported");
         return -1;
@@ -174,26 +179,20 @@ long sys_clone(void)
     return fork();
 }
 
-// pid_t wait4(pid_t wpid, int *status, int options, struct rusage *rusage);
+// pid_t wait4(pid_t pid, int *status, int options, struct rusage *rusage);
 long sys_wait4(void)
 {
     int pid, opt;
     int *wstatus;
-    void *rusage;
+    uint64_t rusage;
     if (argint(0, &pid) < 0 ||
-        argu64(1, (uint64_t *) & wstatus) < 0 ||
-        argint(2, &opt) < 0 || argu64(3, (uint64_t *) & rusage) < 0)
+        argptr(1, &wstatus, sizeof(int)) < 0 ||
+        argint(2, &opt) < 0 || argu64(3, &rusage) < 0)
         return -1;
 
-    trace("[%d] pid: %d, status: 0x%x, options: 0x%x, rusage: 0x%x", pid, wstatus, opt, rusage);
-    // FIXME:
-    if (pid != -1 || wstatus != 0 || opt != 0 || rusage != 0) {
-        warn("unimplemented. pid %d, wstatus 0x%p, opt 0x%x, rusage 0x%p",
-             pid, wstatus, opt, rusage);
-        return -1;
-    }
+    debug("[%d] pid: %d, status: %p, options: 0x%x, rusage: 0x%llx", pid, wstatus, opt, rusage);
 
-    return wait();
+    return wait4(pid, wstatus, opt, (struct rusage *)rusage);
 }
 
 

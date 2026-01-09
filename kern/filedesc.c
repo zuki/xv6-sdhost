@@ -38,7 +38,7 @@ int find_unused_fd(fd_table_t table, int start)
 
 struct vfile *get_fd(fd_table_t table, int fd)
 {
-    if (fd >= OPEN_MAX || !table[fd]->vnode)
+    if (fd >= OPEN_MAX || (table[fd] && !table[fd]->vnode))
         return NULL;
     return table[fd];
 }
@@ -65,7 +65,7 @@ void unset_fd(fd_table_t table, int fd)
 struct vfile *get_vnode(fd_table_t table, struct vnode *vnode)
 {
     for (int i = 0; i < OPEN_MAX; i++) {
-        if (table[i]->vnode == vnode) {
+        if (table[i] && table[i]->vnode == vnode) {
             trace("hit with %d", i);
             return table[i];
         }
