@@ -663,7 +663,7 @@ void file_empty_file_size_test() {
     char buf[32];
     int n = read(fd, buf, 32);
     if (n != 32) {
-        printf("[F-08] at read\n");
+        printf("[F-08] at read: %d != 32\n", n);
         file_ng++;
         return;
     }
