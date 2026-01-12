@@ -171,7 +171,7 @@ long sys_clone(void)
         return -EINVAL;
     }
 
-    debug("flags 0x%llx, child stack 0x%p", flag, childstk);
+    trace("flags 0x%llx, child stack 0x%p", flag, childstk);
     if (flag != 17) {
         warn("flags other than SIGCHLD are not supported");
         return -1;
@@ -190,7 +190,7 @@ long sys_wait4(void)
         argint(2, &opt) < 0 || argu64(3, &rusage) < 0)
         return -1;
 
-    debug("[%d] pid: %d, status: %p, options: 0x%x, rusage: 0x%llx", pid, wstatus, opt, rusage);
+    trace("[%d] pid: %d, status: %p, options: 0x%x, rusage: 0x%llx", pid, wstatus, opt, rusage);
 
     return wait4(pid, (int *)wstatus, opt, (struct rusage *)rusage);
 }
