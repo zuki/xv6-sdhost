@@ -197,9 +197,13 @@ int v6_writeback(struct vfile *file, off_t offset, uint64_t addr)
     struct vnode *vnode = file->vnode;
     struct v6_inode *ip = VTOI(vnode);
 
-    size_t n = offset * PGSIZE > vnode->size ? vnode->size - offset : PGSIZE;
+    size_t n = offset + PGSIZE > vnode->size ? vnode->size - offset : PGSIZE;
+    // vnode->sizeもoffsetも0の場合があり、この場合は1ページ書き戻す
+    if (n == 0) n = PGSIZE;
+    trace("vnode size=%d, offset=%d, n=%d", vnode->size, offset, n);
+    trace("addr[0]='%c', addr[1]='%c'", ((char *)addr)[0], ((char *)addr)[2]);
     v6_ilock(ip);
-    r = v6_writei(ip, addr, offset, n);
+    r = v6_writei(ip, (char *)addr, offset, n);
     clock_gettime(CLOCK_REALTIME, &ts);
     memmove(&vnode->mtime, &ts, sizeof(struct timespec));
     memmove(&vnode->atime, &ts, sizeof(struct timespec));
