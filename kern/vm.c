@@ -1,11 +1,12 @@
-#include <vm.h>
-
-#include <string.h>
 #include <types.h>
+#include <vm.h>
+#include <string.h>
 #include <arm.h>
 #include <mmu.h>
 #include <memlayout.h>
-
+#include <linux/mman.h>
+#include <proc.h>
+#include <mmap.h>
 #include <console.h>
 #include <mm.h>
 
@@ -82,21 +83,26 @@ uvm_copy(uint64_t * pgdir)
 
                                     uint64_t pa = PTE_ADDR(pgt3[i3]);
                                     uint64_t va =
-                                        (uint64_t) i << (12 +
-                                                         9 *
-                                                         3) | (uint64_t) i1
-                                        << (12 +
-                                            9 * 2) | (uint64_t) i2 << (12 +
-                                                                       9) |
-                                        i3 << 12;
-
-                                    void *np = kalloc();
-                                    if (np == 0) {
-                                        vm_free(newpgdir);
-                                        warn("kalloc failed");
-                                        return 0;
+                                          (uint64_t)  i << (12 + 9 * 3)
+                                        | (uint64_t) i1 << (12 + 9 * 2)
+                                        | (uint64_t) i2 << (12 + 9)
+                                        | (uint64_t) i3 << 12;
+// mmapされたアドレスでMAP_SHAREDの場合は親のpaをそのまま使用。
+// それ以外は新規paに親のpaをコピーして使用
+                                    struct vma *vma = find_vma(thisproc(), (void *)va);
+                                    void *np;
+                                    if (vma && vma->flags & MAP_SHARED) {
+                                        np = P2V(pa);
+                                        inc_kmem_ref(np);
+                                    } else {
+                                        np = kalloc();
+                                        if (np == 0) {
+                                            vm_free(newpgdir);
+                                            warn("kalloc failed");
+                                            return 0;
+                                        }
+                                        memmove(np, P2V(pa), PGSIZE);
                                     }
-                                    memmove(np, P2V(pa), PGSIZE);
                                     // disb();
                                     // Flush to memory to sync with icache.
                                     // dccivac(P2V(pa), PGSIZE);
@@ -223,7 +229,7 @@ void uvm_unmap(uint64_t *pgdir, uint64_t va, uint64_t npages, int do_free)
         panic("uvm_unmap: not aligned");
 
     for (a = va; a < va + npages*PGSIZE; a += PGSIZE) {
-        if ((pte = pgdir_walk(pgdir, a, 0)) == 0) {
+        if ((pte = pgdir_walk(pgdir, (void *)a, 0)) == 0) {
             trace("no pte for va: 0x%lx", a);
             continue;
         }
