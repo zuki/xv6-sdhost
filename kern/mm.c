@@ -101,26 +101,63 @@ void page_cleanup(struct page **page) {
     }
 }
 
+void inc_kmem_ref(void *va) {
+    struct page *page = page_find_by_address(va);
+
+    if (page)
+        page->ref++;
+    else
+        error("no page at %p", va);
+}
+
+void dec_kmem_ref(void *va) {
+    struct page *page = page_find_by_address(va);
+
+    if (page)
+        page->ref--;
+    else
+        error("no page at %p", va);
+}
+
+int get_kmem_ref(void *va) {
+    struct page *page = page_find_by_address(va);
+    int ref = -1;
+
+    if (page)
+        ref = page->ref;
+    else
+        error("no page at %p", va);
+
+    return ref;
+}
+
 /**
  * @ingroup mm
  * @brief ページを解放する.
  *
- * @param pa 解放するページへのポインタ
+ * @param va 解放するページの仮想アドレス
  */
-void kfree(void *pa)
+void kfree(void *va)
 {
-    buddy_free(page_find_by_address(pa));
+    struct page *page = page_find_by_address(va);
+    if (page) {
+        if (--page->ref <= 0)
+            buddy_free(page);
+    } else {
+        error("no page at %p", va);
+    }
 }
 
 /**
  * @ingroup mm
  * @brief ページを割り当てる.
  *
- * @return 割り当てられたページへのポインタ
+ * @return 割り当てられたページの仮想アドレス
  */
 void *kalloc(void)
 {
     struct page *page = buddy_alloc(PGSIZE);
+    page->ref = 1;
     // return page_address(page);
     void *addr = page_address(page);
     trace("addr: 0x%p", addr);

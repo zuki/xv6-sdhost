@@ -86,9 +86,10 @@ typedef uint64_t page_index;
  * @brief ページ構造体.
  */
 struct page {
-    page_index index;       /**< ページインデックス (0 : PAGE_NUM - 1) */
-    unsigned int flags;     /**< フラグ */
-    unsigned int order;     /**< ページブロックの大きさ (2^order) */
+    page_index  index;      /**< ページインデックス (0 : PAGE_NUM - 1) */
+    uint16_t    flags;      /**< フラグ */
+    uint16_t    order;      /**< ページブロックの大きさ (2^order) */
+    int         ref;        /**< 参照カウント */
     struct page* next;      /**< 次のページ構造体へのポインタ */
 };
 
@@ -101,7 +102,10 @@ struct page *   page_find_head(const struct page *page);
 void            page_cleanup(struct page **page);
 
 void *          kalloc();
-void            kfree(void *v);
+void            kfree(void *va);
+void            inc_kmem_ref(void *va);
+void            dec_kmem_ref(void *va);
+int             get_kmem_ref(void *va);
 
 void *          kmalloc(size_t nbytes);
 void            kmfree(void *ap);
