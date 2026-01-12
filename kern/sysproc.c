@@ -128,7 +128,7 @@ void *sys_mremap(void)
     if (argu64(0, &old_addr) < 0 || argu64(1, &old_size) < 0
      || argu64(2, &new_size) < 0 || argint(3, &flags) < 0
      || argu64(4, &new_addr) < 0)
-        return -EINVAL;
+        return (void *)-EINVAL;
 
     return mremap((void *)old_addr, old_size, new_size, flags, (void *)new_addr);
 }
@@ -183,16 +183,16 @@ long sys_clone(void)
 long sys_wait4(void)
 {
     int pid, opt;
-    int *wstatus;
+    uint64_t wstatus;
     uint64_t rusage;
     if (argint(0, &pid) < 0 ||
-        argptr(1, &wstatus, sizeof(int)) < 0 ||
+        argu64(1, &wstatus) < 0 ||
         argint(2, &opt) < 0 || argu64(3, &rusage) < 0)
         return -1;
 
     debug("[%d] pid: %d, status: %p, options: 0x%x, rusage: 0x%llx", pid, wstatus, opt, rusage);
 
-    return wait4(pid, wstatus, opt, (struct rusage *)rusage);
+    return wait4(pid, (int *)wstatus, opt, (struct rusage *)rusage);
 }
 
 

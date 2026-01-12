@@ -9,6 +9,7 @@
 #include <list.h>
 #include <filedesc.h>
 #include <slab.h>
+#include <linux/resources.h>
 
 #define NPROC           100     /* 最大プロセス数 */
 #define NCPU            4       /* コア数 */
@@ -136,7 +137,7 @@ void sleep(void *chan, struct spinlock *lk);
 void wakeup(void *chan);
 void yield(void);
 void exit(int err);
-int  wait(void);
+int  wait4(pid_t pid, int *status, int options, struct rusage *ru);
 int  fork(void);
 void procdump();
 void kthread_read_ether(void);
