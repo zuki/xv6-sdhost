@@ -744,13 +744,16 @@ long munmap(void *addr, size_t length)
         warn("length 0x%llx is bigger than vma->length 0x%llx", length, vma->length);
         length = vma->length;
     }
-    trace(" - found: addr=%p", vma->addr);
+
+    trace(" - found: addr=%p, length=0x%x", vma->addr, vma->length);
+    trace(" - delete 0x%llx bytes", length);
+
     // MAP_SHARED領域で背後にあるファイルに書き込みがあったら書き戻す
     //int len = (f->vnode->size - f->offset) > PGSIZE ? PGSIZE : (f->vnode->size - f->offset);
     if (vma->flags & MAP_SHARED && vma->f && vma->prot & PROT_WRITE) {
         for (uint64_t ra = (uint64_t)addr; ra < (uint64_t)addr + length; ra += PGSIZE) {
-            uint64_t *pte = pgdir_walk(p->pgdir, (void *)ra, 0);
-            if (!pte) panic("no pte");
+            //uint64_t *pte = pgdir_walk(p->pgdir, (void *)ra, 0);
+            //if (!pte) panic("no pte");
             //uint64_t flags = PTE_FLAGS(*pte);
             off_t offset = vma->offset + ra - (uint64_t)vma->addr;
             if (vfs_writeback(vma->f, offset, ra) < 0) {

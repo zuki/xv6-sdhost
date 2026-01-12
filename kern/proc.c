@@ -382,7 +382,7 @@ fork(void)
     np->state = RUNNABLE;
     release(&ptable.lock);
 
-    debug("'%s'(%d) fork '%s'(%d)", cp->name, cp->pid, np->name, np->pid);
+    trace("'%s'(%d) fork '%s'(%d)", cp->name, cp->pid, np->name, np->pid);
 
     return pid;
 }
