@@ -8,8 +8,8 @@
 #include <unistd.h>
 #include <errno.h>
 
-#define MMAPBASE 0x600000000000UL
-#define MMAPTOP 0x0001000000000000UL
+#define MMAPBASE 0x0000FFDFFFFF0000UL
+#define MMAPTOP  0x0001000000000000UL
 
 char *filename = "README";
 
