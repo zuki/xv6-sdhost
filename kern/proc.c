@@ -1,7 +1,7 @@
+#include <types.h>
 #include <proc.h>
 
 #include <string.h>
-#include <types.h>
 #include <memlayout.h>
 #include <list.h>
 #include <console.h>
@@ -42,7 +42,7 @@ struct {
 struct proc *initproc;
 struct slab_cache *VMA;
 
-static int pid = 0;
+static int procid = 0;
 
 void
 proc_init(void)
@@ -83,7 +83,7 @@ proc_alloc(void)
         return 0;
     }
 
-    p->pid = ++pid;
+    p->pid = ++procid;
     p->state = EMBRYO;
     release(&ptable.lock);
 
