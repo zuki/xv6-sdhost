@@ -11,9 +11,43 @@
 #include <memlayout.h>
 #include <syscall.h>
 #include <vfs.h>
+#include <filedesc.h>
 #include <linux/errno.h>
 
 static uint64_t auxv[][2] = { { AT_PAGESZ, PGSIZE } };
+
+// 親から受け継いだ不要な情報を破棄する
+static void flush_old_exec(void)
+{
+    struct proc *p = thisproc();
+
+    // (1) signalを開放
+    flush_signal_handlers(p);
+
+    // (2) close_on_execのfileをclose
+    for (int i = 0; i < OPEN_MAX; i++) {
+        if (p->fd_table[i] && bit_test(p->fdflag, i)) {
+            vfs_close(p->fd_table[i]);
+            unset_fd(p->fd_table, i);
+            bit_remove(p->fdflag, i);
+        }
+    }
+
+#if 0
+    // (3) capabilityを再設定
+    cap_clear(p->cap_inheritable);
+    cap_clear(p->cap_permitted);
+    cap_clear(p->cap_effective);
+
+    if (p->uid == 0 || p->euid == 0) {
+        cap_set_full(p->cap_inheritable);
+        cap_set_full(p->cap_permitted);
+    }
+
+    if (p->euid == 0 || p->fsuid == 0)
+        cap_set_full(p->cap_effective);
+#endif
+}
 
 int execve(const char *path, char *const argv[], char *const envp[])
 {
@@ -71,6 +105,8 @@ int execve(const char *path, char *const argv[], char *const envp[])
     Elf64_Phdr ph;
 
     curproc->pgdir = pgdir;     // Required since readi(sdrw) involves context switch(switch page table).
+
+    flush_old_exec();
 
     // Load program into memory.
     size_t sz = 0, base = 0, stksz = 0, offset;

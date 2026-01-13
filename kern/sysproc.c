@@ -10,6 +10,8 @@
 #include <linux/mman.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
+#include <linux/ppoll.h>
+#include <linux/time.h>
 
 long sys_yield(void)
 {
@@ -197,7 +199,7 @@ long sys_wait4(void)
 }
 
 // int kill(pid_t pid, int sig);
-long sys_kill()
+long sys_kill(void)
 {
     int pid, sig;
 
@@ -210,6 +212,94 @@ long sys_kill()
     trace("pid=%d, sig=%d", pid, sig);
 
     return kill(pid, sig);
+}
+
+// int tkill(int tid, int sig);
+long sys_tkill(void)
+{
+    return 0;
+}
+
+// int sigsuspend(const sigset_t *mask);
+long sys_rt_sigsuspend(void)
+{
+    sigset_t *mask;
+    if (argptr(0, (void **)&mask, sizeof(sigset_t)) < 0)
+        return -EINVAL;
+    return sigsuspend(mask);
+}
+
+// int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+long sys_rt_sigaction(void)
+{
+    int signum;
+    struct k_sigaction *act, *oldact;
+
+    if (argint(0, &signum) < 0 || argptr(1, (void **)&act, sizeof(struct k_sigaction)) < 0
+     || argptr(2, (void **)&oldact, sizeof(struct k_sigaction)) < 0)
+        return -EINVAL;
+#if 0
+    trace("sig=%d, act=%p, oldact=%p", signum, act, oldact);
+    if (act)
+        trace("act->sa_handler: %p", act->handler);
+#endif
+    if (signum < 1 || signum >= NSIG || signum == SIGSTOP || signum == SIGKILL)
+        return -EINVAL;
+
+    return sigaction(signum, act, oldact);
+}
+
+// int sigpending(sigset_t *set);
+long sys_rt_sigpending(void)
+{
+    sigset_t *pending;
+
+    if (argptr(0, (void **)&pending, sizeof(sigset_t)) < 0)
+        return -EINVAL;
+
+    return sigpending(pending);
+}
+
+// int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+// rt_sigprocmask()には第4の引数 size_t sizeがあり
+long sys_rt_sigprocmask(void)
+{
+    int how;
+    sigset_t *set, *oldset;
+    size_t size;
+
+    if (argint(0, &how) < 0 || argptr(1, (void **)&set, sizeof(sigset_t)) < 0
+     || argptr(2, (void **)&oldset, sizeof(sigset_t)) < 0 || argu64(3, &size) < 0)
+        return -EINVAL;
+
+    trace("[%d] how=%d, *set=0x%llx, oldset=%p, size=%lld", thisproc()->pid, how, set ? *set : 0, oldset, size);
+
+    return sigprocmask(how, set, oldset, size);
+}
+
+// int sigreturn(...);
+long sys_rt_sigreturn(void)
+{
+    return sigreturn();
+}
+
+// int ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *timeout_ts, const sigset_t *sigmask);
+long sys_ppoll(void)
+{
+    struct pollfd *fds;
+    nfds_t nfds;
+    struct timespec *timeout_ts;
+    sigset_t *sigmask;
+
+    if (argu64(1, &nfds) < 0
+     || argptr(0, (void **)&fds, nfds * sizeof(struct pollfd)) < 0
+     || argptr(2, (void **)&timeout_ts, sizeof(struct timespec)) < 0
+     || argptr(3, (void **)&sigmask, sizeof(sigset_t)) < 0)
+        return -EINVAL;
+
+    trace("fds: %p, nfds: 0x%lld, timeout: %p, sigmask: %p", fds, nfds, timeout_ts, sigmask);
+
+    return ppoll(fds, nfds, timeout_ts, sigmask);
 }
 
 // FIXME: use pid instead of tid since we don't have threads :)
@@ -225,12 +315,6 @@ long sys_getpid(void) {
 long sys_gettid(void) {
     trace("gettid: name '%s'", thisproc()->name);
     return thisproc()->pid;
-}
-
-
-long sys_rt_sigprocmask(void)
-{
-    return -EINVAL;
 }
 
 // FIXME: exit_group should kill every thread in the current thread group.

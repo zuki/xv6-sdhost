@@ -118,6 +118,7 @@ void trap(struct trapframe *tf)
         exit(1);
     }
     softintr();
+    check_pending_signal();
 }
 
 void

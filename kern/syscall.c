@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <clock.h>
+#include <string.h>
 #include <rtc.h>
 #include <vfs.h>
 #include <filedesc.h>
@@ -183,6 +184,33 @@ long sys_clock_settime(void)
     return clock_settime(clk_id, tp);
 }
 
+//  int nanosleep(const struct timespec *req, struct timespec *rem);
+long sys_nanosleep(void)
+{
+    struct timespec *req, *rem, t;
+    uint64_t expire;
+
+    if (argptr(0, (void **)&req, sizeof(struct timespec)) < 0
+     || argptr(1, (void **)&rem, sizeof(struct timespec)) < 0)
+        return -EINVAL;
+
+    memmove(&t, req, sizeof(struct timespec));
+
+    if (t.tv_nsec >= 1000000000L || t.tv_nsec < 0 || t.tv_sec < 0)
+        return -EINVAL;
+
+    expire = t.tv_sec * 1000000 + (t.tv_nsec + 999) / 1000;
+    trace("sec: %d, nsec: %d, expire: %d", t.tv_sec, t.tv_nsec, expire);
+    delayus(expire);
+
+    if (rem) {
+        rem->tv_sec = 0;
+        rem->tv_nsec = 0;
+    }
+
+    return 0;
+}
+
 static func syscalls[] = {
     //[SYS_getcwd] = (func)sys_getcwd,            // 17
     [SYS_dup] = sys_dup,                        // 23
@@ -212,7 +240,7 @@ static func syscalls[] = {
     //[SYS_readv] = (func)sys_readv,              // 65
     [SYS_writev] = (func)sys_writev,            // 66
     //[SYS_pread64] = sys_pread64,                // 67
-    //[SYS_ppoll] = sys_ppoll,                    // 73
+    [SYS_ppoll] = sys_ppoll,                    // 73
     [SYS_readlinkat] = (func)sys_readlinkat,    // 78
     [SYS_newfstatat] = sys_fstatat,             // 79
     [SYS_fstat] = sys_fstat,                    // 80
@@ -223,20 +251,20 @@ static func syscalls[] = {
     // FIXME: exit_group should kill every thread in the current thread group.
     [SYS_exit_group] = sys_exit_group,          // 94
     [SYS_set_tid_address] = sys_set_tid_address,  // 96 OK
-    //[SYS_nanosleep] = sys_nanosleep,            // 101
+    [SYS_nanosleep] = sys_nanosleep,            // 101
     //[SYS_getitimer] = sys_getitimer,            // 102
     //[SYS_setitimer] = sys_setitimer,            // 103
     [SYS_clock_settime] = sys_clock_settime,    // 112
     [SYS_clock_gettime] = sys_clock_gettime,    // 113
     //[SYS_sched_getaffinity] = sys_sched_getaffinity, // 123
     [SYS_sched_yield] = sys_yield,              // 124
-    //[SYS_kill] = sys_kill,                      // 129
-    //[SYS_tkill] = sys_tkill,                    // 130
-    //[SYS_rt_sigsuspend] = sys_rt_sigsuspend,    // 133
-    //[SYS_rt_sigaction] = sys_rt_sigaction,      // 134
+    [SYS_kill] = sys_kill,                      // 129
+    [SYS_tkill] = sys_tkill,                    // 130
+    [SYS_rt_sigsuspend] = sys_rt_sigsuspend,    // 133
+    [SYS_rt_sigaction] = sys_rt_sigaction,      // 134
     [SYS_rt_sigprocmask] = sys_rt_sigprocmask,  // 135
-    //[SYS_rt_sigpending] = sys_rt_sigpending,    // 136
-    //[SYS_rt_sigreturn] = sys_rt_sigreturn,      // 139
+    [SYS_rt_sigpending] = sys_rt_sigpending,    // 136
+    [SYS_rt_sigreturn] = sys_rt_sigreturn,      // 139
     //[SYS_setregid] = sys_setregid,              // 143
     //[SYS_setgid] = sys_setgid,                  // 144
     //[SYS_setreuid] = sys_setreuid,              // 145

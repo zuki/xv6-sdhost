@@ -15,10 +15,12 @@
 #include <net/net.h>
 #include <config.h>
 #include <slab.h>
+#include <mmap.h>
 #include <linux/signal.h>
 #include <linux/resources.h>
 #include <linux/wait.h>
 #include <linux/errno.h>
+#include <linux/ppoll.h>
 
 extern int sd_postinit(void);
 
@@ -110,6 +112,8 @@ proc_alloc(void)
     p->context = sp;
     p->context->lr0 = (uint64_t) forkret;
     p->context->lr = (uint64_t) trapret;
+
+    p->paused = 0;
 
     list_init(&p->child);
 
@@ -345,7 +349,7 @@ fork(void)
 
     // 親プロセスから子プロセスにvmasをコピーする
     if ((ret = copy_vmas(cp, np)) < 0) {
-        //debug("ret=%d", ret);
+        //trace("ret=%d", ret);
         acquire(&ptable.lock);
         np->state = UNUSED;
         release(&ptable.lock);
@@ -382,6 +386,8 @@ fork(void)
     np->uid = cp->uid;
     np->gid = cp->gid;
     np->fdflag = cp->fdflag;
+
+    memmove(&np->signal, &cp->signal, sizeof(struct signal));
 
     int pid = np->pid;
 
@@ -658,6 +664,7 @@ struct proc *proc_iter_next(struct process_iter *iter)
 // プロセスを停止する
 void term_handler(struct proc *p)
 {
+    trace("pid: %d", p->pid);
     acquire(&ptable.lock);
     p->killed = 1;
     if (p->state == SLEEPING)
@@ -777,6 +784,35 @@ void handle_signal(struct proc *p, int sig)
     release(&q.siglock);
 }
 
+// trap処理終了後、ユーザモードに戻る前に実行される
+void check_pending_signal(void)
+{
+    struct proc *p = thisproc();
+
+    for (int sig = 0; sig < NSIG; sig++) {
+        if (sigismember(&p->signal.pending, sig) == 1) {
+            trace("pid=%d, sig=%d", p->pid, sig);
+            handle_signal(p, sig);
+            break;
+        }
+    }
+}
+
+// 親から引き継いだsignalを調整する
+void flush_signal_handlers(struct proc *p)
+{
+    struct sigaction *ka;
+
+    for (int i = 0; i < NSIG; i++) {
+        ka = &p->signal.actions[i];
+        if (ka->sa_handler != SIG_IGN)
+            ka->sa_handler = SIG_DFL;
+        ka->sa_flags = 0;
+        sigemptyset(&ka->sa_mask);
+    }
+    p->paused = 0;
+}
+
 // IDがpidのプロセスにシグナルsigを送信する
 static void send_signal(struct proc *p, int sig)
 {
@@ -784,10 +820,12 @@ static void send_signal(struct proc *p, int sig)
     if (sig == SIGKILL) {
         p->killed = 1;
     } else {
-        if (!sigismember(&p->signal.pending, sig))
+        if (!sigismember(&p->signal.pending, sig)) {
             sigaddset(&p->signal.pending, sig);
-        else
-            trace("sig already pending");
+            trace("set sig %d to pending 0x%llx", sig, p->signal.pending);
+        } else {
+            trace("sig %d is already pending", sig);
+        }
     }
 
     if (p->state == SLEEPING) {
@@ -802,6 +840,7 @@ static void send_signal(struct proc *p, int sig)
     }
 }
 
+// sys_kill()の処理関数
 long kill(pid_t pid, int sig)
 {
     struct proc *current = thisproc();
@@ -844,4 +883,147 @@ long kill(pid_t pid, int sig)
         return error;
     }
     return -EINVAL;
+}
+
+// sys_rt_sigsuspend()の処理関数
+long sigsuspend(sigset_t *mask)
+{
+    struct proc *p = thisproc();
+    sigset_t oldmask;
+
+    acquire(&q.siglock);
+    p->paused = 1;
+    sigdelset(mask, SIGKILL);
+    sigdelset(mask, SIGSTOP);
+    oldmask = p->signal.mask;
+    siginitset(&p->signal.mask, mask);
+    release(&q.siglock);
+
+    acquire(&q.lock);
+    sleep(p, &q.lock);
+    release(&q.lock);
+
+    acquire(&q.siglock);
+    p->signal.mask = oldmask;
+    release(&q.siglock);
+    return -EINTR;
+}
+
+// sys_rt_sigaction()の処理関数
+long sigaction(int sig, struct k_sigaction *act,  struct k_sigaction *oldact)
+{
+    acquire(&q.siglock);
+    struct signal *signal = &thisproc()->signal;
+    if (oldact) {
+        struct sigaction *action = &signal->actions[sig];
+        oldact->handler = action->sa_handler;
+        oldact->flags = (unsigned long)action->sa_flags;
+        oldact->restorer = action->sa_restorer;
+        memmove((void *)&oldact->mask, &action->sa_mask, 8);
+        trace("oldact=0x%llx", oldact->handler);
+    }
+    if (act) {
+        struct sigaction *action = &signal->actions[sig];
+        action->sa_handler = act->handler;
+        action->sa_flags = (int)act->flags;
+        action->sa_restorer = act->restorer;
+        memmove((void *)&action->sa_mask, &act->mask, 8);
+        signal->mask = action->sa_mask;
+        sigdelset(&signal->mask, SIGKILL);
+        sigdelset(&signal->mask, SIGSTOP);
+        trace("sig=%d handler: act=0x%llx, p=0x%llx", sig, act->handler, action->sa_handler);
+    }
+    release(&q.siglock);
+
+    return 0;
+}
+
+// sys_rt_sigpending()の処理関数
+long sigpending(sigset_t *pending)
+{
+    struct proc *p = thisproc();
+
+    acquire(&q.siglock);
+    *pending = p->signal.pending;
+    release(&q.siglock);
+    return 0;
+}
+
+// sys_rt_sigprocmask()の処理関数
+long sigprocmask(int how, sigset_t *set, sigset_t *oldset, size_t size)
+{
+    int ret = 0;
+
+    acquire(&q.siglock);
+    struct signal *signal = &thisproc()->signal;
+    trace("how=%d oldmask=0x%llx set=0x%llx, size=%lld", how, oldmask, set, size);
+    if (oldset)
+        *oldset = signal->mask;
+    if (set) {
+        switch(how) {
+            case SIG_BLOCK:
+                sigorset(&signal->mask, &signal->mask, set);
+                break;
+            case SIG_UNBLOCK:
+                signotset(set, set);
+                sigandset(&signal->mask, &signal->mask, set);
+                break;
+            case SIG_SETMASK:
+                siginitset(&signal->mask, set);
+                //signal->mask = *set;
+                break;
+            default:
+                ret = -EINVAL;
+        }
+    }
+    trace(" newmask=0x%llx", signal->mask);
+    release(&q.siglock);
+    return ret;
+}
+
+// sys_rt_sigreturn()の処理関数
+long sigreturn(void)
+{
+    struct proc *p = thisproc();
+
+    memmove((void *)p->tf, (void *)p->oldtf, sizeof(struct trapframe));
+    return 0;
+}
+
+// sys_ppoll()の処理関数
+long ppoll(struct pollfd *fds, nfds_t nfds, struct timespec *timeout_ts, sigset_t *sigmask)
+{
+    struct proc *p = thisproc();
+    sigset_t old_sigmask;
+    long timeout;
+
+    // TODO: timeout処理
+#if 0
+    timeout = (timeout_ts == NULL) ? -1 :
+        timeout_ts->tv_sec * 1000000 + (timeout_ts->tv_nsec + 999) / 1000;
+
+    if (sigmask)
+        sigprocmask(SIG_SETMASK, sigmask, &old_sigmask, sizeof(sigset_t));
+#endif
+
+    if (fds == NULL) {
+        trace("pid %d is paused", p->pid);
+        p->paused = 1;
+        acquire(&q.lock);
+        sleep(p, &q.lock);
+        release(&q.lock);
+        trace("pid %d is woke up and return", p->pid);
+        return -EINTR;
+    }
+
+    for (int i = 0; i < nfds; i++) {
+        fds[i].revents = fds[i].fd == 0 ? POLLIN : POLLOUT;
+    }
+
+#if 0
+    if (sigmask)
+        sigprocmask(SIG_SETMASK, &old_sigmask, NULL, sizeof(sigset_t));
+#endif
+
+    return 0;
 }

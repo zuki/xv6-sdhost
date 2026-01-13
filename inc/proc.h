@@ -11,6 +11,8 @@
 #include <slab.h>
 #include <linux/resources.h>
 #include <linux/signal.h>
+#include <linux/ppoll.h>
+#include <linux/time.h>
 
 #define NPROC           100     /* 最大プロセス数 */
 #define NCPU            4       /* コア数 */
@@ -171,7 +173,7 @@ void handle_signal(struct proc *p , int sig);
 void user_handler(struct proc *p, int sig);
 void flush_signal_handlers(struct proc *p);
 
-//long ppoll(struct pollfd *fds, uint64_t nfds);
+long ppoll(struct pollfd *fds, nfds_t nfds, struct timespec *timeout_ts, sigset_t *sigmask);
 long setpgid(pid_t, pid_t);
 pid_t getpgid(pid_t);
 uint16_t get_procs();
