@@ -10,6 +10,7 @@
 #include <filedesc.h>
 #include <slab.h>
 #include <linux/resources.h>
+#include <linux/signal.h>
 
 #define NPROC           100     /* 最大プロセス数 */
 #define NCPU            4       /* コア数 */
@@ -34,6 +35,12 @@ struct vma {
     struct vfile *  f;          /* mapしているファイル */
     off_t           offset;     /* この領域のファイル内のオフセット */
     struct vma *    next;       /* 次のvmaへのポインタ */
+};
+
+struct signal {
+    sigset_t            mask;
+    sigset_t            pending;
+    struct sigaction    actions[NSIG];
 };
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
@@ -96,6 +103,10 @@ struct proc {
     char name[16];              /* プロセス名（デバッグ用） */
 
     struct vma  *vmas;          /* vma領域のリストの先頭のポインタ */
+
+    struct signal signal;       /* シグナルを保持 */
+    struct trapframe *oldtf;    /* トラップフレームを保存 */
+    int paused;                 /* 停止中か? */
 };
 
 /* Per-CPU state */
@@ -145,6 +156,29 @@ void kthread_created(void(*func)(void));
 struct proc *get_proc(pid_t pid);
 void proc_iter_start(struct process_iter *iter);
 struct proc *proc_iter_next(struct process_iter *iter);
+
+long kill(pid_t pid, int sig);
+long sigsuspend(sigset_t *mask);
+long sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oldact);
+long sigpending(sigset_t *pending);
+long sigprocmask(int how, sigset_t *set, sigset_t *oldset, size_t size);
+long sigreturn(void);
+void check_pending_signal(void);
+void stop_handler(struct proc *p);
+void cont_handler(struct proc *p);
+void term_handler(struct proc *p);
+void handle_signal(struct proc *p , int sig);
+void user_handler(struct proc *p, int sig);
+void flush_signal_handlers(struct proc *p);
+
+//long ppoll(struct pollfd *fds, uint64_t nfds);
+long setpgid(pid_t, pid_t);
+pid_t getpgid(pid_t);
+uint16_t get_procs();
+
+// sigret_syscall.S
+void execute_sigret_syscall_start(void);
+void execute_sigret_syscall_end(void);
 
 
 #endif

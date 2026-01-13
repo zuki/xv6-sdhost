@@ -9,6 +9,7 @@
 #include <fs/vfile.h>
 #include <linux/mman.h>
 #include <linux/errno.h>
+#include <linux/signal.h>
 
 long sys_yield(void)
 {
@@ -195,6 +196,21 @@ long sys_wait4(void)
     return wait4(pid, (int *)wstatus, opt, (struct rusage *)rusage);
 }
 
+// int kill(pid_t pid, int sig);
+long sys_kill()
+{
+    int pid, sig;
+
+    if (argint(0, &pid) < 0 || argint(1, &sig) < 0)
+        return -EINVAL;
+
+    if (sig < 1 || sig >= NSIG)
+        return -EINVAL;
+
+    trace("pid=%d, sig=%d", pid, sig);
+
+    return kill(pid, sig);
+}
 
 // FIXME: use pid instead of tid since we don't have threads :)
 long sys_set_tid_address(void) {

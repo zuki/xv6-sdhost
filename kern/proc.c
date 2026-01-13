@@ -15,6 +15,7 @@
 #include <net/net.h>
 #include <config.h>
 #include <slab.h>
+#include <linux/signal.h>
 #include <linux/resources.h>
 #include <linux/wait.h>
 #include <linux/errno.h>
@@ -39,6 +40,12 @@ struct {
     struct spinlock lock;
 } ptable;
 
+/* シグナル処理を行う際に使用する2つのロック */
+struct _q {
+    struct spinlock lock;
+    struct spinlock siglock;
+} q;
+
 struct proc *initproc;
 struct slab_cache *VMA;
 
@@ -48,6 +55,8 @@ void
 proc_init(void)
 {
     initlock(&ptable.lock, "ptable");
+    initlock(&q.lock, "q_lock");
+    initlock(&q.siglock, "q_siglock");
     list_init(&ptable.sched_que);
     for (int i = 0; i < SQSIZE; i++)
         list_init(&ptable.slpque[i]);
@@ -642,4 +651,197 @@ struct proc *proc_iter_next(struct process_iter *iter)
     } while (proc->pid == 0);
 
     return proc;
+}
+
+// シグナルハンドラ関数
+
+// プロセスを停止する
+void term_handler(struct proc *p)
+{
+    acquire(&ptable.lock);
+    p->killed = 1;
+    if (p->state == SLEEPING)
+        p->state = RUNNABLE;
+    release(&ptable.lock);
+}
+
+// プロセスを継続する
+void cont_handler(struct proc *p)
+{
+    wakeup1(p);
+}
+
+// プロセスを停止する
+void stop_handler(struct proc *p)
+{
+    acquire(&q.lock);
+    sleep(p, &q.lock);
+    release(&q.lock);
+}
+
+// ユーザハンドラを処理する
+void user_handler(struct proc *p, int sig)
+{
+    trace("sig=%d", sig);
+    uint64_t sp = p->tf->sp;
+
+    // 現在のトラップフレームをユーザスタックに保存する
+    sp -= sizeof(struct trapframe);
+    memmove((void *)sp, (void *)p->tf, sizeof(struct trapframe));
+    p->oldtf = (struct trapframe *)sp;
+
+    // sigret_syscall.Sのコードをユーザスタックにプッシュする
+    // a) コードの開始アドレスをサイズを求める
+    void *sig_ret_code_addr = (void *)execute_sigret_syscall_start;
+    uint64_t sig_ret_code_size = (uint64_t)&execute_sigret_syscall_end - (uint64_t)&execute_sigret_syscall_start;
+
+    // b) コードをスタックにコピーし、その先頭アドレスを変数handler_ret_addにセットする
+    sp -= sig_ret_code_size;
+    uint64_t handler_ret_addr = sp;
+    memmove((void *)sp, sig_ret_code_addr, sig_ret_code_size);
+
+    // コードの引数のシグナル番号をセットする
+    p->tf->x[0] = sig;
+
+    // コードのリターンアドレスをスタックにプッシュする
+    sp -= sizeof(uint64_t);
+    memmove((void *)sp, (void *)&handler_ret_addr, sizeof(uint64_t));
+
+    // セットしたspをトラップフレームのspにセットする
+    p->tf->sp = sp;
+
+    // ユーザハンドラを実行するようにeipを変更する
+    p->tf->elr = (uint64_t)p->signal.actions[sig].sa_handler;
+}
+
+// シグナルを処理する
+void handle_signal(struct proc *p, int sig)
+{
+    trace("[%d]: sig=%d, handler=0x%llx", p->pid, sig, p->signal.actions[sig].sa_handler);
+    if (!sig) return;
+    if (p->signal.actions[sig].sa_handler == SIG_IGN) {
+        trace("sig %d handler is SIG_IGN", sig);
+    } else if (p->signal.actions[sig].sa_handler == SIG_DFL) {
+        switch(sig) {
+            case SIGSTOP:
+            case SIGTSTP:
+            case SIGTTIN:
+            case SIGTTOU:
+                stop_handler(p);
+                break;
+            case SIGCONT:
+                cont_handler(p);
+                break;
+            case SIGABRT:
+            case SIGBUS:
+            case SIGFPE:
+            case SIGILL:
+            case SIGQUIT:
+            case SIGSEGV:
+            case SIGSYS:
+            case SIGTRAP:
+            case SIGXCPU:
+            case SIGXFSZ:
+                // Core: through
+            case SIGALRM:
+            case SIGHUP:
+            case SIGINT:
+            case SIGIO:
+            case SIGKILL:
+            case SIGPIPE:
+            case SIGPROF:
+            case SIGPWR:
+            case SIGTERM:
+            case SIGSTKFLT:
+            case SIGUSR1:
+            case SIGUSR2:
+            case SIGVTALRM:
+                term_handler(p);
+                break;
+            case SIGCHLD:
+            case SIGURG:
+            case SIGWINCH:
+                // Doubt - ignore handler()
+                break;
+            default:
+                break;
+        }
+    } else {
+        trace("call user_handler: sig = %d", sig);
+        user_handler(p, sig);
+    }
+
+    // 保留シグナルフラグをクリアする
+    acquire(&q.siglock);
+    sigdelset(&p->signal.pending, sig);
+    release(&q.siglock);
+}
+
+// IDがpidのプロセスにシグナルsigを送信する
+static void send_signal(struct proc *p, int sig)
+{
+    trace("pid=%d, sig=%d, state=%d, paused=%d", p->pid, sig, p->state, p->paused);
+    if (sig == SIGKILL) {
+        p->killed = 1;
+    } else {
+        if (!sigismember(&p->signal.pending, sig))
+            sigaddset(&p->signal.pending, sig);
+        else
+            trace("sig already pending");
+    }
+
+    if (p->state == SLEEPING) {
+        if (p->paused == 1 && (sig == SIGTERM || sig == SIGINT || sig == SIGKILL)) {
+            // pause()でSLEEPINGのプロセス
+            p->paused = 0;
+            handle_signal(p, SIGCONT);
+        } else if (p->paused == 0 && p->killed != 1) {
+            // 停止中のプロセス
+            handle_signal(p, sig);
+        }
+    }
+}
+
+long kill(pid_t pid, int sig)
+{
+    struct proc *current = thisproc();
+    struct proc *p;
+    long error = -ESRCH;
+
+    if (pid == 0 || pid < -1) {
+        pid_t pgid = pid == 0 ? current->pgid : -pid;
+        if (pgid > 0) {
+            error = -ESRCH;
+            acquire(&ptable.lock);
+            for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+                if (p->pgid == pgid) {
+                    send_signal(p, sig);
+                    error = 0;
+                }
+            }
+            release(&ptable.lock);
+        }
+        return error;
+    } else if (pid == -1) {
+        acquire(&ptable.lock);
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+            if (p->pid > 1 && p != current) {
+                send_signal(p, sig);
+                error = 0;
+            }
+        }
+        release(&ptable.lock);
+        return error;
+    } else {
+        acquire(&ptable.lock);
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+            if (p->pid == pid) {
+                send_signal(p, sig);
+                error = 0;
+            }
+        }
+        release(&ptable.lock);
+        return error;
+    }
+    return -EINVAL;
 }
