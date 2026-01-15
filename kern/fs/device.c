@@ -18,6 +18,7 @@ struct vfile_ops device_vfile_ops = {
 	nop_readdir,
     nop_getdents,
     nop_writeback,
+    nop_chown,
 };
 
 int device_ops_open(struct vfile *file, int flags)

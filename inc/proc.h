@@ -13,6 +13,7 @@
 #include <linux/signal.h>
 #include <linux/ppoll.h>
 #include <linux/time.h>
+#include <linux/capability.h>
 
 #define NPROC           100     /* 最大プロセス数 */
 #define NCPU            4       /* コア数 */
@@ -83,21 +84,23 @@ struct proc {
     struct list_head child;     /* このプロセスの子供リスト */
     struct list_head clink;     /* 親の子供リストへのリンク用 */
 
-    struct trapframe *tf;       /* カレントシステムコールのトラップフレーム */
-    struct context *context;    /* コンテキスト: swtch() here to run process. */
-    struct list_head link;      /* 実行プロセスリストへのリンク用 */
-    void *chan;                 /* スリープチャンネル */
-    uid_t   uid;                /* ユーザID */
-    gid_t   gid;                /* グループID */
-#if 0
     uid_t uid, euid, suid, fsuid;   /* ユーザID */
     gid_t gid, egid, sgid, fsgid;   /* グループID */
     gid_t groups[NGROUPS];      /* 所属グループ */
-#endif
+    int   ngroups;              /* 実際に所属しているグループ数 */
+
+    kernel_cap_t   cap_effective, cap_inheritable, cap_permitted;   /* 権限 */
+
     mode_t  umask;              /* umask */
 
+    struct trapframe *tf;       /* カレントシステムコールのトラップフレーム */
+    struct context *context;    /* コンテキスト: swtch() here to run process. */
+    struct list_head link;      /* 実行プロセスリストへのリンク用 */
+
+    void *chan;                 /* スリープチャンネル */
     int killed;                 /* killされたか否か */
     int xstate;                 // waitで待っていてる親に返すexit status
+
     int fdflag;                 /* ファイルディスクリプタフラグ */
     fd_table_t fd_table;        /* オープンファイル管理 */
 
@@ -182,5 +185,11 @@ uint16_t get_procs();
 void execute_sigret_syscall_start(void);
 void execute_sigret_syscall_end(void);
 
+static inline int capable(int cap)
+{
+    if (cap_raised(thisproc()->cap_effective, cap))
+        return 1;
+    return 0;
+}
 
 #endif

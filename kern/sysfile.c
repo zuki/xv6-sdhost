@@ -681,3 +681,103 @@ long sys_getdents64(void)
 
     return vfs_getdents(file, (void *)buffer, size);
 }
+
+/* オープンされたファイルディスクリプター fd により参照されるファイルの許可を変更する */
+// int fchmodat(int dirfd, const char *pathname, mode_t mode, int flags);
+long sys_fchmodat()
+{
+    int dirfd, flags;
+    char *path;
+    mode_t mode;
+    long error;
+    struct vnode *vnode;
+
+    if (argint(0, &dirfd) < 0 || argstr(1, &path) < 0
+     || argint(2, (int *)&mode) < 0 || argint(3, &flags) < 0)
+        return -EINVAL;
+
+    if ((error = check_fdcwd(path, dirfd, &vnode)) < 0) return error;
+
+    if (flags & AT_SYMLINK_NOFOLLOW)
+        return -ENOTSUP;
+
+    return vfs_chmod(vnode, path, mode, thisproc()->uid);
+}
+
+/* pathname で指定されたファイルの所有権を変更する*/
+// int fchownat(int dirfd, const char *pathname, uid_t owner, gid_t group, int flags);
+long sys_fchownat(void)
+{
+    int dirfd, flags;
+    char *path;
+    uid_t owner;
+    gid_t group;
+    long error;
+    struct vnode *vnode;
+
+    if (argint(0, &dirfd) < 0 || argstr(1, &path) < 0
+     || argint(2, (int *)&owner) < 0 || argint(3, (int *)&group) < 0
+     || argint(4, &flags) < 0)
+        return -EINVAL;
+
+    trace("dirfd=%d, path=%s, uid=%d, gid=%d, flags=%d\n", dirfd, path, owner, group, flags);
+
+    if ((error = check_fdcwd(path, dirfd, &vnode)) < 0) return error;
+
+    if (flags)
+        return -ENOTSUP;
+
+    return vfs_chown(vnode, path, owner, group, thisproc()->uid);
+}
+
+/* オープンされたファイルディスクリプター fd により参照されるファイルの所有権を変更する */
+// int fchown(int fd, uid_t owner, gid_t group);
+long sys_fchown(void)
+{
+    //int fd;
+    uid_t owner;
+    gid_t group;
+    struct vfile *f;
+
+    if (argfd(0, 0, &f) < 0 || argint(1, (int *)&owner) < 0
+     || argint(2, (int *)&group) < 0)
+        return -EINVAL;
+
+    return vfs_fchown(f, owner, group);
+}
+
+/* 呼び出し元プロセスがファイル pathname にアクセスできるか否かチェックする */
+// int faccessat(int dirfd, const char *pathname, int mode, int flags); flags = 0
+long sys_faccessat(void)
+{
+    int dirfd, mode;
+    char *path;
+    long error;
+    struct vnode *vnode;
+
+    if (argint(0, &dirfd) < 0 || argstr(1, &path) < 0
+     || argint(2, &mode) < 0)
+        return -EINVAL;
+
+    if ((error = check_fdcwd(path, dirfd, &vnode)) < 0) return error;
+
+    return vfs_access(vnode, path, mode, thisproc()->uid, 0);
+}
+
+/* 呼び出し元プロセスがファイル pathname にアクセスできるか否かチェックする */
+// int faccessat(int dirfd, const char *pathname, int mode, int flags);
+long sys_faccessat2(void)
+{
+    int dirfd, mode, flags;
+    char *path;
+    long error;
+    struct vnode *vnode;
+
+    if (argint(0, &dirfd) < 0 || argstr(1, &path) < 0
+     || argint(2, &mode) < 0  || argint(3, &flags) < 0)
+        return -EINVAL;
+
+    if ((error = check_fdcwd(path, dirfd, &vnode)) < 0) return error;
+
+    return vfs_access(vnode, path, mode, thisproc()->uid, flags);
+}

@@ -1027,3 +1027,78 @@ long ppoll(struct pollfd *fds, nfds_t nfds, struct timespec *timeout_ts, sigset_
 
     return 0;
 }
+
+// sys_setpgid()の処理関数
+long setpgid(pid_t pid, pid_t pgid)
+{
+    struct proc *current = thisproc(), *p, *pp;
+    long error = -EINVAL;
+
+    if (!pid) pid = current->pid;
+    if (!pgid) pgid = pid;
+    if (pgid < 0) return -EINVAL;
+
+    if (pid != current->pid) {
+        acquire(&ptable.lock);
+        for (pp = ptable.proc; pp < &ptable.proc[NPROC]; pp++) {
+            if (pp->pid == pid) {
+                p = pp;
+                break;
+            }
+        }
+        release(&ptable.lock);
+        error = -ESRCH;
+        if (!p) goto out;
+    } else {
+        p = current;
+    }
+
+    error = -EINVAL;
+    if (p->parent == current) {
+        error = -EPERM;
+        if (p->sid != current->sid) goto out;
+    } else {
+        error = -ESRCH;
+        if (p != current) goto out;
+    }
+
+    if (pgid != pid) {
+        acquire(&ptable.lock);
+        for (pp = ptable.proc; pp < &ptable.proc[NPROC]; pp++) {
+            if (pp->sid == current->sid) {
+                release(&ptable.lock);
+                goto ok_pgid;
+            }
+        }
+        release(&ptable.lock);
+        goto out;
+    }
+
+ok_pgid:
+    if (current->pgid != pgid) {
+        current->pgid = pgid;
+    }
+    error = 0;
+out:
+    return error;
+}
+
+// sys_getpgid()の処理関数
+pid_t getpgid(pid_t pid)
+{
+    struct proc *p;
+
+    if (!pid) {
+        return thisproc()->pgid;
+    } else {
+        acquire(&ptable.lock);
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+            if (p->pid == pid) {
+                release(&ptable.lock);
+                return p->pgid;
+            }
+        }
+        release(&ptable.lock);
+        return -ESRCH;
+    }
+}

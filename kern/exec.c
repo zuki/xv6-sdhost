@@ -33,7 +33,6 @@ static void flush_old_exec(void)
         }
     }
 
-#if 0
     // (3) capabilityを再設定
     cap_clear(p->cap_inheritable);
     cap_clear(p->cap_permitted);
@@ -46,7 +45,6 @@ static void flush_old_exec(void)
 
     if (p->euid == 0 || p->fsuid == 0)
         cap_set_full(p->cap_effective);
-#endif
 }
 
 int execve(const char *path, char *const argv[], char *const envp[])
@@ -60,7 +58,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
     // Save previous page table.
     struct proc *curproc = thisproc();
 
-    if (vfs_access(curproc->cwd, path, X_OK, curproc->uid) < 0) {
+    if (vfs_access(curproc->cwd, path, X_OK, curproc->uid, 0) < 0) {
         error("uid %d can't access %s", curproc->uid, path);
         return -EPERM;
     }

@@ -113,3 +113,8 @@ int nop_writeback(struct vfile *file, off_t offset, uint64_t addr)
 {
     return 0;
 }
+
+int nop_chown(struct vfile *file, uid_t owner, gid_t group)
+{
+    return 0;
+}

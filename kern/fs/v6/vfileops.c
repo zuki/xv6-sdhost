@@ -23,6 +23,7 @@ struct vfile_ops v6_file_ops = {
     v6_readdir,
     v6_getdents,
     v6_writeback,
+    v6_chown,
 };
 
 
@@ -209,4 +210,55 @@ int v6_writeback(struct vfile *file, off_t offset, uint64_t addr)
     memmove(&vnode->atime, &ts, sizeof(struct timespec));
     v6_iunlock(ip);
     return r == n ? r : -EIO;
+}
+
+// TODO
+int v6_chown(struct vfile *file, int owner, int group)
+{
+    struct vnode *vp = file->vnode;
+    struct v6_inode *ip =VTOI(vp);
+    struct proc *p = thisproc();
+    int i;
+    long err = -EPERM;
+
+    v6_ilock(ip);
+
+    if (owner != (uid_t)-1) {
+        if (!capable(CAP_CHOWN)) {
+            error("uid %d cant chown", owner);
+            goto bad;
+        }
+        vp->uid = owner;
+    }
+
+    if (group != (gid_t)-1) {
+        if (capable(CAP_CHOWN)) {
+            vp->gid = group;
+        } else if (vp->uid == p->euid) {
+            for (i = 0; i < p->ngroups; i++) {
+                if (p->groups[i] == group) {
+                    vp->gid = group;
+                    break;
+                }
+            }
+            if (i == p->ngroups) {
+                error("uid %d and gid %d cant chown", owner, group);
+                goto bad;
+            }
+        } else {
+            error("gid %d cant chown", group);
+            goto bad;
+        }
+    }
+
+    if (vp->mode & S_IXUGO && !capable(CAP_CHOWN)) {
+        vp->mode &= ~(S_ISUID|S_ISGID);
+    }
+    v6_iupdate(ip);
+    err = 0;
+
+bad:
+    v6_iunlockput(ip);
+
+    return err;
 }

@@ -81,6 +81,7 @@ struct vfile_ops {
     int (*readdir)(struct vfile *file, struct dirent *dir);
     int (*getdents)(struct vfile *file, void *buffer, size_t size);
     int (*writeback)(struct vfile *file, off_t offset, uint64_t addr);
+    int (*chown)(struct vfile *file, int owner, int group);
 };
 
 /* マウント済みファイルシステムの数を表し、マウント済みファイルシステムの走査に使用する */
@@ -176,7 +177,7 @@ int vfs_sync(device_t dev);
 
 int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct vnode **result);
 int vfs_reverse_lookup(struct vnode *cwd, char *buf, size_t size, uid_t uid);
-int vfs_access(struct vnode *cwd, const char *path, int mode, uid_t uid);
+int vfs_access(struct vnode *cwd, const char *path, int mode, uid_t uid, int flags);
 int vfs_chmod(struct vnode *cwd, const char *path, int mode, uid_t uid);
 int vfs_chown(struct vnode *cwd, const char *path, uid_t owner, gid_t group, uid_t uid);
 int vfs_mknod(struct vnode *cwd, const char *path, mode_t mode, device_t dev, uid_t uid, struct vnode **result);
@@ -197,11 +198,13 @@ int vfs_readdir(struct vfile *file, struct dirent *dir);
 int vfs_getdents(struct vfile *file, void *buffer, size_t size);
 int vfs_writeback(struct vfile *file, off_t offset, uint64_t addr);
 
+int vfs_fchown(struct vfile *file, uid_t owner, gid_t group);
+
 int vfs_create_pipe(struct vfile **rfile, struct vfile **wfile);
 
 const char *path_last_component(const char *path);
 int path_valid_component(const char *path);
-int verify_mode_access(uid_t current_uid, mode_t require_mode, uid_t file_uid, gid_t file_gid, mode_t file_mode);
+int verify_mode_access(uid_t current_uid, mode_t require_mode, uid_t file_uid, gid_t file_gid, mode_t file_mode, int flags);
 
 static inline void vfs_init_vnode(
     struct vnode *vnode,
