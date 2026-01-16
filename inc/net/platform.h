@@ -49,7 +49,7 @@ static inline int mutex_unlock(mutex_t *mutex)
 /*
  * Interrupt
  */
-#include "softirq.h"
+#include <softirq.h>
 
 #define INTR_IRQ_SOFTIRQ    SOFT_IRQ_NET_RX
 #define INTR_IRQ_EVENT      SOFT_IRQ_NET_EVENT

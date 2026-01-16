@@ -1,9 +1,9 @@
 #ifndef INC_LINUX_TERMIOS_H
 #define INC_LINUX_TERMIOS_H
 
-#include "types.h"
-#include "linux/ioctl.h"
-#include "string.h"
+#include <types.h>
+#include <linux/ioctl.h>
+#include <string.h>
 
 #define NCCS 32
 
