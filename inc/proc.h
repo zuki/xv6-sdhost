@@ -95,7 +95,7 @@ struct proc {
 
     struct trapframe *tf;       /* カレントシステムコールのトラップフレーム */
     struct context *context;    /* コンテキスト: swtch() here to run process. */
-    struct list_head link;      /* 実行プロセスリストへのリンク用 */
+    struct list_head link;      /* sched_que/sleepqueへのリンク用 */
 
     void *chan;                 /* スリープチャンネル */
     int killed;                 /* killされたか否か */

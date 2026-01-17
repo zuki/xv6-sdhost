@@ -6,8 +6,8 @@
 
 /* Long-term locks for processes */
 struct sleeplock {
-    int locked;         /* Is the lock held? */
     struct spinlock lk; /* Spinlock protecting this sleep lock */
+    int locked;         /* Is the lock held? */
     int pid;
 };
 

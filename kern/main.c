@@ -6,6 +6,7 @@
 #include <param.h>
 #include <vm.h>
 #include <mm.h>
+#include <cachepage.h>
 #include <clock.h>
 #include <timer.h>
 #include <trap.h>
@@ -63,6 +64,7 @@ main()
         irq_init();
         console_preinit();
         mm_init();
+        cachepage_init();
         clock_init();
         rand_init();
         proc_init();

@@ -169,6 +169,8 @@ void slab_cache_init(void) {
     initlock(&slab_lock, "slab");
 
     free_cache_head = NULL;
+
+    info("slab_cache_init ok");
 }
 
 /**

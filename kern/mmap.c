@@ -9,6 +9,7 @@
 #include <proc.h>
 #include <vm.h>
 #include <mm.h>
+#include <cachepage.h>
 #include <string.h>
 #include <spinlock.h>
 #include <linux/errno.h>
@@ -174,6 +175,8 @@ static struct vma *is_usable(void *addr, size_t length)
 static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t perm, struct vfile *f, off_t offset)
 {
     long ret;
+    size_t mapsize, size = length;
+    struct cachepage *cpage;
     uint64_t cur;
 
     // サイズが0のファイルに書き込むために1ページ分uvm_map()する
@@ -193,11 +196,26 @@ static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t
     }
 
     for (cur = 0; cur < length; cur += PGSIZE) {
+        mapsize = PGSIZE > size ? size : PGSIZE;
+        if ((cpage = get_cachepage(f, offset + cur)) == NULL) {
+            goto err;
+        }
+        if ((ret = uvm_map(p->pgdir, addr + cur, mapsize, V2P(cpage->page))) < 0) {
+            error("uvm_map failed: addr: %p, len: 0x%x, mem: %p", addr + cur, mapsize, V2P(cpage->page));
+            goto err;
+        }
+        size -= mapsize;
+    }
+    return 0;
+
+#if 0
+    for (cur = 0; cur < length; cur += PGSIZE) {
         f->offset = offset;
         int len = (f->vnode->size - f->offset) > PGSIZE ? PGSIZE : (f->vnode->size - f->offset);
         if (len == 0) break;
         trace("size: 0x%x, offset: 0x%x, len: 0x%x, cur: 0x%x", f->vnode->size, f->offset, len, cur);
         //trace("addr=%p, length=0x%x, offset=0x%x", addr, length, offset);
+
         char *mem = kalloc();
         if (!mem) {
             error("no memory");
@@ -212,8 +230,9 @@ static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t
             kfree(mem);
             goto err;
         }
-
         trace("pid[%d] mapping: addr=%p, mem=%p (V2P: %p), offset: 0x%x, len: 0x%x", p->pid, addr+cur, mem, V2P(mem), offset, len);
+
+        if ((ret = copy_cachepage(f, offset, )))
         // メモリをユーザプロセスにマッピング
         if ((ret = uvm_map(p->pgdir, addr + cur, len, V2P(mem))) < 0) {
             error("uvm_map failed: addr: %p, len: 0x%x, mem: %p", addr + cur, len, V2P(mem));
@@ -222,14 +241,15 @@ static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t
         }
         offset += len;
     }
-
     return 0;
+#endif
 
 err:
     if (cur != 0) {
         uvm_unmap(p->pgdir, (uint64_t)addr, cur / PGSIZE, 1);
     }
     return ret;
+
 }
 
 // 無名ページに（複数）ページを割り当てる
