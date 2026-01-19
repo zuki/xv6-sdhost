@@ -10,6 +10,7 @@
 #include <sleeplock.h>
 #include <console.h>
 #include <string.h>
+#include <cachepage.h>
 #include <linux/errno.h>
 
 struct vfile_ops v6_file_ops = {
@@ -71,8 +72,10 @@ int v6_write(struct vfile *file, const char *buffer, size_t size)
             n1 = max;
 
         v6_ilock(ip);
-        if ((error = v6_writei(ip, buffer + i, file->offset, n1)) > 0)
+        if ((error = v6_writei(ip, buffer + i, file->offset, n1)) > 0) {
+            update_cachepage(file->vnode->rdev, file->vnode->ino, file->offset, buffer + i, n1);
             file->offset += error;
+        }
         v6_iunlock(ip);
 
         if (error < 0)

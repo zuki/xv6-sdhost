@@ -165,7 +165,9 @@ uvm_map(uint64_t * pgdir, void *va, size_t sz, uint64_t pa)
     assert(pa < USERTOP);
     pa = ROUNDDOWN(pa, PGSIZE);
     for (; p < end; pa += PGSIZE, p += PGSIZE) {
+        debug("p: 0x%llx, pa: 0x%llx, end: 0x%llx", p, pa, end);
         uint64_t *pte = pgdir_walk(pgdir, p, 1);
+        debug("pte: 0x%llx, *pte: 0x%llx", pte, *pte);
         if (!pte) {
             warn("walk failed");
             return -1;

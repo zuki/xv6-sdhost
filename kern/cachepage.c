@@ -40,18 +40,21 @@ void cachepage_init(void)
  */
 static struct cachepage *find_cachepage(device_t dev, ino_t ino, off_t offset)
 {
-    trace("dev: %d, ino: %lld, offset: %lld", dev, ino, offset);
+    debug("dev: %d, ino: %lld, offset: %lld", dev, ino, offset);
     if (!cachepages.lock.locked)
         panic("not locked");
 
     struct list_head *q = &cachepages.cpque[CPHASH(dev, ino)];
+    debug("q: 0x%llx", q);
     struct cachepage *page, *next;
     LIST_FOREACH_ENTRY_SAFE(page, next, q, link) {
         if (page->dev == dev && page->ino == ino
          && page->offset == offset) {
+            debug("found: 0x%llx", page);
             return page;
         }
     }
+    debug("not found");
     return 0;
 }
 
@@ -67,9 +70,11 @@ struct cachepage *get_cachepage(struct vfile *file, off_t offset)
     struct cachepage *res = find_cachepage(rdev, ino, offset);
     // あれば返す
     if (res) {
+        hexdump(res, sizeof(struct cachepage), "found cpage");
         release(&cachepages.lock);
         res->ref_count++;
         acquiresleep(&res->lock);
+        debug("hit: res=0x%llx", res);
         return res;
     }
     // なければcachepageを作成してファイルから読み込んでページを返す
@@ -98,8 +103,8 @@ struct cachepage *get_cachepage(struct vfile *file, off_t offset)
     cpage->offset = offset;
     cpage->ref_count = 1;
     list_push_back(&cachepages.cpque[CPHASH(rdev, ino)], &cpage->link);
-    cachepages.count++;
-    debug("alloc new cachepage[%d]: dev: 0x%x, ino=%d, offset=0x%llx", cachepages.count - 1, cpage->ino, cpage->offset);
+    cachepages.count++;     // TODO: cachepagesのlockが必要
+    debug("alloc new cachepage[%d]: 0x%llx, dev: 0x%x, ino=%d, offset=0x%llx", cachepages.count - 1, cpage, cpage->dev, cpage->ino, cpage->offset);
 
     return cpage;
 
@@ -108,7 +113,6 @@ err1:
 err2:
     releasesleep(&cpage->lock);
     slab_cache_free(CPAGE, cpage);
-
     return NULL;
 }
 
