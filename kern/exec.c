@@ -12,15 +12,14 @@
 #include <syscall.h>
 #include <vfs.h>
 #include <filedesc.h>
+#include <cachepage.h>
 #include <linux/errno.h>
 
 static uint64_t auxv[][2] = { { AT_PAGESZ, PGSIZE } };
 
 // 親から受け継いだ不要な情報を破棄する
-static void flush_old_exec(void)
+static void flush_old_exec(struct proc *p)
 {
-    struct proc *p = thisproc();
-
     // (1) signalを開放
     flush_signal_handlers(p);
 
@@ -53,16 +52,18 @@ int execve(const char *path, char *const argv[], char *const envp[])
     char *s;
     int err;
 
-    trace("path='%s', argv=0x%p, envp=0x%p", path, argv, envp);
+    trace("path='%s', argv=%p, envp=%p", path, argv, envp);
 
-    // Save previous page table.
+    // 呼び出し元のプロセスをcurprocとする
     struct proc *curproc = thisproc();
 
+    // 指定されたファイルが実行可能であるか確認する
     if (vfs_access(curproc->cwd, path, X_OK, curproc->uid, 0) < 0) {
         error("uid %d can't access %s", curproc->uid, path);
         return -EPERM;
     }
 
+    // 指定されたファイルをopen
     if ((err = vfs_open(curproc->cwd, path, O_RDONLY, 0, curproc->uid, &file)) < 0) {
         error("failed open %s", path);
         return err;
@@ -73,6 +74,8 @@ int execve(const char *path, char *const argv[], char *const envp[])
         return -EISDIR;
     }
 
+    // 呼び出し元のページテーブルをoldpgdirに保存し、
+    // 実行ファイル用のページテーブルをpgdirとして新規作成する
     void *oldpgdir = curproc->pgdir, *pgdir = vm_init();
 
     if (pgdir == 0) {
@@ -80,8 +83,9 @@ int execve(const char *path, char *const argv[], char *const envp[])
         goto bad;
     }
 
+    // elfヘッダーを読み込み、妥当性をチェックする
     Elf64_Ehdr elf;
-    if (vfs_read(file, (char *)&elf, sizeof(elf)) < 0) {
+    if (copy_cachepages(file, (char *)&elf, sizeof(elf), 0) < 0) {
         trace("readelf bad");
         goto bad;
     }
@@ -97,40 +101,62 @@ int execve(const char *path, char *const argv[], char *const envp[])
         trace("64 bit program not supported");
         goto bad;
     }
-    trace("elf header check ok");
 
-    int i;
-    Elf64_Phdr ph;
+    if (elf.e_type != ET_EXEC) {
+        error("bad header type %d", elf.e_type);
+        goto bad;
+    }
+    trace("elf header check ok");
 
     curproc->pgdir = pgdir;     // Required since readi(sdrw) involves context switch(switch page table).
 
-    flush_old_exec();
+    // ファイルのSet-uidをセットする: stickyビットの対応
+    if (file->vnode->mode & S_ISUID && curproc->uid != 0)
+        curproc->fsuid = file->vnode->uid;
+    else
+        curproc->fsuid = curproc->uid;
+    // ファイルのSet-gidをセットする: stickyビットの対応
+    if (((file->vnode->mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) && curproc->gid != 0)
+        curproc->fsgid = file->vnode->gid;
+    else
+        curproc->fsgid = curproc->gid;
 
-    // Load program into memory.
-    size_t sz = 0, base = 0, stksz = 0, offset;
-    int first = 1;
+    // 親から受け継いだ情報を破棄する
+    flush_old_exec(curproc);
+
+    // プログラムをメモリにロードする
+    int i;
+    Elf64_Phdr ph;      // プログラムヘッダー格納用
+    size_t sz = 0;      // 最後にuvm_allocしたプログラムヘッダのp_msizeを保持
+    size_t base = 0;    // 最初のプロセスヘッダのp_vaddrを保持
+    size_t stksz = 0;   // スタックサイズを保持
+    size_t offset;
+    int first = 1;      // 最初のプログラムヘッダか? : 特別な処理が必要なため
 
     for (i = 0; i < elf.e_phnum; i++) {
-        if (vfs_read(file, (char *)&ph, sizeof(ph)) < 0) {
-            trace("read bad");
+        // プログラムヘッダーを1つ読み込む
+        if (copy_cachepages(file, (char *)&ph, sizeof(ph), elf.e_phoff + i * elf.e_phentsize)) {
+            error("read bad");
             goto bad;
         }
 
+        // PT_LOAD以外のプログラムヘッダーは無視する
         if (ph.p_type != PT_LOAD) {
             // trace("unsupported type 0x%x, skipped\n", ph.p_type);
             continue;
         }
-
+        // データチェック1: fileサイズとメモリサイズの妥当性チェック
         if (ph.p_memsz < ph.p_filesz) {
-            trace("memsz smaller than filesz");
+            error("memsz smaller than filesz");
             goto bad;
         }
-
+        // データチェック2: 桁溢れのチェック
         if (ph.p_vaddr + ph.p_memsz < ph.p_vaddr) {
             trace("vaddr + memsz overflow");
             goto bad;
         }
 
+        // 最初のプログラムヘッダのチェック: ページアラインでなければならない
         if (first) {
             first = 0;
             sz = base = ph.p_vaddr;
@@ -139,16 +165,18 @@ int execve(const char *path, char *const argv[], char *const envp[])
                 goto bad;
             }
         }
-
-        if ((sz =
-             uvm_alloc(pgdir, base, stksz, sz,
-                       ph.p_vaddr + ph.p_memsz)) == 0) {
+        trace("ph[%d]: offset: 0x%x, vaddr: 0x%llx, filesz: 0x%x, memsz: 0x%x, flags: 0x%x, align: 0x%x",
+            i, ph.p_offset, ph.p_vaddr, ph.p_filesz, ph.p_memsz, ph.p_flags, ph.p_align);
+        // phdr->p_vaddr + phdr->p_memsz までメモリを割り当てる
+        // 0クリアはしていない
+        if ((sz = uvm_alloc(pgdir, base, stksz, sz, ph.p_vaddr + ph.p_memsz)) == 0) {
             trace("uvm_alloc bad");
             goto bad;
         }
 
         uvm_switch(pgdir);
 
+#if 0
         offset = file->offset;
         if (vfs_seek(file, ph.p_offset, SEEK_SET) < 0) {
             trace("failed seek");
@@ -162,12 +190,19 @@ int execve(const char *path, char *const argv[], char *const envp[])
             trace("failed seek");
             goto bad;
         }
+#endif
+        if (copy_cachepages(file, (char *)ph.p_vaddr, ph.p_filesz, ph.p_offset) < 0) {
+            error("ph[%d].p_files load error", i);
+            goto bad;
+        }
+        //hexdump(ph.p_vaddr, ph.p_filesz, "rodata + data");
 
-        // Initialize BSS.
+        // BSS部分(p_memsz - p_filesz)を0で初期kする
         memset((void *)ph.p_vaddr + ph.p_filesz, 0,
                ph.p_memsz - ph.p_filesz);
-
-        // Flush dcache to memory so that icache can retrieve the correct one.
+        //hexdump(ph.p_vaddr+ph.p_filesz, ph.p_memsz, "bss");
+        // データキャッシュ (dcache) をメモリに書き出し、命令キャッシュ
+        // (icache) が正しいデータにアクセスできるようにする
         dccivac((void *)ph.p_vaddr, ph.p_memsz);
 
         trace("init bss [0x%p, 0x%p)", ph.p_vaddr + ph.p_filesz,

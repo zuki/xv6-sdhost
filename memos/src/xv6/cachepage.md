@@ -453,3 +453,23 @@ file_test:  ok: 21, ng: 0
 anon_test:  ok: 13, ng: 0
 other_test: ok: 5, ng: 0
 ```
+
+## execve()のファイルをcachepageから読むようにする
+
+- vfs_read()をcopy_cachepages()で置き換え
+
+```diff
+@@ -80,8 +83,9 @@ int execve(const char *path, char *const argv[], char *const envp[])
+     Elf64_Ehdr elf;
+-    if (vfs_read(file, (char *)&elf, sizeof(elf)) < 0) {
++    if (copy_cachepages(file, (char *)&elf, sizeof(elf), 0) < 0) {
+         trace("readelf bad");
+         goto bad;
+     }
+
+     for (i = 0; i < elf.e_phnum; i++) {
+-        if (vfs_read(file, (char *)&ph, sizeof(ph)) < 0) {
++        if (copy_cachepages(file, (char *)&ph, sizeof(ph), elf.e_phoff + i * elf.e_phentsize)) {
+             goto bad;
+         }
+```
