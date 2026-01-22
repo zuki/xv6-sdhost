@@ -20,6 +20,7 @@
     - [v6ファイルダンプツール](xv6/dumptool.md)
     - [mmap機能の実装](xv6/mmap.md)
     - [シグナル機能の実装](xv6/signal.md)
+    - [cachepage機能の実装](xv6/cachepage.md)
 
 - [その他のメモ](others/README.md)
     - [デフォルトで使用されるリンカスクリプト](others/lds.md)

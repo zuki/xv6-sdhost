@@ -17,3 +17,4 @@
 - [v6ファイルダンプツール](dumptool.md)
 - [mmap機能の実装](mmap.md)
 - [シグナル機能の実装](signal.md)
+- [cachepage機能の実装](cachepage.md)
