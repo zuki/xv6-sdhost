@@ -106,7 +106,7 @@ int v6_lookup(struct vnode *vnode, const char *filename, struct vnode **result)
     ip = v6_dirlookup(VTOI(vnode), filename);
     v6_iunlockput(VTOI(vnode));
     if (ip) {
-        trace("OK: %s, ip->ino: %d", filename, ITOV(ip)->ino);
+        trace("OK: %s, ip->ino: %d, ip->type: %d", filename, ITOV(ip)->ino, ip->type);
         v6_ilock(ip);
         v6_iunlock(ip);
         if (result)

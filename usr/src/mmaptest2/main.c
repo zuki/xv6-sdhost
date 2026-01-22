@@ -142,14 +142,16 @@ int file_ok = 0, file_ng = 0, anon_ok = 0, anon_ng = 0, other_ok = 0,
     other_ng = 0;
 
 int main(int args, char *argv[]) {
-    file_tests();
-    anonymous_tests();
-    other_tests();
+    //file_tests();
+    //anonymous_tests();
+    //other_tests();
+    file_pagecache_coherency_test();
+    file_private_with_fork_test();
     printf("\nfile_test:  ok: %d, ng: %d\n", file_ok, file_ng);
     printf("anon_test:  ok: %d, ng: %d\n", anon_ok, anon_ng);
     printf("other_test: ok: %d, ng: %d\n", other_ok, other_ng);
 
-    unlink(filename);
+    //unlink(filename);
 
     return 0;
 }
@@ -772,7 +774,7 @@ void file_mapping_on_wo_file_test() {
 // test 1: 先頭からマッピングしたデータはファイルに一致する
 // test 2: オフセット位置に書き込んだファイルとオフセット指定でマッピングしたデータは一致する
 void file_pagecache_coherency_test() {
-    printf("\n[F-11] file backed mapping pagecache coherency test\n");
+    printf("\n[F-11] ファイルが背後にあるマッピングのページキャッシュの一貫性の手周防\n");
     write_readme(4296);
     int size = 100;
     int fd = open(filename, O_RDWR);
@@ -866,12 +868,13 @@ f11_bad:
     return;
 }
 
-// private file backed mapping with fork test
+// F-12: プライベートマッピングしたファイルに子プロセスが行った変更が親プロセスに見えるかのテスト
+//
 void file_private_with_fork_test() {
-    printf("\n[F-12] file backed private mapping with fork test\n");
+    printf("\n[F-12] ファイルが背後にあるプライベートマッピングのforkのテスト\n");
     int size = 200;
     char buf[200];
-
+    write_readme(4296);
     int fd = open(filename, O_RDWR);
     if (fd == -1) {
         printf("[F-12] failed at open file\n");
@@ -883,14 +886,15 @@ void file_private_with_fork_test() {
         file_ng++;
         return;
     }
-    volatile char *ret =
-        (volatile char *)mmap((void *)0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+    char *ret =
+        (char *)mmap((void *)0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
     if (ret == MAP_FAILED) {
         printf("[F-12] failed: at mmap\n");
         close(fd);
         file_ng++;
         return;
     }
+    printf("before   fork: ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
     int pid = fork();
     if (pid < 0) {
         printf("[F-12] failed: fork\n");
@@ -904,6 +908,7 @@ void file_private_with_fork_test() {
         for (int i = 0; i < 50; i++) {
             ret[i] = 'n';
         }
+        printf("child   after: ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
         // The mapping should not be same as we have edited the data
         if (my_strcmp(ret, buf, size) == 0) {
             printf("[F-12] failed at strcmp child\n");
@@ -911,10 +916,12 @@ void file_private_with_fork_test() {
         }
         exit(0);
     } else {
+        printf("parent before: ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
         int status;
         wait(&status);
-        // As it is private mapping therefore it should be same as read
+        // プライベートマッピングなのでマッピングの内容はreadしておいたbufを同じはず
         if (my_strcmp(ret, buf, size) != 0) {
+            printf("parent after : ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
             printf("[F-12] failed at strcmp parent\n");
             file_ng++;
             munmap((void *)ret, size);

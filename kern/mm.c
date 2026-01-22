@@ -141,6 +141,9 @@ void kfree(void *va)
 {
     struct page *page = page_find_by_address(va);
     if (page) {
+        if (va == 0xffff000000bfd000) {
+            debug("page->ref: %d", page->ref);
+        }
         if (--page->ref <= 0)
             buddy_free(page);
     } else {

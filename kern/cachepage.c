@@ -40,17 +40,16 @@ void cachepage_init(void)
  */
 static struct cachepage *find_cachepage(device_t dev, ino_t ino, off_t offset)
 {
-    debug("dev: %d, ino: %lld, offset: %lld", dev, ino, offset);
+    trace("called: dev: 0x%x, ino: %lld, offset: %lld", dev, ino, offset);
     if (!cachepages.lock.locked)
         panic("not locked");
 
-    struct list_head *q = &cachepages.cpque[CPHASH(dev, ino)];
-    debug("q: 0x%llx", q);
+    struct list_head *q = &cachepages.cpque[CPHASH(dev, ino, offset)];
     struct cachepage *page, *next;
     LIST_FOREACH_ENTRY_SAFE(page, next, q, link) {
-        if (page->dev == dev && page->ino == ino
-         && page->offset == offset) {
-            debug("found: 0x%llx", page);
+        if (page->dev == dev && page->ino == ino && page->offset == offset) {
+            debug("found: cpque[%d]->cpage: 0x%llx", CPHASH(dev, ino, offset), page);
+            debug(" - cpage->page: 0x%llx", page->page);
             return page;
         }
     }
@@ -60,52 +59,60 @@ static struct cachepage *find_cachepage(device_t dev, ino_t ino, off_t offset)
 
 struct cachepage *get_cachepage(struct vfile *file, off_t offset)
 {
+    trace("called: file: %d, offset: 0x%x", file->vnode->ino, offset);
     int err;
     device_t rdev = file->vnode->rdev;
     ino_t ino = file->vnode->ino;
+    trace("before align: offset: 0x%x", offset);
+    offset -= (offset % PGSIZE);  // ページアライン
+    trace("after  align: offset: 0x%x", offset);
 
-    offset -= offset % PGSIZE;  // ページアライン
     acquire(&cachepages.lock);
     // 該当のページがキャッシュに存在するか?
     struct cachepage *res = find_cachepage(rdev, ino, offset);
     // あれば返す
     if (res) {
-        hexdump(res, sizeof(struct cachepage), "found cpage");
+        //hexdump(res, sizeof(struct cachepage), "found cpage");
         release(&cachepages.lock);
-        res->ref_count++;
         acquiresleep(&res->lock);
-        debug("hit: res=0x%llx", res);
+        res->ref_count++;
+        trace("hit: res=0x%llx", res);
         return res;
     }
     // なければcachepageを作成してファイルから読み込んでページを返す
     struct cachepage *cpage = slab_cache_alloc(CPAGE);
-    initsleeplock(&cpage->lock, "cachepage");
-    release(&cachepages.lock);
-    acquiresleep(&cpage->lock);
     cpage->page = kalloc();
     if (cpage->page == NULL) {
         error("no memory: rdev: 0x%x, ino: %lld, offset: 0x%x", rdev, ino, offset);
         goto err2;
     }
     memset(cpage->page, 0, PGSIZE);
+    // file->offsetをセットする
+    off_t offset_back = file->offset;
     if ((err = vfs_seek(file, offset, SEEK_SET)) < 0) {
         error("seek error");
         goto err1;
     }
+    if (offset_back != file->offset) debug("file offset: 0x%x -> 0x%x", offset_back, file->offset);
     int n = vfs_read(file, cpage->page, PGSIZE);
     if (n < 0) {
         error("get_cachepage readi failed: n=%d, offset=%ld, size=%d",
             n, offset, PGSIZE);
         goto err1;
     }
+    // cachepageへの読み込みによりf->offsetが+PGSIZEされるので戻す
+    if (offset_back != file->offset) file->offset = offset_back;
+
+    initsleeplock(&cpage->lock, "cachepage");
     cpage->dev = file->vnode->rdev;
     cpage->ino = file->vnode->ino;
     cpage->offset = offset;
     cpage->ref_count = 1;
-    list_push_back(&cachepages.cpque[CPHASH(rdev, ino)], &cpage->link);
-    cachepages.count++;     // TODO: cachepagesのlockが必要
-    debug("alloc new cachepage[%d]: 0x%llx, dev: 0x%x, ino=%d, offset=0x%llx", cachepages.count - 1, cpage, cpage->dev, cpage->ino, cpage->offset);
-
+    list_push_back(&cachepages.cpque[CPHASH(rdev, ino, offset)], &cpage->link);
+    debug("alloc new cachepage[%d]: 0x%llx, dev: 0x%x, ino=%d, offset=0x%llx, read_bytes: 0x%x", cachepages.count, cpage, cpage->dev, cpage->ino, cpage->offset,n);
+    cachepages.count++;
+    release(&cachepages.lock);
+    acquiresleep(&cpage->lock);
     return cpage;
 
 err1:
@@ -121,7 +128,7 @@ err2:
  */
 long copy_cachepage(struct vfile *file, off_t offset, char *dest, size_t size, off_t dest_offset)
 {
-    trace("dev: 0x%x, ino=%d, offset=0x%llx, dest=0x%p, size=0x%x, dest_offset=0x%llx",
+    trace("called: dev: 0x%x, ino=%d, offset=0x%llx, dest=0x%p, size=0x%x, dest_offset=0x%llx",
             file->vnode->rdev, file->vnode->ino, offset, dest, size, dest_offset);
     struct cachepage *cpage = get_cachepage(file, offset);
     if (cpage == NULL) {
@@ -132,7 +139,7 @@ long copy_cachepage(struct vfile *file, off_t offset, char *dest, size_t size, o
     if (!holdingsleep(&cpage->lock))
         panic("not holding sleeqlock");
 
-    trace("memmove from %p to %p with 0x%x bytes",
+    debug("memmove from %p to %p with 0x%x bytes",
         cpage->page + dest_offset, dest, size);
     memmove(dest, cpage->page + dest_offset, size);
     releasesleep(&cpage->lock);
@@ -142,12 +149,14 @@ long copy_cachepage(struct vfile *file, off_t offset, char *dest, size_t size, o
 /* fileのオフセットoffsetからsizeバイトのデータをdestにコピー */
 long copy_cachepages(struct vfile *file, char *dest, size_t size, off_t offset)
 {
+    trace("called: dev: 0x%x, ino: %d, dest=0x%llx, size=0x%x, offset=0x%llx",
+            file->vnode->rdev, file->vnode->ino, dest, size, offset);
     char *addr = dest;
     off_t ioff = offset < PGSIZE ? 0 : offset & ~(PGSIZE - 1);
     off_t doff = offset & (uint64_t)(PGSIZE - 1);
     uint64_t sz = (doff + size) > PGSIZE ? PGSIZE - doff : size;
     int npages = (size + doff + PGSIZE - 1) / PGSIZE;
-    debug("copy %d pages", npages);
+    trace("copy %d pages", npages);
 
     long error;
     for (int i = 0; i < npages; i++) {
@@ -165,7 +174,7 @@ long copy_cachepages(struct vfile *file, char *dest, size_t size, off_t offset)
 /* dev/ino/offsetに対応するcachepageをaddrのデータでsizeバイト更新する */
 void update_cachepage(device_t dev, ino_t ino, off_t offset, char *addr, size_t size)
 {
-    trace("dev: 0x%x, ino: %lld, offset=0x%x, addr=0x%p, size=0x%x", dev, ino, offset, addr, size);
+    trace("called: dev: 0x%x, ino: %d, offset=0x%x, addr=0x%p, size=0x%x", dev, ino, offset, addr, size);
 
     off_t alligned_offset = offset - (offset % PGSIZE);
     off_t start_addr = offset % PGSIZE;
@@ -180,7 +189,7 @@ void update_cachepage(device_t dev, ino_t ino, off_t offset, char *addr, size_t 
     acquiresleep(&res->lock);
     char *page = res->page;
     trace("    - addr=0x%p, page_offset=0x%x, size=0x%x", addr, start_addr, size);
-    trace("update_page: memmove from %p to %p with 0x%x bytes", addr, page + start_addr, size);
+    debug("update_page: memmove from %p to %p with 0x%x bytes", addr, page + start_addr, size);
     memmove(page + start_addr, addr, size);
     releasesleep(&res->lock);
 }

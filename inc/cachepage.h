@@ -7,7 +7,7 @@
 #include <sleeplock.h>
 
 #define CPSIZE 0x100
-#define CPHASH(dev, ino) ((uint32_t)(((uint64_t)(dev + ino)) % CPSIZE))
+#define CPHASH(dev, ino, offset) ((uint32_t)(((uint64_t)(dev + ino + (offset >> 12))) % CPSIZE))
 
 struct cachepage {
     char *      page;           // 0

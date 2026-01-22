@@ -348,6 +348,7 @@ fork(void)
     }
 
     // 親プロセスから子プロセスにvmasをコピーする
+    debug("call copy_vmas: p: %d, np: %d", cp->pid, np->pid);
     if ((ret = copy_vmas(cp, np)) < 0) {
         //trace("ret=%d", ret);
         acquire(&ptable.lock);
@@ -355,8 +356,11 @@ fork(void)
         release(&ptable.lock);
         error("failed copy_vmas");
         return ret;
+    } else {
+        //print_mmap_list(cp, "fork cp");
+        //print_mmap_list(np, "fork np");
     }
-
+    debug("call uvm_copy: pgdir: 0x%llx", cp->pgdir);
     if ((np->pgdir = uvm_copy(cp->pgdir)) == 0) {
         kfree(np->kstack);
 

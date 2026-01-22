@@ -178,7 +178,7 @@ static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t
     size_t mapsize, size = length;
     struct cachepage *cpage;
     uint64_t cur;
-    debug("addr: 0x%llx, length: 0x%x, perm: 0x%x, f_ino: %d, f_size: 0x%x, offset: 0x%x", addr, length, perm, f->vnode->ino, f->vnode->size, offset);
+    debug("called: addr: 0x%llx, length: 0x%x, perm: 0x%x, f_ino: %d, f_size: 0x%x, offset: 0x%x", addr, length, perm, f->vnode->ino, f->vnode->size, offset);
     // サイズが0のファイルに書き込むために1ページ分uvm_map()する
     if (f->vnode->size == 0) {
         char *mem = kalloc();
@@ -197,12 +197,13 @@ static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t
 
     for (cur = 0; cur < length; cur += PGSIZE) {
         mapsize = PGSIZE > size ? size : PGSIZE;
-        debug("cur: %lld, f: %d, offset+cur: 0x%llx", cur, f->vnode->ino, offset+cur);
+        trace("cur: %lld, f: %d, offset+cur: 0x%llx", cur, f->vnode->ino, offset+cur);
         if ((cpage = get_cachepage(f, offset + cur)) == NULL) {
             error("get_cachepage failed");
             goto err;
         }
-        debug("cpage: ino: %lld, dev: 0x%x, offset: 0x%x, mapsize: 0x%x", cpage->ino, cpage->dev, cpage->offset, mapsize);
+        debug("cpage->page: 0x%llx, V2P(cpage->page): 0x%llx, ino: %lld, dev: 0x%x, offset: 0x%x, mapsize: 0x%x", cpage->page, V2P(cpage->page), cpage->ino, cpage->dev, cpage->offset, mapsize);
+        debug("cpage->page[49-50]: 0x%02x%02x", cpage->page[49], cpage->page[50]);
         if ((ret = uvm_map(p->pgdir, addr + cur, mapsize, V2P(cpage->page))) < 0) {
             error("uvm_map failed: addr: %p, len: 0x%x, mem: %p", addr + cur, mapsize, V2P(cpage->page));
             goto err;
@@ -210,7 +211,7 @@ static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t
         releasesleep(&cpage->lock);
         size -= mapsize;
     }
-    debug("ok");
+    trace("ok");
     return 0;
 
 #if 0
@@ -333,11 +334,12 @@ static long scale_vma(struct vma *vma, uint64_t size)
 // struct vma listを出力
 void print_mmap_list(struct proc *p, const char *title)
 {
-    trace("[INFO] pid[%d]: vma list (%s) at %p\n", p->pid, title, p->vmas);
+    int i = 0;
+    debug("[INFO] pid[%d]: vma list (%s) at %p\n", p->pid, title, p->vmas);
 
     struct vma *vma = p->vmas;
     while (vma) {
-        trace(" - vma[%d]: addr=%p, length=0x%x, prot=0x%x, flags=0x%x, f=%d, offset=0x%x\n",
+        debug(" - vma[%d]: addr=%p, length=0x%x, prot=0x%x, flags=0x%x, f=%d, offset=0x%x\n",
             ++i, vma->addr, vma->length, vma->prot, vma->flags, (vma->f ? vma->f->vnode->ino : 0), vma->offset);
         vma = vma->next;
     }
@@ -587,7 +589,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, struct vfile *f, off_
     struct vma *node, *dev_vma;
     long error = -EINVAL;
 
-    debug("option addr: %p, length: 0x%llx, prot: 0x%x, flags: 0x%x, f: %d, off: 0x%llx",
+    debug("addr: %p, length: 0x%llx, prot: 0x%x, flags: 0x%x, f: %d, off: 0x%llx",
         addr, length, prot, flags, f ? f->vnode->ino : 0, offset);
 
     // MAP_FIXEDの指定アドレスはページ境界にあり、割り当て領域がMMAPエリア内に入ること
@@ -664,7 +666,7 @@ select_addr:
     // 1.3 決定したアドレスがマップ範囲に含まれていることをチェックする
     if (addr + PGROUNDUP(length) > (void *)USERTOP)
         return (void *)-ENOMEM;
-    debug("select addr: %p", addr);
+    trace("select addr: %p", addr);
     // 2. 新規vmaを作成する
     // 2.1 vmaのためのメモリを割り当てる
     struct vma *vma = slab_cache_alloc(VMA);
@@ -702,7 +704,7 @@ select_addr:
     node = p->vmas;
     struct vma *prev = p->vmas;
     while (node) {
-        debug("update vmas: addr=%p, node->addr=%p\n", addr, node->addr);
+        trace("update vmas: addr=%p, node->addr=%p\n", addr, node->addr);
         if (addr < node->addr) {
             vma->next = node;
             prev = vma;
@@ -733,7 +735,10 @@ load_pages:
 
     trace("return addr: %p, length: 0x%llx, prot: 0x%x, flags: 0x%x, f: %d, offset: 0x%x",
         vma->addr, vma->length, vma->prot, vma->flags, vma->f ? vma->f->vnode->ino : 0, vma->offset);
-    print_mmap_list(p, "mmap");
+    //print_mmap_list(p, "mmap");
+    if (vma->addr == 0xffdfffff0000) {
+        debug("addr[49-50]: 0x%02x%02x", ((char *)vma->addr)[49],((char *)vma->addr)[50]);
+    }
 
     return vma->addr;
 
@@ -748,7 +753,7 @@ long munmap(void *addr, size_t length)
 {
     struct proc *p = thisproc();
 
-    trace("     addr: %p, length: 0x%llx", addr, length);
+    debug("called addr: %p, length: 0x%llx", addr, length);
 
     // addrはページ境界になければならない
     if (NOT_PAGEALIGN(addr))
@@ -781,6 +786,7 @@ long munmap(void *addr, size_t length)
             //if (!pte) panic("no pte");
             //uint64_t flags = PTE_FLAGS(*pte);
             off_t offset = vma->offset + ra - (uint64_t)vma->addr;
+            debug("writeback: f: %d, offset: 0x%x, ra: 0x%llx", vma->f->vnode->ino, offset, ra);
             if (vfs_writeback(vma->f, offset, ra) < 0) {
                 error("failed writeback");
                 return -EACCES;
@@ -809,7 +815,7 @@ long munmap(void *addr, size_t length)
         trace("new vma: addr=%p, length=0x%x", vma->addr, vma->length);
     }
     //print_mmap_list(p, "munmap");
-    //uvmdump(p->pgdir, p->pid, "munmap");
+    //vm_stat(p->pgdir);
 
     return 0;
 }

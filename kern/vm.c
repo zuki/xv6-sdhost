@@ -56,20 +56,24 @@ pgdir_walk(uint64_t * pgdir, void *vap, int alloc)
 uint64_t *
 uvm_copy(uint64_t * pgdir)
 {
+    debug("[0] pa: 0xbfd000, P2V(pa): 0xffff000000bfd000, pa[49-50]: 0x%02x%02x", ((char *)0xffff000000bfd000)[49], ((char *)0xffff000000bfd000)[50]);
     uint64_t *newpgdir = vm_init();
     if (!newpgdir)
         return 0;
-
+    trace("called: pgdir: 0x%llx, newpgdir: 0x%llx", pgdir, newpgdir);
     for (int i = 0; i < 512; i++)
         if (pgdir[i] & PTE_VALID) {
+            trace("[i=%d] pa: 0xbfd000, P2V(pa): 0xffff000000bfd000, pa[49-50]: 0x%02x%02x", i, ((char *)0xffff000000bfd000)[49], ((char *)0xffff000000bfd000)[50]);
             assert(pgdir[i] & PTE_TABLE);
             uint64_t *pgt1 = P2V(PTE_ADDR(pgdir[i]));
             for (int i1 = 0; i1 < 512; i1++)
                 if (pgt1[i1] & PTE_VALID) {
+                    trace("[i1=%d] pa: 0xbfd000, P2V(pa): 0xffff000000bfd000, pa[49-50]: 0x%02x%02x", i1, ((char *)0xffff000000bfd000)[49], ((char *)0xffff000000bfd000)[50]);
                     assert(pgt1[i1] & PTE_TABLE);
                     uint64_t *pgt2 = P2V(PTE_ADDR(pgt1[i1]));
                     for (int i2 = 0; i2 < 512; i2++)
                         if (pgt2[i2] & PTE_VALID) {
+                            trace("[i2=%d] pa: 0xbfd000, P2V(pa): 0xffff000000bfd000, pa[49-50]: 0x%02x%02x", ((char *)0xffff000000bfd000)[49], i2, ((char *)0xffff000000bfd000)[50]);
                             assert(pgt2[i2] & PTE_TABLE);
                             uint64_t *pgt3 = P2V(PTE_ADDR(pgt2[i2]));
                             for (int i3 = 0; i3 < 512; i3++)
@@ -87,10 +91,16 @@ uvm_copy(uint64_t * pgdir)
                                         | (uint64_t) i1 << (12 + 9 * 2)
                                         | (uint64_t) i2 << (12 + 9)
                                         | (uint64_t) i3 << 12;
+            if (va == 0xffdfffff0000) {
+                debug("[i3=%d] pa: 0xbfd000, P2V(pa): 0xffff000000bfd000, pa[49-50]: 0x%02x%02x", i3, ((char *)0xffff000000bfd000)[49], ((char *)0xffff000000bfd000)[50]);
+                debug("[4] pa: 0x%llx, P2V(pa): 0x%llx, pa[49-50]: 0x%02x%02x", pa, P2V(pa), ((char *)(P2V(pa)))[49], ((char *)(P2V(pa)))[50]);
+                debug("pa: 0x%llx, va: 0x%llx", pa, va);
+            }
+
 // mmapされたアドレスでMAP_SHAREDの場合は親のpaをそのまま使用。
 // それ以外は新規paに親のpaをコピーして使用
                                     struct vma *vma = find_vma(thisproc(), (void *)va);
-                                    void *np;
+                                    char *np;
                                     if (vma && vma->flags & MAP_SHARED) {
                                         np = P2V(pa);
                                         inc_kmem_ref(np);
@@ -102,11 +112,19 @@ uvm_copy(uint64_t * pgdir)
                                             return 0;
                                         }
                                         memmove(np, P2V(pa), PGSIZE);
+                                        inc_kmem_ref(P2V(pa));
                                     }
-                                    // disb();
+            if (va == 0xffdfffff0000) {
+                debug("pa: page->ref: %d", get_kmem_ref(P2V(pa)));
+                int share = vma && (vma->flags & MAP_SHARED);
+                debug("va: 0x%llx, P2V(pa): 0x%llx, np: 0x%llx, share: %s", va, P2V(pa), np, share ? "yes" : "no");
+                debug("pa[49-50]: 0x%02x%02x", ((char *)(P2V(pa)))[49], ((char *)(P2V(pa)))[50]);
+                debug("np[49-50]: 0x%02x%02x", np[49], np[50]);
+            }
+                                    //disb();
                                     // Flush to memory to sync with icache.
-                                    // dccivac(P2V(pa), PGSIZE);
-                                    // disb();
+                                    //dccivac(P2V(pa), PGSIZE);
+                                    //disb();
                                     if (uvm_map
                                         (newpgdir, (void *)va, PGSIZE,
                                          V2P((uint64_t) np)) < 0) {
@@ -161,13 +179,15 @@ vm_free(uint64_t * pgdir)
 int
 uvm_map(uint64_t * pgdir, void *va, size_t sz, uint64_t pa)
 {
+    trace("called pgdir: 0x%llx, va: 0x%llx, sz: 0x%x, pa: 0x%llx", pgdir, va, sz, pa);
     void *p = ROUNDDOWN(va, PGSIZE), *end = va + sz;
     assert(pa < USERTOP);
     pa = ROUNDDOWN(pa, PGSIZE);
+    trace(" aligned va: 0x%llx, end: 0x%llx, pa: 0x%llx", p, end, pa);
     for (; p < end; pa += PGSIZE, p += PGSIZE) {
-        debug("p: 0x%llx, pa: 0x%llx, end: 0x%llx", p, pa, end);
+        trace("p: 0x%llx, pa: 0x%llx, end: 0x%llx", p, pa, end);
         uint64_t *pte = pgdir_walk(pgdir, p, 1);
-        debug("pte: 0x%llx, *pte: 0x%llx", pte, *pte);
+        trace("pte: 0x%llx, *pte: 0x%llx", pte, *pte);
         if (!pte) {
             warn("walk failed");
             return -1;
@@ -325,7 +345,7 @@ copyout(uint64_t * pgdir, void *va, void *p, size_t len)
 void
 vm_stat(uint64_t * pgdir)
 {
-    debug("pgdir: 0x%p", pgdir);
+    debug("pid: %d, pgdir: 0x%p", thisproc()->pid, pgdir);
     uint64_t va_start = 0, va_end = 0;
 
     for (int i = 0; i < 512; i++)
@@ -351,13 +371,10 @@ vm_stat(uint64_t * pgdir)
 
                                     uint64_t *p = P2V(PTE_ADDR(pgt3[i3]));
                                     uint64_t va =
-                                        (uint64_t) i << (12 +
-                                                         9 *
-                                                         3) | (uint64_t) i1
-                                        << (12 +
-                                            9 * 2) | (uint64_t) i2 << (12 +
-                                                                       9) |
-                                        i3 << 12;
+                                          (uint64_t)  i << (12 + 9 * 3)
+                                        | (uint64_t) i1 << (12 + 9 * 2)
+                                        | (uint64_t) i2 << (12 + 9)
+                                        | (uint64_t) i3 << 12;
                                     debug
                                         ("va: 0x%p, pa: 0x%p, pte: 0x%p, PTE_ADDR(pte): 0x%p, P2V(...): 0x%p",
                                          va, p, pgt3[i3],
