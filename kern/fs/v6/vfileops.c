@@ -63,7 +63,7 @@ int v6_write(struct vfile *file, const char *buffer, size_t size)
 {
     int error;
     struct v6_inode *ip = FTOI(file);
-    debug("called: file: %d, offset: 0x%x, buffer: 0x%llx, size: 0x%x", file->vnode->ino, file->offset, buffer, size);
+    trace("called: file: %d, offset: 0x%x, buffer: 0x%llx, size: 0x%x", file->vnode->ino, file->offset, buffer, size);
     //size_t max = ((MAXOPBLOCKS - 1 - 1 - 2) / 2) * SECTOR_SIZE;
     size_t max = PGSIZE;
     size_t i = 0;

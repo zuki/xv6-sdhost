@@ -280,3 +280,176 @@ parent after : ret: 0xffdfffff0000, ret[49-50]: 0x0000, buf[49-50]: 0x6161
 [3]munmap: called addr: 0xffdfffff0000, length: 0xc8
 [3]kfree: page->ref: 1
 ```
+
+## cachepages.pages[]をグローバル変数で持つよう戻す
+
+- PAGE_NUMを調整(struct pageは24バイトで計算)
+- メモリレイアウトを次のように変更
+
+```bash
+/*
+ * カーネルメモリレイアウト:
+ * ```
+ *  PHYSTOP       -> ----------------------------   0xffff_0000_3E00_0000
+ *  (0x3E000000)
+ *
+ *                           heap                   RW-
+ *  PAGE_START    -> ----------------------------   0xffff_0000_0100_0000
+ *                          pages[PAGE_NUM]         RW-
+ *                      PAGE_NUM = 0x3c000
+ *  *pages        -> ----------------------------   0xffff_0000_00a6_0000
+ *  end           -> ----------------------------   0xffff_0000_0033_cbd8
+ *                    カーネル rodata, data, bss    RW-
+ *                   ----------------------------
+ *                         カーネル text            R-X
+ *  KERNLINK      -> ----------------------------   0xFFFF_0000_0008_0000
+ *
+ *  KERNBASE      -> ----------------------------   0xFFFF_0000_0000_0000
+ *
+ */
+```
+
+- mmaptest2をすべてパス
+
+```bash
+$ /bin/mmaptest2
+[F-01] 不正なfdを指定した場合のテスト
+ error: Bad file descriptor
+ error: Bad file descriptor
+ error: Bad file descriptor
+[F-01] ok
+
+[F-02] 不正なフラグを指定した場合のテスト
+[3]sys_mmap: invalid flags: 0x0
+ error: Invalid argument
+[F-02] ok
+
+[F-03] readonlyファイルにPROT_WRITEな共有マッピングをした場合のテスト
+[3]sys_mmap: file is not writable
+ error: Permission denied
+[F-03] ok
+
+[F-04] readonlyファイルにPROT_READのみの共有マッピングをした場合のテスト
+[F-04] ok
+
+[F-05] PROT指定の異なるプライベートマッピンのテスト
+[F-05] ok
+
+[F-06] MMAPTOPを超えるサイズをマッピングした場合のテスト
+[F-06] ok
+
+[F-07] 連続したマッピングを行うテスト
+[F-07] ok
+
+[F-08] 空のファイルを共有マッピングした場合のテスト
+[F-08] ok
+
+[F-09] ファイルが背後にあるプライベートマッピング
+[F-09] ok
+
+[F-10] ファイルが背後にある共有マッピングのテスト
+[F-10] ok
+
+[F-11] ファイルが背後にあるマッピングのページキャッシュの一貫性の手周防
+[3]munmap: length 0x2000 is bigger than vma->length 0x1000
+[F-11] ok
+
+[F-12] ファイルが背後にあるプライベートマッピングのforkのテスト
+[F-12] ok
+
+[F-13] file backed shared mapping with fork test
+[F-13] ok
+
+[F-14] オフセットを指定したプライベートマッピングのテスト
+[F-14] ok
+
+[F-15] file backed valid provided address test
+[F-15] ok
+
+[F-16] file backed invalid provided address test
+[F-16] ok
+
+[F-17] 指定されたアドレスが既存のマッピングアドレスと重なる場合
+[F-17] ok
+
+[F-18] ２つのマッピングの間のアドレスを指定したマッピングのテスト
+[F-18] ok
+
+[F-19] ２つのマッピングの間に不可能なアドレスを指定した場合
+[F-19]  ok
+
+[F-20] 共有マッピングでファイル容量より大きなサイズを指定した場合
+[F-20] ok
+
+[F-21] write onlyファイルへのREAD/WRITE共有マッピングのテスト
+[1]sys_mmap: file is not readable
+[F-21] ok
+
+[A-01] anonymous private mapping test
+p[0]=0, p[2499]=2499
+[A-01] ok
+
+[A-02] anonymous shared mapping test
+[A-02] ok
+
+[A-03] anonymous private mapping with fork test
+[A-03] ok
+
+[A-04] anonymous shared mapping with multiple forks test
+[A-04] ok
+
+[A-05] anonymous private & shared mapping together with fork test
+[A-05] ok
+
+[A-06] anonymous missing flags test
+[3]sys_mmap: invalid flags: 0x20
+[A-06] ok
+
+[A-07] anonymous exceed mapping count test
+[A-07] ok
+
+[A-08] anonymous exceed mapping size test
+[A-08] ok
+
+[A-09] anonymous zero size mapping test
+[3]sys_mmap: invalid length: 0 or offset: 0
+[A-09] ok
+
+[A-10] anonymous valid provided address test
+[A-10] ok
+
+[A-11] anonymous invalid provided address test
+[A-11] ok: not running because of an invalid test
+
+[A-12] anonymous overlapping provided address test
+[A-12] ok
+
+[A-13] anonymous intermediate provided address test
+[A-13] ok
+
+[A-14] anonymous intermediate provided address not possible test
+[A-14] ok
+
+[O-01] munmap only partial size test
+[3]munmap: length 0x3000 is bigger than vma->length 0x2000
+[O-01] ok
+
+[O-02] write on read only mapping test
+[O-02] ok
+
+[O-03] none permission on mapping test
+[O-03] ok
+
+[O-04] mmap valid address map fixed flag test
+[O-04] ok
+
+[O-05] mmap invalid address map fixed flag test
+[1]mmap: fixed address should be page align: 0xffdfffff0100
+[1]is_usable: addr: 0xffdfffff0000 is used
+[1]mmap: addr 0xffdfffff0000 is not available
+[O-05] test ok
+
+file_test:  ok: 21, ng: 0
+anon_test:  ok: 13, ng: 0
+other_test: ok: 5, ng: 0
+```

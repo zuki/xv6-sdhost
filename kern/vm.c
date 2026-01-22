@@ -56,7 +56,7 @@ pgdir_walk(uint64_t * pgdir, void *vap, int alloc)
 uint64_t *
 uvm_copy(uint64_t * pgdir)
 {
-    debug("[0] pa: 0xbfd000, P2V(pa): 0xffff000000bfd000, pa[49-50]: 0x%02x%02x", ((char *)0xffff000000bfd000)[49], ((char *)0xffff000000bfd000)[50]);
+    trace("[0] pa: 0xbfd000, P2V(pa): 0xffff000000bfd000, pa[49-50]: 0x%02x%02x", ((char *)0xffff000000bfd000)[49], ((char *)0xffff000000bfd000)[50]);
     uint64_t *newpgdir = vm_init();
     if (!newpgdir)
         return 0;
@@ -92,9 +92,9 @@ uvm_copy(uint64_t * pgdir)
                                         | (uint64_t) i2 << (12 + 9)
                                         | (uint64_t) i3 << 12;
             if (va == 0xffdfffff0000) {
-                debug("[i3=%d] pa: 0xbfd000, P2V(pa): 0xffff000000bfd000, pa[49-50]: 0x%02x%02x", i3, ((char *)0xffff000000bfd000)[49], ((char *)0xffff000000bfd000)[50]);
-                debug("[4] pa: 0x%llx, P2V(pa): 0x%llx, pa[49-50]: 0x%02x%02x", pa, P2V(pa), ((char *)(P2V(pa)))[49], ((char *)(P2V(pa)))[50]);
-                debug("pa: 0x%llx, va: 0x%llx", pa, va);
+                trace("[i3=%d] pa: 0xbfd000, P2V(pa): 0xffff000000bfd000, pa[49-50]: 0x%02x%02x", i3, ((char *)0xffff000000bfd000)[49], ((char *)0xffff000000bfd000)[50]);
+                trace("[4] pa: 0x%llx, P2V(pa): 0x%llx, pa[49-50]: 0x%02x%02x", pa, P2V(pa), ((char *)(P2V(pa)))[49], ((char *)(P2V(pa)))[50]);
+                trace("pa: 0x%llx, va: 0x%llx", pa, va);
             }
 
 // mmapされたアドレスでMAP_SHAREDの場合は親のpaをそのまま使用。
@@ -115,11 +115,11 @@ uvm_copy(uint64_t * pgdir)
                                         inc_kmem_ref(P2V(pa));
                                     }
             if (va == 0xffdfffff0000) {
-                debug("pa: page->ref: %d", get_kmem_ref(P2V(pa)));
+                trace("pa: page->ref: %d", get_kmem_ref(P2V(pa)));
                 int share = vma && (vma->flags & MAP_SHARED);
-                debug("va: 0x%llx, P2V(pa): 0x%llx, np: 0x%llx, share: %s", va, P2V(pa), np, share ? "yes" : "no");
-                debug("pa[49-50]: 0x%02x%02x", ((char *)(P2V(pa)))[49], ((char *)(P2V(pa)))[50]);
-                debug("np[49-50]: 0x%02x%02x", np[49], np[50]);
+                trace("va: 0x%llx, P2V(pa): 0x%llx, np: 0x%llx, share: %s", va, P2V(pa), np, share ? "yes" : "no");
+                trace("pa[49-50]: 0x%02x%02x", ((char *)(P2V(pa)))[49], ((char *)(P2V(pa)))[50]);
+                trace("np[49-50]: 0x%02x%02x", np[49], np[50]);
             }
                                     //disb();
                                     // Flush to memory to sync with icache.

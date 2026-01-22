@@ -142,16 +142,16 @@ int file_ok = 0, file_ng = 0, anon_ok = 0, anon_ng = 0, other_ok = 0,
     other_ng = 0;
 
 int main(int args, char *argv[]) {
-    //file_tests();
-    //anonymous_tests();
-    //other_tests();
-    file_pagecache_coherency_test();
-    file_private_with_fork_test();
+    file_tests();
+    anonymous_tests();
+    other_tests();
+    //file_pagecache_coherency_test();
+    //file_private_with_fork_test();
     printf("\nfile_test:  ok: %d, ng: %d\n", file_ok, file_ng);
     printf("anon_test:  ok: %d, ng: %d\n", anon_ok, anon_ng);
     printf("other_test: ok: %d, ng: %d\n", other_ok, other_ng);
 
-    //unlink(filename);
+    unlink(filename);
 
     return 0;
 }
@@ -894,7 +894,7 @@ void file_private_with_fork_test() {
         file_ng++;
         return;
     }
-    printf("before   fork: ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
+    //printf("before   fork: ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
     int pid = fork();
     if (pid < 0) {
         printf("[F-12] failed: fork\n");
@@ -908,7 +908,7 @@ void file_private_with_fork_test() {
         for (int i = 0; i < 50; i++) {
             ret[i] = 'n';
         }
-        printf("child   after: ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
+        //printf("child   after: ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
         // The mapping should not be same as we have edited the data
         if (my_strcmp(ret, buf, size) == 0) {
             printf("[F-12] failed at strcmp child\n");
@@ -916,12 +916,12 @@ void file_private_with_fork_test() {
         }
         exit(0);
     } else {
-        printf("parent before: ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
+        //printf("parent before: ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
         int status;
         wait(&status);
         // プライベートマッピングなのでマッピングの内容はreadしておいたbufを同じはず
         if (my_strcmp(ret, buf, size) != 0) {
-            printf("parent after : ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
+            //printf("parent after : ret: %p, ret[49-50]: 0x%02x%02x, buf[49-50]: 0x%02x%02x\n", ret, ret[49], ret[50], buf[49], buf[50]);
             printf("[F-12] failed at strcmp parent\n");
             file_ng++;
             munmap((void *)ret, size);
@@ -1004,7 +1004,7 @@ void file_shared_with_fork_test() {
             file_ng++;
             return;
         }
-        printf("buf2[0]=0x%lx\n", *(uint64_t *)buf2);
+        //printf("buf2[0]=0x%lx\n", *(uint64_t *)buf2);
         if (my_strcmp(buf2, buf, size) != 0) {
             printf("[F-13] failed at strcmp 3: buf2[0, 49, 50]=[%c, %c, %c], buf=[%c, %c, %c]\n",
                 buf2[0], buf2[49], buf2[50], buf[0], buf[49], buf[50]);

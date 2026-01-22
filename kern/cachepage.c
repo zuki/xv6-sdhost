@@ -48,11 +48,11 @@ static struct cachepage *find_cachepage(device_t dev, ino_t ino, off_t offset)
     for (int i = 0; i < NPAGECACHE; i++) {
         struct cachepage page = cachepages.pages[i];
         if (page.dev == dev && page.ino == ino && page.offset == offset) {
-            debug("found: pages[%d].page: 0x%llx", i, &page);
+            trace("found: pages[%d].page: 0x%llx", i, &page);
             return &page;
         }
     }
-    debug("not found");
+    trace("not found");
     return 0;
 }
 
@@ -94,7 +94,7 @@ struct cachepage *get_cachepage(struct vfile *file, off_t offset)
         error("seek error");
         goto err1;
     }
-    if (offset_back != file->offset) debug("file offset: 0x%x -> 0x%x", offset_back, file->offset);
+    //if (offset_back != file->offset) debug("file offset: 0x%x -> 0x%x", offset_back, file->offset);
     int n = vfs_read(file, cpage->page, PGSIZE);
     if (n < 0) {
         error("get_cachepage readi failed: n=%d, offset=%ld, size=%d",
@@ -108,7 +108,7 @@ struct cachepage *get_cachepage(struct vfile *file, off_t offset)
     cpage->ino = file->vnode->ino;
     cpage->offset = offset;
     cpage->ref_count = 1;
-    debug("alloc new cachepage[%d]: 0x%llx, dev: 0x%x, ino=%d, offset=0x%llx, read_bytes: 0x%x", cachepages.count, cpage, cpage->dev, cpage->ino, cpage->offset,n);
+    trace("alloc new cachepage[%d]: 0x%llx, dev: 0x%x, ino=%d, offset=0x%llx, read_bytes: 0x%x", cachepages.count, cpage, cpage->dev, cpage->ino, cpage->offset,n);
     return cpage;
 
 err1:
@@ -132,7 +132,7 @@ long copy_cachepage(struct vfile *file, off_t offset, char *dest, size_t size, o
     if (!holdingsleep(&cpage->lock))
         panic("not holding sleeqlock");
 
-    debug("memmove from %p to %p with 0x%x bytes",
+    trace("memmove from %p to %p with 0x%x bytes",
         cpage->page + dest_offset, dest, size);
     memmove(dest, cpage->page + dest_offset, size);
     releasesleep(&cpage->lock);
@@ -182,7 +182,7 @@ void update_cachepage(device_t dev, ino_t ino, off_t offset, char *addr, size_t 
     acquiresleep(&res->lock);
     char *page = res->page;
     trace("    - addr=0x%p, page_offset=0x%x, size=0x%x", addr, start_addr, size);
-    debug("update_page: memmove from %p to %p with 0x%x bytes", addr, page + start_addr, size);
+    trace("update_page: memmove from %p to %p with 0x%x bytes", addr, page + start_addr, size);
     memmove(page + start_addr, addr, size);
     releasesleep(&res->lock);
 }
