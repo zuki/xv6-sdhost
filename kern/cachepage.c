@@ -108,7 +108,7 @@ struct cachepage *get_cachepage(struct vfile *file, off_t offset)
     cpage->ino = file->vnode->ino;
     cpage->offset = offset;
     cpage->ref_count = 1;
-    trace("alloc new cachepage[%d]: 0x%llx, dev: 0x%x, ino=%d, offset=0x%llx, read_bytes: 0x%x", cachepages.count, cpage, cpage->dev, cpage->ino, cpage->offset,n);
+    trace("alloc new cachepage[%d]: 0x%llx, dev: 0x%x, ino=%d, offset=0x%llx, read_bytes: 0x%x", cachepages.count-1, cpage, cpage->dev, cpage->ino, cpage->offset,n);
     return cpage;
 
 err1:
