@@ -15,3 +15,4 @@
 - (2026/01/04) Vfs機能を追加 (commit: 3907a89)
 - (2026/01/06) procfsを追加 (commit: 5694cef)
 - (2026/01/12) mmap機能を追加 (commit: 1bef380)
+- (2026/01/22) pagecache機能を追加 (commit: 825c07e)
