@@ -6,8 +6,7 @@
 #include <vfs.h>
 #include <sleeplock.h>
 
-#define CPSIZE 0x100
-#define CPHASH(dev, ino, offset) ((uint32_t)(((uint64_t)(dev + ino + (offset >> 12))) % CPSIZE))
+#define NPAGECACHE 24576        // 0x6000 * 0x1000 (4096) = 0x600_0000 = 96MB
 
 struct cachepage {
     char *      page;           // 0
@@ -16,8 +15,7 @@ struct cachepage {
     int         ref_count;      // 20
     off_t       offset;         // 24
     struct sleeplock lock;      // 32
-    struct list_head link;
-};
+};                              // 56
 
 void cachepage_init(void);
 struct cachepage *get_cachepage(struct vfile *file, off_t offset);

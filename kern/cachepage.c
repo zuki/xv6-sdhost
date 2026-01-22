@@ -11,10 +11,8 @@
 #include <vfs.h>
 #include <proc.h>
 
-struct slab_cache *CPAGE;
-
 struct {
-    struct list_head cpque[CPSIZE];
+    struct cachepage pages[NPAGECACHE];
     int count;
     struct spinlock lock;
 } cachepages;
@@ -22,13 +20,16 @@ struct {
 /* cachepage機能を初期化する */
 void cachepage_init(void)
 {
-    CPAGE = slab_cache_create("cachepage", sizeof(struct cachepage), 0);
-
     initlock(&cachepages.lock, "cachepage");
 
     acquire(&cachepages.lock);
-    for (int i = 0; i < CPSIZE; i++) {
-        list_init(&cachepages.cpque[i]);
+    for (int i = 0; i < NPAGECACHE; i++) {
+        cachepages.pages[i].page = kalloc();
+        if (!cachepages.pages[i].page) {
+            error("memory exhausted: i = %d", i);
+            return;
+        }
+        initsleeplock(&cachepages.pages[i].lock, "cachepages.page");
     }
     cachepages.count = 0;
     release(&cachepages.lock);
@@ -44,13 +45,11 @@ static struct cachepage *find_cachepage(device_t dev, ino_t ino, off_t offset)
     if (!cachepages.lock.locked)
         panic("not locked");
 
-    struct list_head *q = &cachepages.cpque[CPHASH(dev, ino, offset)];
-    struct cachepage *page, *next;
-    LIST_FOREACH_ENTRY_SAFE(page, next, q, link) {
-        if (page->dev == dev && page->ino == ino && page->offset == offset) {
-            debug("found: cpque[%d]->cpage: 0x%llx", CPHASH(dev, ino, offset), page);
-            debug(" - cpage->page: 0x%llx", page->page);
-            return page;
+    for (int i = 0; i < NPAGECACHE; i++) {
+        struct cachepage page = cachepages.pages[i];
+        if (page.dev == dev && page.ino == ino && page.offset == offset) {
+            debug("found: pages[%d].page: 0x%llx", i, &page);
+            return &page;
         }
     }
     debug("not found");
@@ -80,13 +79,15 @@ struct cachepage *get_cachepage(struct vfile *file, off_t offset)
         return res;
     }
     // なければcachepageを作成してファイルから読み込んでページを返す
-    struct cachepage *cpage = slab_cache_alloc(CPAGE);
-    cpage->page = kalloc();
-    if (cpage->page == NULL) {
-        error("no memory: rdev: 0x%x, ino: %lld, offset: 0x%x", rdev, ino, offset);
-        goto err2;
+    struct cachepage *cpage = &cachepages.pages[cachepages.count++];
+    // キャッシュページはリンクバッファ
+    if (cachepages.count == NPAGECACHE) {
+        cachepages.count = 0;
     }
+    release(&cachepages.lock);
+    acquiresleep(&cpage->lock);
     memset(cpage->page, 0, PGSIZE);
+
     // file->offsetをセットする
     off_t offset_back = file->offset;
     if ((err = vfs_seek(file, offset, SEEK_SET)) < 0) {
@@ -103,23 +104,15 @@ struct cachepage *get_cachepage(struct vfile *file, off_t offset)
     // cachepageへの読み込みによりf->offsetが+PGSIZEされるので戻す
     if (offset_back != file->offset) file->offset = offset_back;
 
-    initsleeplock(&cpage->lock, "cachepage");
     cpage->dev = file->vnode->rdev;
     cpage->ino = file->vnode->ino;
     cpage->offset = offset;
     cpage->ref_count = 1;
-    list_push_back(&cachepages.cpque[CPHASH(rdev, ino, offset)], &cpage->link);
     debug("alloc new cachepage[%d]: 0x%llx, dev: 0x%x, ino=%d, offset=0x%llx, read_bytes: 0x%x", cachepages.count, cpage, cpage->dev, cpage->ino, cpage->offset,n);
-    cachepages.count++;
-    release(&cachepages.lock);
-    acquiresleep(&cpage->lock);
     return cpage;
 
 err1:
-    kalloc(cpage->page);
-err2:
     releasesleep(&cpage->lock);
-    slab_cache_free(CPAGE, cpage);
     return NULL;
 }
 
