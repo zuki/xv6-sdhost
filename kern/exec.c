@@ -46,6 +46,37 @@ static void flush_old_exec(struct proc *p)
         cap_set_full(p->cap_effective);
 }
 
+static int get_file(char *path, struct proc *p, struct vfile **file)
+{
+    int err;
+
+    // 指定されたファイルが実行可能であるか確認する
+    if (vfs_access(p->cwd, path, X_OK, p->uid, 0) < 0) {
+        error("uid %d can't access %s", p->uid, path);
+        return -EPERM;
+    }
+
+    // 指定されたファイルをopen
+    if ((err = vfs_open(p->cwd, path, O_RDONLY, 0, p->uid, file)) < 0) {
+        error("failed open %s", path);
+        return err;
+    }
+    trace("open ok: f->vnode->ino: %d", (*file)->vnode->ino);
+    if (!S_ISREG((*file)->vnode->mode)) {
+        vfs_close(*file);
+        return -EISDIR;
+    }
+    return 0;
+}
+
+#if 0
+static uint64_t load_interpreter(char *path, uint64_t *base)
+{
+
+
+}
+#endif
+
 int execve(const char *path, char *const argv[], char *const envp[])
 {
     struct vfile *file;
@@ -57,6 +88,12 @@ int execve(const char *path, char *const argv[], char *const envp[])
     // 呼び出し元のプロセスをcurprocとする
     struct proc *curproc = thisproc();
 
+    if ((err = get_file(path, curproc, &file)) > 0) {
+        error("get_file: %s, err: %d", path, err);
+        return err;
+    }
+
+#if 0
     // 指定されたファイルが実行可能であるか確認する
     if (vfs_access(curproc->cwd, path, X_OK, curproc->uid, 0) < 0) {
         error("uid %d can't access %s", curproc->uid, path);
@@ -73,6 +110,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         vfs_close(file);
         return -EISDIR;
     }
+#endif if
 
     // 呼び出し元のページテーブルをoldpgdirに保存し、
     // 実行ファイル用のページテーブルをpgdirとして新規作成する
