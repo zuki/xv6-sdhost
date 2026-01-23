@@ -20,6 +20,7 @@
 - [mmap機能の実装](xv6/mmap.md)
 - [シグナル機能の実装](xv6/signal.md)
 - [cachepage機能の実装](xv6/cachepage.md)
+- [動的リンク機能の実装](xv6/dynamic.md)
 
 ## その他のメモ
 

@@ -18,3 +18,4 @@
 - [mmap機能の実装](mmap.md)
 - [シグナル機能の実装](signal.md)
 - [cachepage機能の実装](cachepage.md)
+- [動的リンク機能の実装](dynamic.md)
