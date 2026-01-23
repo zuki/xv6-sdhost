@@ -149,7 +149,7 @@ static uint64_t load_interpreter(char *path, uint64_t *base, struct proc *p)
         error("e_phnum is invalide: %d", elf.e_phnum);
         goto bad;
     }
-    debug("elf header check ok");
+    trace("elf header check ok");
 
     for (i = 0; i < elf.e_phnum; i++) {
         int flags = 0;
@@ -209,12 +209,12 @@ static uint64_t load_interpreter(char *path, uint64_t *base, struct proc *p)
             err = (long)mapped;
             goto bad;
         }
-        debug("mapped: 0x%llx, start: 0x%llx, size: 0x%llx, offset: 0x%llx",
+        trace("mapped: 0x%llx, start: 0x%llx, size: 0x%llx, offset: 0x%llx",
             mapped, ELF_PAGESTART(load_addr + vaddr), ph.p_filesz + ELF_PAGEOFFSET(vaddr), ph.p_offset - ELF_PAGEOFFSET(vaddr));
         // 1番目のPT_LOAD固有の処理
         if (!set && elf.e_type == ET_DYN) {
             load_addr = (uint64_t)mapped - ELF_PAGESTART(vaddr);
-            debug("load_addr: 0x%llx", load_addr);
+            trace("load_addr: 0x%llx", load_addr);
             set = true;
         }
 
@@ -224,23 +224,23 @@ static uint64_t load_interpreter(char *path, uint64_t *base, struct proc *p)
         k = load_addr + vaddr + ph.p_memsz;
         if (k > bss_end) bss_end = k;
     }
-    debug("ph read ok");
+    trace("ph read ok");
     padzero(bss_start);
-    debug("padzero ok");
+    trace("padzero ok");
     bss_start = ELF_PAGESTART(bss_start + ELF_MIN_ALIGN - 1);
     if (bss_end > bss_start) {
-        debug("need set_brk: bss_start: 0x%llx, end: 0x%llx", bss_start, bss_end);
+        trace("need set_brk: bss_start: 0x%llx, end: 0x%llx", bss_start, bss_end);
         mapped = set_brk(bss_start, bss_end);
         if (IS_ERR(mapped)) {
             err = (long)mapped;
             goto bad;
         }
-        debug("set_brk ok");
+        trace("set_brk ok");
     }
 
     *base = load_addr;
     err = ((uint64_t)elf.e_entry + load_addr);
-    debug("ok. base: 0x%llx, return addr: 0x%llx", *base, err);
+    trace("ok. base: 0x%llx, return addr: 0x%llx", *base, err);
 bad:
     vfs_close(file);
     return err;
@@ -330,7 +330,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         }
 
         if (ph.p_type == PT_INTERP) {
-            debug("found ip");
+            trace("found ip");
             if (ph.p_filesz > PGSIZE) {
                 error("name of interpretor is too long: 0x%x", ph.p_filesz);
                 goto bad;
@@ -345,7 +345,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
                 goto bad;
             }
             has_ip = 1;
-            debug("ip: %s", ip);
+            trace("ip: %s", ip);
             continue;
         }
 
@@ -410,7 +410,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
 
     // インタープリタが指定されていた場合
     if (has_ip) {
-        debug("load interpreter");
+        trace("load interpreter");
         ip_entry = load_interpreter(ip, &ip_base, curproc);
         if (IS_ERR((void *)ip_entry)) {
             error("failed load interpretor: %s", ip);
@@ -449,7 +449,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
                 goto free_ip;
         }
     }
-    debug("copy argv ok");
+    trace("copy argv ok");
     if (envp) {
         for (; in_user((void *)(envp + envc), sizeof(*envp)) && envp[envc];
              envc++) {
@@ -463,7 +463,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
                 goto free_ip;
         }
     }
-    debug("copy envp ok")
+    trace("copy envp ok")
     uint64_t auxv_size;
     uint64_t auxv_dyn[][2] = {
         { AT_PHDR,    elf.e_phoff },
@@ -499,7 +499,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
     uint64_t *newargv = newsp + 8;
     uint64_t *newenvp = (void *)newargv + 8 * (argc + 1);
     uint64_t *newauxv = (void *)newenvp + 8 * (envc + 1);
-    debug("argv: 0x%p, envp: 0x%p, auxv: 0x%p", newargv, newenvp, newauxv);
+    trace("argv: 0x%p, envp: 0x%p, auxv: 0x%p", newargv, newenvp, newauxv);
     memmove(newauxv, auxv, sizeof(auxv));
 
     if (has_ip)
@@ -530,7 +530,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         goto free_ip;
 
     assert((uint64_t) sp > USERTOP - stksz);
-    debug("proc: base=0x%x, size=0x%x, stack: sp=0x%x, size=0x%x", base, sz, sp, stksz);
+    trace("proc: base=0x%x, size=0x%x, stack: sp=0x%x, size=0x%x", base, sz, sp, stksz);
 
     // Commit to the user image.
     curproc->pgdir = pgdir;
@@ -546,7 +546,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
 
     curproc->tf->sp = (uint64_t) sp;
 
-    debug("entry 0x%p", curproc->tf->elr);
+    trace("entry 0x%p", curproc->tf->elr);
 
     uvm_switch(oldpgdir);
 
@@ -560,7 +560,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
 
     uvm_switch(curproc->pgdir);
     vm_free(oldpgdir);
-    debug("exec %s ok", curproc->name);
+    trace("exec %s ok", curproc->name);
     if (has_ip && ip)
         kmfree((void *)ip);
 
