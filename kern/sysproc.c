@@ -16,6 +16,7 @@
 
 long sys_yield(void)
 {
+    wfe();
     yield();
     return 0;
 }
