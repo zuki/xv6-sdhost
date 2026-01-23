@@ -16,6 +16,7 @@ FS_OFFSET := $$(($(BOOT_OFFSET)+$(BOOT_SECTORS)))
 FS_SECTORS := $$(($(SECTORS)-$(FS_OFFSET)))
 
 USR_FILES := $(shell find obj/usr/bin -type f)
+DYN_FILES := $(shell find obj/dyn/bin -type f)
 
 .DELETE_ON_ERROR: $(BOOT_IMG) $(SD_IMG)
 
@@ -31,9 +32,9 @@ $(BOOT_IMG): $(KERN_IMG) $(shell find boot/*)
 mkfs/mkfs: mkfs/mkfs.c
 	cc -o mkfs/mkfs -Imkfs/ mkfs/mkfs.c
 
-$(FS_IMG): mkfs/mkfs test.txt $(USR_FILES)
+$(FS_IMG): mkfs/mkfs test.txt $(USR_FILES) $(DYN_FILES)
 	echo $^
-	./mkfs/mkfs $@ test.txt $(USR_FILES)
+	./mkfs/mkfs $@ test.txt $(USR_FILES) $(DYN_FILES)
 
 $(SD_IMG): $(BOOT_IMG) $(FS_IMG)
 	dd if=/dev/zero of=$@ seek=$$(($(SECTORS) - 1)) bs=$(SECTOR_SIZE) count=1

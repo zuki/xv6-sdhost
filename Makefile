@@ -31,6 +31,7 @@ SD_IMG := $(BUILD_DIR)/sd.img
 all:
 	$(MAKE) -C boot
 	$(MAKE) -C usr
+	$(MAKE) -C dyn
 	$(MAKE) $(SD_IMG)
 
 # Automatically find sources and headers

@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 
 #include "types.h"
+#include "files.h"
 
 // this file should be compiled with normal gcc...
 #define stat xv6_stat           // avoid clash with host struct stat
@@ -93,7 +94,7 @@ int
 main(int argc, char *argv[])
 {
     int i, cc, fd;
-    uint32_t rootino, inum, off, binino, devino, procino;
+    uint32_t rootino, inum, off, binino, devino, procino, libino;
     struct dirent de;
     char buf[BLKSIZE];
     struct dinode din;
@@ -157,6 +158,13 @@ main(int argc, char *argv[])
     // Create /proc
     procino = make_dir(rootino, "proc", 0, 0, S_IFDIR|0755);
 
+    // Create /lib
+    libino = make_dir(rootino, "lib", 0, 0, S_IFDIR|0777);
+
+    // copy /lib/*
+    copy_file(0, nelms(lib_files), lib_files, libino, 0, 0, S_IFREG|0755);
+
+    // copy /*
     copy_file(2, 3, argv, rootino, 0, 0, S_IFREG|0755);
     copy_file(3, argc, argv, binino, 0, 0, S_IFREG|0755);
 
