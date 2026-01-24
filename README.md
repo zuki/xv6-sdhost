@@ -16,3 +16,4 @@
 - (2026/01/06) procfsを追加 (commit: 5694cef)
 - (2026/01/12) mmap機能を追加 (commit: 1bef380)
 - (2026/01/22) pagecache機能を追加 (commit: 825c07e)
+- (2026/01/23) 動的リンク機能を追加 (commit: 163cce0)
