@@ -237,9 +237,11 @@ long sys_fstatat(void)
 {
     int dirfd, flags;
     char *path;
+    char linkpath[512];
     struct stat *st, sst;
     struct vnode *vnode, *cwd = NULL;
     long error;
+    memset(linkpath, 0, 512);
 
     if ((error = argint(0, &dirfd)) < 0)
         return error;
@@ -249,6 +251,7 @@ long sys_fstatat(void)
         return error;
     if ((error = argint(3, &flags)) < 0)
         return error;
+    trace("dirfd: %d, path: %s, flags: 0x%x", dirfd, path, flags);
 
     if (flags != 0 && (flags & ~AT_SYMLINK_NOFOLLOW) != 0) {
         warn("unimplemented flags=0x%x", flags);
@@ -258,9 +261,33 @@ long sys_fstatat(void)
     if ((error = check_fdcwd(path, dirfd, &cwd)) < 0)
         return error;
 
-    if ((error = vfs_lookup(cwd, path, flags, thisproc()->uid, &vnode)) < 0)
+    if ((error = vfs_lookup(cwd, path, VLOOKUP_NORMAL, thisproc()->uid, &vnode)) < 0) {
+        error("vfs_lookup error: cwd: %d, path: %s", cwd->ino, path);
         return error;
+    }
 
+    trace("(1) path: %s, vnode: %d", path, vnode->ino);
+
+    if (S_ISLNK(vnode->mode) && !(flags & AT_SYMLINK_NOFOLLOW)) {
+        char *name = path_last_component(path);
+        if ((error = vfs_readlink(cwd, name, linkpath, 512, thisproc()->uid)) < 0) {
+            error("readlink: vnode: %d, name: %s", vnode->ino, name);
+            vfs_release_vnode(cwd);
+            return error;
+        }
+        linkpath[strlen(linkpath)] = '\0';
+        trace("name: %s, linkpath: %s", name, linkpath);
+        flags &= ~AT_SYMLINK_NOFOLLOW;
+        vfs_release_vnode(vnode);
+        if ((error = vfs_lookup(cwd, linkpath, VLOOKUP_NORMAL, thisproc()->uid, &vnode)) < 0) {
+            error("vfs_lookup error (%d): vnode: %d, linkpath: %s", error, vnode->ino, linkpath);
+            vfs_release_vnode(cwd);
+            return error;
+        }
+        trace("(2) linkvnode: %d", vnode->ino);
+    }
+
+    trace("(3) vnode: %d", vnode->ino);
     sst.st_dev = vnode->mp->dev;
     sst.st_ino = vnode->ino;
     sst.st_mode = vnode->mode;
@@ -269,9 +296,12 @@ long sys_fstatat(void)
     sst.st_gid = vnode->gid;
     sst.st_rdev = vnode->rdev;
     sst.st_size = vnode->size;
-    sst.st_atime = vnode->atime;
-    sst.st_mtime = vnode->mtime;
-    sst.st_ctime = vnode->ctime;
+    memmove(&sst.st_atime, &vnode->atime, sizeof(struct timespec));
+    memmove(&sst.st_mtime, &vnode->mtime, sizeof(struct timespec));
+    memmove(&sst.st_ctime, &vnode->ctime, sizeof(struct timespec));
+    //sst.st_atime = vnode->atime;
+    //sst.st_mtime = vnode->mtime;
+    //sst.st_ctime = vnode->ctime;
     memmove(st, &sst, sizeof(struct stat));
     vfs_release_vnode(vnode);
 

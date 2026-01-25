@@ -55,13 +55,13 @@ static int get_file(char *path, struct proc *p, struct vfile **file)
 
     // 指定されたファイルが実行可能であるか確認する
     if (vfs_access(p->cwd, path, X_OK, p->uid, 0) < 0) {
-        error("uid %d can't access %s", p->uid, path);
+        trace("uid %d can't access %s", p->uid, path);
         return -EPERM;
     }
 
     // 指定されたファイルをopen
     if ((err = vfs_open(p->cwd, path, O_RDONLY, 0, p->uid, file)) < 0) {
-        error("failed open %s", path);
+        trace("failed open %s", path);
         return err;
     }
     trace("open ok: f->vnode->ino: %d", (*file)->vnode->ino);
@@ -118,7 +118,7 @@ static uint64_t load_interpreter(char *path, uint64_t *base, struct proc *p)
     int i;
 
     if ((err = get_file(path, p, &file)) < 0) {
-        error("get_file: %s, err: %d", path, err);
+        trace("get_file: %s, err: %d", path, err);
         return err;
     }
 
@@ -137,16 +137,16 @@ static uint64_t load_interpreter(char *path, uint64_t *base, struct proc *p)
         goto bad;
     }
     if (elf.e_type != ET_DYN && elf.e_type != ET_EXEC) {
-        error("bad header type %d", elf.e_type);
+        trace("bad header type %d", elf.e_type);
         goto bad;
     }
     if (elf.e_phentsize != sizeof(Elf64_Phdr)) {
-        error("e_phentsize is invalid: %d", elf.e_phentsize);
+        trace("e_phentsize is invalid: %d", elf.e_phentsize);
         goto bad;
     }
 
     if (elf.e_phnum > ELF_MIN_ALIGN / sizeof(Elf64_Phdr)) {
-        error("e_phnum is invalide: %d", elf.e_phnum);
+        trace("e_phnum is invalide: %d", elf.e_phnum);
         goto bad;
     }
     trace("elf header check ok");
@@ -159,7 +159,7 @@ static uint64_t load_interpreter(char *path, uint64_t *base, struct proc *p)
 
         // プログラムヘッダーを1つ読み込む
         if (copy_cachepages(file, (char *)&ph, sizeof(ph), elf.e_phoff + i * elf.e_phentsize)) {
-            error("read bad");
+            trace("read bad");
             goto bad;
         }
 
@@ -171,7 +171,7 @@ static uint64_t load_interpreter(char *path, uint64_t *base, struct proc *p)
 
         // データチェック1: fileサイズとメモリサイズの妥当性チェック
         if (ph.p_memsz < ph.p_filesz) {
-            error("memsz smaller than filesz: filesz: 0x%llx, memsz: 0x%llx", ph.p_filesz, ph.p_memsz);
+            trace("memsz smaller than filesz: filesz: 0x%llx, memsz: 0x%llx", ph.p_filesz, ph.p_memsz);
             goto bad;
         }
         // データチェック2: 桁溢れのチェック
@@ -260,8 +260,8 @@ int execve(const char *path, char *const argv[], char *const envp[])
     // 呼び出し元のプロセスをcurprocとする
     struct proc *curproc = thisproc();
 
-    if ((err = get_file(path, curproc, &file)) > 0) {
-        error("get_file: %s, err: %d", path, err);
+    if ((err = get_file(path, curproc, &file)) < 0) {
+        trace("get_file: %s, err: %d", path, err);
         return err;
     }
 
@@ -292,7 +292,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
     }
 
     if (elf.e_type != ET_EXEC && elf.e_type != ET_DYN) {
-        error("bad header type %d", elf.e_type);
+        trace("bad header type %d", elf.e_type);
         goto bad;
     }
     trace("elf header check ok");
@@ -325,23 +325,23 @@ int execve(const char *path, char *const argv[], char *const envp[])
     for (i = 0; i < elf.e_phnum; i++) {
         // プログラムヘッダーを1つ読み込む
         if (copy_cachepages(file, (char *)&ph, sizeof(ph), elf.e_phoff + i * elf.e_phentsize)) {
-            error("read bad");
+            trace("read bad");
             goto bad;
         }
 
         if (ph.p_type == PT_INTERP) {
             trace("found ip");
             if (ph.p_filesz > PGSIZE) {
-                error("name of interpretor is too long: 0x%x", ph.p_filesz);
+                trace("name of interpretor is too long: 0x%x", ph.p_filesz);
                 goto bad;
             }
             ip = (char *)kmalloc(ph.p_filesz);
             if (!ip) {
-                error("could't get memory for interpretor name");
+                trace("could't get memory for interpretor name");
                 goto bad;
             }
             if ((err = copy_cachepages(file, ip, ph.p_filesz, ph.p_offset)) < 0) {
-                error("failed get interpretor name");
+                trace("failed get interpretor name");
                 goto bad;
             }
             has_ip = 1;
@@ -356,7 +356,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         }
         // データチェック1: fileサイズとメモリサイズの妥当性チェック
         if (ph.p_memsz < ph.p_filesz) {
-            error("memsz smaller than filesz");
+            trace("memsz smaller than filesz");
             goto bad;
         }
         // データチェック2: 桁溢れのチェック
@@ -386,7 +386,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         uvm_switch(pgdir);
 
         if (copy_cachepages(file, (char *)ph.p_vaddr, ph.p_filesz, ph.p_offset) < 0) {
-            error("ph[%d].p_files load error", i);
+            trace("ph[%d].p_files load error", i);
             goto bad;
         }
         //hexdump(ph.p_vaddr, ph.p_filesz, "rodata + data");
@@ -413,7 +413,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         trace("load interpreter");
         ip_entry = load_interpreter(ip, &ip_base, curproc);
         if (IS_ERR((void *)ip_entry)) {
-            error("failed load interpretor: %s", ip);
+            trace("failed load interpretor: %s", ip);
             goto free_ip;
         }
     }
@@ -431,7 +431,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         sp -= len;
         platform = (uint64_t)sp;
         if (copyout(pgdir, sp, ELF_PLATFORM, len) < 0) {
-            error("failed copyout platform");
+            trace("failed copyout platform");
             goto free_ip;
         }
     }

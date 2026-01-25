@@ -17,6 +17,8 @@
 static struct mount *root_fs;
 static struct mount mountpoints[VFS_MOUNT_MAX];
 
+static struct vfile *get_file(struct vnode *vnode, int flags);
+
 static struct mount *_find_mount_by_vnode(struct vnode *mount)
 {
     for (int i = 0; i < VFS_MOUNT_MAX; i++) {
@@ -214,7 +216,7 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
             mp = _find_mount_by_vnode(cur);
             vfs_release_vnode(cur);
             if (!mp) {
-                trace("%d has not mount_vnode");
+                error("%d has not mount_vnode");
                 return -ENXIO;
             }
 
@@ -231,13 +233,13 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
 
         // curが最後の要素でない場合、curはディレクトリでなければならない
         if (!S_ISDIR(cur->mode)) {
-            trace("cur (%d) is not dir", cur->ino);
+            error("cur (%d) is not dir", cur->ino);
             vfs_release_vnode(cur);
             return -ENOTDIR;
         }
 
         if ((error = verify_mode_access(uid, R_OK, cur->uid, cur->gid, cur->mode, 0)) < 0) {
-            trace("uid: %d, gid: %d, mode: 0x%x", cur->uid, cur->gid, cur->mode);
+            error("uid: %d, gid: %d, mode: 0x%x", cur->uid, cur->gid, cur->mode);
             vfs_release_vnode(cur);
             return -EPERM;
         }
@@ -509,11 +511,13 @@ int vfs_symlink(struct vnode *cwd, const char *oldpath, const char *newpath)
     const char *filename;
 
     if ((error = vfs_lookup(cwd, newpath, VLOOKUP_PARENT_OF, thisproc()->uid, &parent)) < 0) {
+        error("failed vfs_lookup: cwd: %d, path: %s", cwd->ino, newpath);
         return error;
     }
 
     // 親ディレクトリが書き込み可能かチェック
     if (verify_mode_access(thisproc()->uid, W_OK, parent->uid, parent->gid, parent->mode, 0) < 0) {
+        error("thisproc has not write permission to parent: %d", parent->ino);
         vfs_release_vnode(parent);
         return -EACCES;
     }
@@ -586,9 +590,17 @@ int vfs_readlink(struct vnode *cwd, const char *path, char *buf, size_t bufsize,
         return -EINVAL;
     }
 
+    //hexdump(buf, 16, "vfs_readlink buffer");
+
     file = get_vnode(thisproc()->fd_table, vnode);
     if (file) {
         error = file->ops->read(file, buf, bufsize);
+    } else if (file = get_file(vnode, O_RDONLY)) {
+        error = file->ops->read(file, buf, bufsize);
+        //if (error > 0 && error < bufsize)
+        //    buf[error] = 0;
+        //hexdump(buf, 16, "get_file buffer");
+        file->ops->close(file);
     } else {
         error = -ENOENT;
     }
@@ -898,4 +910,19 @@ int verify_mode_access(uid_t current_uid, mode_t require_mode, uid_t file_uid, g
     }
 
     return 0;
+}
+
+static struct vfile *get_file(struct vnode *vnode, int flags)
+{
+    struct vfile *f;
+    int error;
+    if ((f = alloc_file(vnode, flags)) == NULL)
+        return NULL;
+    if ((error = f->ops->open(f, flags)) < 0) {
+        error("failed file open");
+        free_vfile(f);
+        return NULL;
+    } else {
+        return f;
+    }
 }

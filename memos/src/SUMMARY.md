@@ -22,6 +22,7 @@
     - [シグナル機能の実装](xv6/signal.md)
     - [cachepage機能の実装](xv6/cachepage.md)
     - [動的リンク機能の実装](xv6/dynamic.md)
+    - [symlinkの修正](xv6/symlink.md)
 
 - [その他のメモ](others/README.md)
     - [デフォルトで使用されるリンカスクリプト](others/lds.md)

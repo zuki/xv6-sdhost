@@ -91,7 +91,7 @@ void ls(char *path)
     }
 
     if (fstat(fd, &st) < 0) {
-        fprintf(stderr, "ls: cannot stat %s\n", path);
+        fprintf(stderr, "ls: cannot get fd's stat %s\n", path);
         close(fd);
         return;
     }
@@ -111,8 +111,8 @@ void ls(char *path)
                     continue;
                 memmove(p, de.name, DIRSIZ);
                 p[DIRSIZ] = 0;
-                if (stat(buf, &st) < 0) {
-                    fprintf(stderr, "ls: cannot stat %s\n", buf);
+                if (fstatat(AT_FDCWD, buf, &st, AT_SYMLINK_NOFOLLOW) < 0) {
+                    fprintf(stderr, "ls: cannot get buf's stat %s\n", buf);
                     continue;
                 }
                 printf("%s %4ld %s %5ld %s %s\n", fmtmode(st.st_mode),

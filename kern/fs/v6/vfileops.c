@@ -128,7 +128,7 @@ off_t v6_seek(struct vfile *file, off_t offset, int whence)
     return file->offset;
 
 bad:
-    error("invalid offset %d", offset)
+    trace("invalid offset %d", offset)
     return -EINVAL;
 }
 
@@ -166,7 +166,7 @@ int v6_getdents(struct vfile *file, void *buffer, size_t size)
             return tlen ? tlen : 0;
         }
         if (n < 0 || n != DESIZE) {
-            error("read invalid n=%ld, tlen=%ld", n, tlen);
+            trace("read invalid n=%ld, tlen=%ld", n, tlen);
             return tlen ? tlen : -EIO;
         }
 
@@ -229,7 +229,7 @@ int v6_chown(struct vfile *file, int owner, int group)
 
     if (owner != (uid_t)-1) {
         if (!capable(CAP_CHOWN)) {
-            error("uid %d cant chown", owner);
+            trace("uid %d cant chown", owner);
             goto bad;
         }
         vp->uid = owner;
@@ -246,11 +246,11 @@ int v6_chown(struct vfile *file, int owner, int group)
                 }
             }
             if (i == p->ngroups) {
-                error("uid %d and gid %d cant chown", owner, group);
+                trace("uid %d and gid %d cant chown", owner, group);
                 goto bad;
             }
         } else {
-            error("gid %d cant chown", group);
+            trace("gid %d cant chown", group);
             goto bad;
         }
     }

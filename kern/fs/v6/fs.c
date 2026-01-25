@@ -276,7 +276,7 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
 {
     struct v6_inode *ip, *empty;
     struct vnode *vp;
-    //trace("dev: 0x%x, ino: %d", mp->dev, ino);
+    trace("dev: 0x%x, ino: %d", mp->dev, ino);
 
     acquire(&v6_icache.lock);
     // v6_inodeがキャッシュされているかチェックする
@@ -294,7 +294,7 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
     }
 
     if (empty == NULL) {
-        error("no v6_inodes");
+        trace("no v6_inodes");
         return NULL;
     }
     // v6_inodeキャッシュエントリをリサイクル.
@@ -335,7 +335,8 @@ void v6_ilock(struct v6_inode *ip)
     if (ip == 0 || ITOV(ip)->refcount < 0)
         panic("v6_ilock");
 
-    trace("slock: ino=%d", ITOV(ip)->ino);
+    trace("ilock: ino=%d", ITOV(ip)->ino);
+    if (ITOV(ip)->ino == 31) trace("acquiresleep: ino: 31");
     acquiresleep(&ip->lock);
     vp = ITOV(ip);
     trace("vp->ino: %d, valid: %d, type: %d, mode: 0x%x", vp->ino, ip->valid, ip->type, vp->mode);
@@ -371,6 +372,7 @@ void v6_iunlock(struct v6_inode *ip)
         panic("iunlock");
 
     trace("relslock: ino=%d", ITOV(ip)->ino);
+    if (ITOV(ip)->ino == 31) trace("releasesleep: ino: 31");
     releasesleep(&ip->lock);
 }
 
@@ -385,6 +387,7 @@ void v6_iput(struct v6_inode *ip)
     struct vnode *vp = ITOV(ip);
 
     trace("slock: ino=%d", ITOV(ip)->ino);
+    if (ITOV(ip)->ino == 31) trace("acquiresleep: ino: 31");
     acquiresleep(&ip->lock);
     if (ip->valid && vp->nlink == 0) {
         //acquire(&v6_icache.lock);
@@ -400,6 +403,7 @@ void v6_iput(struct v6_inode *ip)
         }
     }
     trace("relslock: ino=%d", ITOV(ip)->ino);
+    if (ITOV(ip)->ino == 31) trace("releasesleep: ino: 31");
     releasesleep(&ip->lock);
 
     // refcountはローカルではさわらない vfs_release_vnode()で行う

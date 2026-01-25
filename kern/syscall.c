@@ -423,7 +423,7 @@ long syscall1(struct trapframe *tf)
     int sysno = tf->x[8];
 
     if (sysno > 0 && sysno < ARRAY_SIZE(syscalls) && syscalls[sysno]) {
-        if (sysno != SYS_sched_yield && sysno != SYS_rt_sigprocmask && thisproc()->pid == 8)
+        if (sysno != SYS_sched_yield && sysno != SYS_rt_sigprocmask && thisproc()->pid >= 8)
             trace("proc[%d] %s called", thisproc()->pid, syscall_names[sysno]);
         return syscalls[sysno]();
     } else {
