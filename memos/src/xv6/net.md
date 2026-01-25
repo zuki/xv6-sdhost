@@ -1053,3 +1053,22 @@ $ dns
 [3]ntp_get_time: timestamp: 0x4cfc5253, utc: 1760694857
 
 ```
+
+## `/bin/date`で現在時刻が表示されない (2026/01/25に判明)
+
+```bash
+$ /bin/date
+2022年 6日21日 火曜日 10時31分47秒 JST
+$ /bin/dns
+[3]ip_output_device: arp not resolved
+```
+
+- idleプロセスのテストで`config.h`で`USING_RASPI`をundefしていたためだった
+- defineして`make clean; make`で復活
+
+```bash
+$ /bin/date
+2026年 1日25日 日曜日 11時 2分35秒 JST
+$ /bin/dns
+[0]ntp_get_time: timestamp: 0xcf17027, utc: 1769306558
+```

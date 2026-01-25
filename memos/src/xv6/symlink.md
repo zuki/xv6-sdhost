@@ -171,3 +171,28 @@ drwxrwxrwx    6 root wheel   256  1 25 10:13 lib
 -rwxr-xr-x    9 root wheel    34  1 25 10:13 test_h.txt
 lrwxrwxrwx   31 root wheel     8  6 21 10:31 test_s.txt     // symlinkしたファイルの情報が表示されている
 ```
+
+- test_s.txt, procの日付がおかしいのはconfig.hでUSING_RASPIをundefしていたせい
+
+```bash
+$ /bin/date
+2026年 1日25日 日曜日 11時 8分44秒 JST
+$ /bin/ls
+drwxrwxr-x    1 root wheel  4096  1 25 11:01 .
+drwxrwxr-x    1 root wheel  4096  1 25 11:01 ..
+drwxrwxr-x    2 root wheel  1472  1 25 11:01 bin
+drwxrwxr-x    3 root wheel   192  1 25 11:01 dev
+drwxr-xr-x    0 root wheel     0  1 25 11:08 proc
+drwxrwxrwx    6 root wheel   256  1 25 11:01 lib
+-rwxr-xr-x    9 root wheel    34  1 25 11:01 test.txt
+$ /bin/ln -s test.txt test_s.txt
+$ /bin/ls
+drwxrwxr-x    1 root wheel  4096  1 25 11:01 .
+drwxrwxr-x    1 root wheel  4096  1 25 11:01 ..
+drwxrwxr-x    2 root wheel  1472  1 25 11:01 bin
+drwxrwxr-x    3 root wheel   192  1 25 11:01 dev
+drwxr-xr-x    0 root wheel     0  1 25 11:08 proc
+drwxrwxrwx    6 root wheel   256  1 25 11:01 lib
+-rwxr-xr-x    9 root wheel    34  1 25 11:01 test.txt
+lrwxrwxrwx   31 root wheel     8  1 25 11:08 test_s.txt
+```
