@@ -256,4 +256,12 @@ irq_enabled(void)
     asm volatile("mrs %[x], daif" : [x]"=r"(r));
     return (r & 0x80) == 0;
 }
+
+static inline uint64_t get_sp(void)
+{
+    uint64_t x;
+    asm volatile("mov %0, sp" : "=r" (x) );
+    return x;
+}
+
 #endif

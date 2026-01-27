@@ -61,9 +61,9 @@ extern struct timespec xtime;
 // タイマーの登録
 extern void add_timer(struct timer_list *timer);
 // タイマーのキャンセル
-extern int del_timer(struct timer_list *timer);
+extern int del_timer(struct timer_list *timer, boolean del);
 // すでに実行中の場合は終了を待つ
-#define del_timer_sync(t)   del_timer(t)
+#define del_timer_sync(t, d)    del_timer(t, d);
 #define sync_timers()       do { } while (0)
 
 // expireの変更

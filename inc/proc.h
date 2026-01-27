@@ -101,6 +101,12 @@ struct proc {
     int killed;                 /* killされたか否か */
     int xstate;                 // waitで待っていてる親に返すexit status
 
+    struct spinlock time_lock;      /* timer関連のフィールドを保護 */
+    uint64_t stime, utime;          /* ticks for system and user */
+    uint64_t it_real_value;         /* interval timer interval値 */
+    uint64_t it_real_incr;          /* interval timer increment値 */
+    struct timer_list real_timer;   /* Real timerリスト */
+
     int fdflag;                 /* ファイルディスクリプタフラグ */
     fd_table_t fd_table;        /* オープンファイル管理 */
 

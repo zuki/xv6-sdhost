@@ -16,7 +16,7 @@
 
 long sys_yield(void)
 {
-    wfe();
+    //wfe();
     yield();
     return 0;
 }
@@ -773,4 +773,45 @@ long sys_setgroups()
     }
 
     return 0;
+}
+
+// int getitimer(int which, struct itimerval *value);
+long sys_getitimer(void)
+{
+    int which;
+    struct itimerval *value;
+    long err;
+
+    if (argint(0, &which) < 0) {
+        return -EINVAL;
+    }
+
+    if ((err = argptr(1, (void **)&value, sizeof(struct itimerval))) < 0)
+        return err;
+
+    trace("which: %d, value: %p", which, value);
+
+    return getitimer(which, value);
+}
+
+// int setitimer(int which, const struct itimerval *value, struct itimerval *ovalue);
+long sys_setitimer(void)
+{
+    int which;
+    struct itimerval *new_value, *old_value;
+    long err;
+
+    if (argint(0, &which) < 0) {
+        return -EINVAL;
+    }
+
+    if ((err = argptr(1, (void **)&new_value, sizeof(struct itimerval))) < 0)
+        return err;
+
+    if ((err = argptr(2, (void **)&old_value, sizeof(struct itimerval))) < 0)
+        return err;
+
+    trace("which: %d, new_value: inter->sec: 0x%llx, inter->usec: 0x%llx, val->sec: 0x%llx, val->usec: 0x%llx", which, new_value->it_interval.tv_sec, new_value->it_interval.tv_usec, new_value->it_value.tv_sec, new_value->it_value.tv_usec);
+
+    return setitimer(which, new_value, old_value);
 }

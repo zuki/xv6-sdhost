@@ -56,12 +56,16 @@ static int procid = 0;
 void
 proc_init(void)
 {
+    int i;
+
     initlock(&ptable.lock, "ptable");
     initlock(&q.lock, "q_lock");
     initlock(&q.siglock, "q_siglock");
     list_init(&ptable.sched_que);
-    for (int i = 0; i < SQSIZE; i++)
+    for (i = 0; i < SQSIZE; i++)
         list_init(&ptable.slpque[i]);
+    for (i = 0; i < NPROC; i++)
+        initlock(&(ptable.proc[i].time_lock), "time lock");
     VMA = slab_cache_create("vma", sizeof(struct vma), 0);
 
     info("proc_init ok");
@@ -149,6 +153,12 @@ proc_initx(char *name, char *code, size_t len)
     init_fd_table(p->fd_table);
     p->umask = 0002;
     p->vmas = NULL;
+
+    p->stime = p->utime = 0;
+    p->it_real_value = p->it_real_incr = 0;
+    memset(&p->real_timer, 0, sizeof(struct timer_list));
+
+    p->cap_effective = p->cap_inheritable = p->cap_permitted = CAP_INIT_EFF_SET;
 
     p->tf->elr = 0;
 
@@ -384,14 +394,30 @@ fork(void)
     np->tf->x[0] = 0;
 
     dup_fd_table(np->fd_table, cp->fd_table);
+    np->fdflag = cp->fdflag;
+
     np->cwd = vfs_clone_vnode(cp->cwd);
     np->pgid = cp->pgid;
     np->sid = cp->sid;
     np->uid = cp->uid;
     np->gid = cp->gid;
-    np->fdflag = cp->fdflag;
+    np->egid = cp->egid;
+    np->sgid = cp->sgid;
+    np->fsgid = cp->fsgid;
+    np->ngroups = cp->ngroups;
+    memmove(np->groups, cp->groups, sizeof(gid_t) * cp->ngroups);
+    np->cap_effective = cp->cap_effective;
+    np->cap_inheritable = cp->cap_inheritable;
+    np->cap_permitted = cp->cap_permitted;
 
     memmove(&np->signal, &cp->signal, sizeof(struct signal));
+    np->signal.pending = 0;
+
+    np->stime = np->utime = 0;
+    np->it_real_value = np->it_real_incr = 0;
+    init_timer(&np->real_timer);
+    np->real_timer.data = (uint64_t) np;
+    np->real_timer.fn = it_real_fn;
 
     int pid = np->pid;
 
@@ -531,6 +557,9 @@ exit(int err)
     trace("ino: %d, refcount = %d", cp->cwd->ino, cp->cwd->refcount);
     vfs_release_vnode(cp->cwd);
     cp->cwd = 0;
+
+    // タイマーを削除
+    del_timer_sync(&cp->real_timer, false);
 
     acquire(&ptable.lock);
 
@@ -695,11 +724,14 @@ void user_handler(struct proc *p, int sig)
 {
     trace("sig=%d", sig);
     uint64_t sp = p->tf->sp;
-
+    trace("sp1: 0x%llx", sp);
     // 現在のトラップフレームをユーザスタックに保存する
     sp -= sizeof(struct trapframe);
+    sp = ROUNDDOWN(sp, 0x10);
     memmove((void *)sp, (void *)p->tf, sizeof(struct trapframe));
     p->oldtf = (struct trapframe *)sp;
+    sp = ROUNDDOWN(sp, 0x10);
+    trace("sp2: 0x%llx", sp);
 
     // sigret_syscall.Sのコードをユーザスタックにプッシュする
     // a) コードの開始アドレスをサイズを求める
@@ -708,21 +740,27 @@ void user_handler(struct proc *p, int sig)
 
     // b) コードをスタックにコピーし、その先頭アドレスを変数handler_ret_addにセットする
     sp -= sig_ret_code_size;
+    sp = ROUNDDOWN(sp, 0x10);
     uint64_t handler_ret_addr = sp;
     memmove((void *)sp, sig_ret_code_addr, sig_ret_code_size);
+    trace("sig_ret: start: 0x%llx, size: 0x%llx", sig_ret_code_addr, sig_ret_code_size);
+    trace("sp3: 0x%llx", sp);
 
     // コードの引数のシグナル番号をセットする
     p->tf->x[0] = sig;
 
     // コードのリターンアドレスをスタックにプッシュする
     sp -= sizeof(uint64_t);
+    sp = ROUNDDOWN(sp, 0x10);
     memmove((void *)sp, (void *)&handler_ret_addr, sizeof(uint64_t));
+    trace("sp4: 0x%llx", sp);
 
     // セットしたspをトラップフレームのspにセットする
     p->tf->sp = sp;
 
     // ユーザハンドラを実行するようにeipを変更する
     p->tf->elr = (uint64_t)p->signal.actions[sig].sa_handler;
+    debug("tf->sp: 0x%llx, elf: 0x%llx", p->tf->sp, p->tf->elr);
 }
 
 // シグナルを処理する
@@ -850,7 +888,7 @@ long kill(pid_t pid, int sig)
     struct proc *current = thisproc();
     struct proc *p;
     long error = -ESRCH;
-
+    trace("pid: %d, sig: %d", pid, sig);
     if (pid == 0 || pid < -1) {
         pid_t pgid = pid == 0 ? current->pgid : -pid;
         if (pgid > 0) {

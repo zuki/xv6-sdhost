@@ -5,6 +5,7 @@
 #include <base.h>
 #include <irq.h>
 #include <console.h>
+#include <proc.h>
 #include <linux/time.h>
 #include <rtc.h>
 #include <spinlock.h>
@@ -107,7 +108,9 @@ void clock_intr()
 
 long clock_gettime(clockid_t clk_id, struct timespec *tp)
 {
-    //uint64_t ptime;
+    uint64_t ptime;
+    struct proc *p = thisproc();
+    static int count = 0;
 
     switch(clk_id) {
         default:
@@ -116,16 +119,16 @@ long clock_gettime(clockid_t clk_id, struct timespec *tp)
             tp->tv_nsec = xtime.tv_nsec;
             tp->tv_sec = xtime.tv_sec;
             break;
-#if 0
         case CLOCK_PROCESS_CPUTIME_ID:
-            struct proc *p = thisproc();
             ptime = (p->stime + p->utime) * TICK_NSEC;
             tp->tv_nsec = ptime % 1000000000;
             tp->tv_sec  = ptime / 1000000000;
             break;
-#endif
     }
-    trace("clk: %d, tv_sec: %lld, tv_nsec: %lld", clk_id, tp->tv_sec, tp->tv_nsec);
+#if 0
+    if ((++count % 1000) == 0)
+        debug("[%d] clk: %d, tv_sec: %lld, tv_nsec: %lld", count, clk_id, tp->tv_sec, tp->tv_nsec);
+#endif
     return 0;
 }
 

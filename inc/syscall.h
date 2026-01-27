@@ -29,8 +29,6 @@ long sys_getrandom(void);
 long sys_uname(void);
 long sys_clock_settime(void);
 long sys_ppoll(void);
-long sys_getitimer(void);
-long sys_setitimer(void);
 long sys_madvise(void);
 long syscall1(struct trapframe *);
 
@@ -77,6 +75,8 @@ long sys_msync(void);
 void *sys_mremap(void);
 long sys_mprotect(void);
 long sys_madvise(void);
+long sys_getitimer(void);
+long sys_setitimer(void);
 
 // kern/sysfile.c
 long sys_execve(void);

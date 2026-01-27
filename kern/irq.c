@@ -238,7 +238,7 @@ handle1(int i)
 }
 
 void
-irq_handler(void)
+irq_handler(int user_mode)
 {
     int nack = 0;
 #ifndef USE_GIC
@@ -246,7 +246,7 @@ irq_handler(void)
     assert(!(src & ~(IRQ_SRC_CNTPNSIRQ | IRQ_SRC_GPU | IRQ_SRC_TIMER)));
     // 1. 物理カウンター割り込み（コアタイマー割り込み: タイマーで使用）
     if (src & IRQ_SRC_CNTPNSIRQ) {
-        timer_intr();
+        timer_intr(user_mode);
         nack++;
     }
     // 2. ローカルタイマー割り込み（clockで使用）

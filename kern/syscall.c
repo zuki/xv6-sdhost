@@ -154,15 +154,18 @@ long argstr(int n, char **pp)
     return r;
 }
 
+// int clock_gettime(clockid_t clock_id, struct timespec *tp);
 long sys_clock_gettime(void)
 {
     clockid_t clk_id;
     struct timespec *tp;
+    static int count = 0;
 
     if (argint(0, (clockid_t *)&clk_id) < 0 || argptr(1, (void **)&tp, sizeof(struct timespec)) < 0)
         return -EINVAL;
 
-    trace("clk_id: %d, tp: 0x%p\n", clk_id, tp);
+    if ((++count % 1000) == 0)
+        trace("[%d] clk_id: %d, tp: 0x%p\n", count, clk_id, tp);
 
     return clock_gettime(clk_id, tp);
 }
@@ -252,8 +255,8 @@ static func syscalls[] = {
     [SYS_exit_group] = sys_exit_group,          // 94
     [SYS_set_tid_address] = sys_set_tid_address,  // 96 OK
     [SYS_nanosleep] = sys_nanosleep,            // 101
-    //[SYS_getitimer] = sys_getitimer,            // 102
-    //[SYS_setitimer] = sys_setitimer,            // 103
+    [SYS_getitimer] = sys_getitimer,            // 102
+    [SYS_setitimer] = sys_setitimer,            // 103
     [SYS_clock_settime] = sys_clock_settime,    // 112
     [SYS_clock_gettime] = sys_clock_gettime,    // 113
     //[SYS_sched_getaffinity] = sys_sched_getaffinity, // 123
@@ -423,7 +426,7 @@ long syscall1(struct trapframe *tf)
     int sysno = tf->x[8];
 
     if (sysno > 0 && sysno < ARRAY_SIZE(syscalls) && syscalls[sysno]) {
-        if (sysno != SYS_sched_yield && sysno != SYS_rt_sigprocmask && thisproc()->pid >= 8)
+        if (sysno != SYS_sched_yield /* && sysno != SYS_rt_sigprocmask */ && thisproc()->pid >= 8)
             trace("proc[%d] %s called", thisproc()->pid, syscall_names[sysno]);
         return syscalls[sysno]();
     } else {

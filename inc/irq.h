@@ -33,6 +33,6 @@ void irq_init(void);
 void irq_enable(int);
 void irq_disable(int);
 void irq_register(int, void (*)(void *), void *);
-void irq_handler(void);
+void irq_handler(int user_mode);
 
 #endif

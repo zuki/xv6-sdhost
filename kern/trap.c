@@ -76,7 +76,7 @@ void trap(struct trapframe *tf)
         if (il) {
             trace("IL bit on");
         } else {
-            irq_handler();
+            irq_handler(user_mode(tf));
         }
         //check_pending_signal();
         break;

@@ -28,19 +28,29 @@ static uint64_t timer_jiffies = 0;
 
 static struct slab_cache *TIMERS;
 
+static void update_proc_time(int user_mode)
+{
+    struct proc *p = thisproc();
+    if (user_mode)
+        p->utime++;
+    else
+        p->stime++;
+}
+
 void timer_init()
 {
     // 1秒で発火
 #ifdef USING_RASPI
-    dt = timerfreq();       // 10 ms = 19.2 * 10^6 / 100
+    dt = timerfreq() / 100;       // 10 ms = 19.2 * 10^6 / 100
 #else
-    dt = 62500000UL;        // QEMUはtimerfreq()で得られる値が実機と違う
+    dt = 62500000UL / 100;        // QEMUはtimerfreq()で得られる値が実機と違う
 #endif
     trace("timerfreq = 0x%llx", timerfreq());
     //dt = timerfreq();     /* dt = 19_200_000 */
     asm volatile ("msr cntp_ctl_el0, %[x]"::[x] "r"(1));    /* タイマーenable */
     asm volatile ("msr cntp_tval_el0, %[x]"::[x] "r"(dt));
     put32(CORE_TIMER_CTRL(cpuid()), CORE_TIMER_ENABLE);
+
 #ifdef USE_GIC
     irq_enable(IRQ_LOCAL_CNTPNS);
     irq_register(IRQ_LOCAL_CNTPNS, timer_intr, 0);
@@ -60,9 +70,10 @@ static void timer_reset()
 /*
  * 現在はタイマーをリロードするだけで特に何もしていない。
  */
-void timer_intr()
+void timer_intr(int user_mode)
 {
     timer_reset();
+    update_proc_time(user_mode);
     //yield();
 }
 
@@ -101,17 +112,6 @@ static inline void internal_add_timer(struct timer_list *timer)
         list_push_back(&timer_list.list, &timer->list);
 }
 
-#if 0
-static void update_proc_time(int user_mode)
-{
-    struct proc *p = thisproc();
-    if (user_mode)
-        p->utime++;
-    else
-        p->stime++;
-}
-#endif
-
 struct timer_list *alloc_timer(void)
 {
     struct timer_list *timer = (struct timer_list *)slab_cache_alloc(TIMERS);
@@ -149,20 +149,23 @@ bug:
 }
 
 // TODO: return値がokの場合、1になっているのを修正
-/* タイアーを削除する */
-int del_timer(struct timer_list * timer)
+/* タイマーを削除する. del=true: timer->data, timerを削除, proc.real_timerは削除しない */
+int del_timer(struct timer_list * timer, boolean del)
 {
     int ret;
-
     acquire(&timerlock);
     ret = detach_timer(timer);                      // 1. リストから削除
     timer->list.next = timer->list.prev = NULL;     // 2. 内部リストからクリア
     release(&timerlock);
-    if (timer->data != 0)
-        kmfree((void *)timer->data);
-    free_timer(timer);
+    if (del) {
+        if (timer->data != 0) {
+            kmfree((void *)timer->data);
+        }
+        free_timer(timer);
+    }
     return ret;
 }
+
 
 /* 時限が来たタイマーを実行した後、タイマーリストを更新する */
 void run_timer_list(void)
