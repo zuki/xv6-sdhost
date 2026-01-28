@@ -26,7 +26,10 @@ void cachepage_init(void)
     for (int i = 0; i < NPAGECACHE; i++) {
         cachepages.pages[i].page = kalloc();
         if (!cachepages.pages[i].page) {
+            for (int j = 0; j < i; j++)
+                kfree(cachepages.pages[j].page);
             error("memory exhausted: i = %d", i);
+            release(&cachepages.lock);
             return;
         }
         initsleeplock(&cachepages.pages[i].lock, "cachepages.page");

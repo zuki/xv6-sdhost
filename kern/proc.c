@@ -584,6 +584,7 @@ exit(int err)
     cp->state = ZOMBIE;
 
     swtch(&cp->context, thiscpu()->scheduler);
+    release(&ptable.lock);
     panic("zombie exit");
 }
 
@@ -722,6 +723,8 @@ void stop_handler(struct proc *p)
 // ユーザハンドラを処理する
 void user_handler(struct proc *p, int sig)
 {
+    extern void dump_tf(struct trapframe *tf);
+    acquire(&q.lock);
     trace("sig=%d", sig);
     uint64_t sp = p->tf->sp;
     trace("sp1: 0x%llx", sp);
@@ -730,7 +733,6 @@ void user_handler(struct proc *p, int sig)
     sp = ROUNDDOWN(sp, 0x10);
     memmove((void *)sp, (void *)p->tf, sizeof(struct trapframe));
     p->oldtf = (struct trapframe *)sp;
-    sp = ROUNDDOWN(sp, 0x10);
     trace("sp2: 0x%llx", sp);
 
     // sigret_syscall.Sのコードをユーザスタックにプッシュする
@@ -760,7 +762,8 @@ void user_handler(struct proc *p, int sig)
 
     // ユーザハンドラを実行するようにeipを変更する
     p->tf->elr = (uint64_t)p->signal.actions[sig].sa_handler;
-    debug("tf->sp: 0x%llx, elf: 0x%llx", p->tf->sp, p->tf->elr);
+    //dump_tf(p->tf);
+    release(&q.lock);
 }
 
 // シグナルを処理する

@@ -46,7 +46,7 @@ void sync_bufcache()
 }
 
 /* デバイスdevのブロック番号blocknoのブロックを読み込む : bread を置き換え
- * sleeplockを持ったstruct bufを返す。読み込みが失敗したらpanic */
+ * BCF_BUSYフラグを立てたstruct bufを返す。読み込みが失敗したらpanic */
 struct buf *get_block(device_t dev, uint32_t blockno)
 {
     struct buf *cur;
@@ -130,6 +130,7 @@ static inline struct buf *_find_free_entry()
         { /* 何もしない */}
 
     if (!last) {
+        release(&bufcache.lock);
         panic("Error: ran out of bufcache entries\n");
         return NULL;
     }

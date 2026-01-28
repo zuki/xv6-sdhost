@@ -13,6 +13,7 @@ struct trapframe {
 
 void trap(struct trapframe *);
 void trap_init();
+void dump_tf(struct trapframe *tf);
 
 extern uint64_t         pending;
 extern struct spinlock  pendinglock;

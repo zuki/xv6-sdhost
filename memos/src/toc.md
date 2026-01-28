@@ -22,6 +22,7 @@
 - [cachepage機能の実装](xv6/cachepage.md)
 - [動的リンク機能の実装](xv6/dynamic.md)
 - [symlinkの修正](xv6/symlink.md)
+- [インターバルタイマーの実装](xv6/interval_timer.md)
 
 ## その他のメモ
 

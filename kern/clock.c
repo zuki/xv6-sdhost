@@ -41,7 +41,7 @@ uint64_t jiffies = 0;
 struct timespec xtime  __attribute__ ((aligned (16)));
 /* 直近のwall_time更新時のjiffies */
 unsigned long wall_jiffies = 0;
-
+/* jiffies, xtime, wall_jiffies を保護 */
 struct spinlock clocklock;
 
 // 現在時の更新
@@ -100,10 +100,12 @@ void clock_intr()
     acquire(&clocklock);
     jiffies++;
     update_times();
+    release(&clocklock);
     run_timer_list();
+    //acquire(&clocklock);
     clock_reset();
     //wakeup(&jiffies);
-    release(&clocklock);
+    //release(&clocklock);
 }
 
 long clock_gettime(clockid_t clk_id, struct timespec *tp)

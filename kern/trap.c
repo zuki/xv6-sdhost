@@ -21,6 +21,7 @@ uint64_t pending;
 extern long syscall1(struct trapframe *tf);
 
 static long pf_handler(int ec, int dfs, uint64_t far);
+
 void trap_error(uint64_t type);
 
 #define PSR_MODE_EL0t   0x00000000
@@ -114,7 +115,8 @@ void trap(struct trapframe *tf)
         break;
 
     default:
-        error("[%d] unknown trap code: %d at 0x%llx with 0x%llx", thisproc()->pid, ec, elr, far);
+        error("[%d] unknown trap code: %d at elr: 0x%llx with far: 0x%llx", thisproc()->pid, ec, elr, far);
+        dump_tf(tf);
         exit(1);
     }
     softintr();
@@ -191,4 +193,29 @@ pf_handler(int ec, int dfs, uint64_t far)
         }
         return -1;
     }
+}
+
+/*
+struct trapframe {
+    uint64_t spsr, elr, sp, tpidr;
+    uint64_t x[31];
+    uint64_t padding;
+    uint64_t q0[2]; // FIXME: dirty hack since musl's `memset` only used q0.
+};
+*/
+
+void dump_tf(struct trapframe *tf)
+{
+    cprintf("=== dump trapframe        ===\n");
+    cprintf("  spsr: 0x%llx\n", tf->spsr);
+    cprintf("   elr: 0x%llx\n", tf->elr);
+    cprintf("    sp: 0x%llx\n", tf->sp);
+    cprintf(" tpidr: 0x%llx\n", tf->tpidr);
+    cprintf("    x1: 0x%llx\n", tf->x[1]);
+    cprintf("    x2: 0x%llx\n", tf->x[2]);
+    cprintf("    x3: 0x%llx\n", tf->x[3]);
+    cprintf("    x8: 0x%llx\n", tf->x[8]);
+    cprintf("   x29: 0x%llx\n", tf->x[29]);
+    cprintf("   x30: 0x%llx\n", tf->x[30]);
+    cprintf("===-----------------------===\n");
 }

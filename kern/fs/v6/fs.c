@@ -295,6 +295,7 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
 
     if (empty == NULL) {
         trace("no v6_inodes");
+        release(&v6_icache.lock);
         return NULL;
     }
     // v6_inodeキャッシュエントリをリサイクル.

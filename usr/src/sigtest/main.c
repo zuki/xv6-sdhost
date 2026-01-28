@@ -9,7 +9,7 @@ int cpid[5];
 int j;
 
 void sig_catcher(int sig) {
-    //printf("sig_catcher: Proc[%d]: %d caught sig %d, j %d\n", j, getpid(), sig);
+    printf("PID %d caught sig %d, j %d\n", getpid(), sig, j);
     if (j > -1) {
         //printf(" - kill Proc[%d]: %d with sig %d\n", j, cpid[j], SIGINT);
         kill(cpid[j], SIGINT);
@@ -44,6 +44,7 @@ int main(void) {
     kill(cpid[4], SIGINT);
     for (i = 0; i < 5; i++) {
         zombie = wait(&status);
+        printf("%d is dead\n", zombie);
         //printf("sig_catcher: Proc[%d]: %d is dead with %d\n", i, cpid[i], zombie);
     }
     exit(0);

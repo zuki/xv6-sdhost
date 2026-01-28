@@ -187,3 +187,221 @@ Main:     1.00    1.00    1.00
 Main:     1.50    0.50    1.00
                                     // ここでストール
 ```
+
+## p->tf (trapframe)を出力
+
+- debug出力無しでエラー発生
+
+```bash
+$ /bin/timertest 2 0 1 0
+try 3 times
+       Elapsed   Value Interval
+START:    0.01
+Main:     0.51    1.50    1.00
+Main:     1.01    1.00    1.00
+Main:     1.51    0.50    1.00
+[3]trap: [8] unknown trap code: 34 at elr: 0x2 with far: 0x2
+=== dump trapframe        ===
+  spsr: 0x80000000
+   elr: 0x2
+    sp: 0xfffffffffcb0
+ tpidr: 0x409160
+    x1: 0x1
+    x2: 0x0
+    x3: 0x404180
+    x8: 0x71
+   x29: 0xfffffffffe20
+   x30: 0x2
+===-----------------------===
+$
+```
+
+- debug出力ありでエラーなし
+
+```bash
+$ /bin/timertest 2 0 1 0
+try 3 times
+       Elapsed   Value Interval
+START:    0.00
+Main:     0.50    1.50    1.00
+Main:     1.00    1.00    1.00
+Main:     1.50    0.50    1.00
+[1]user_handler: sig=14
+[1]user_handler: sp1: 0xfffffffffde0
+[1]user_handler: sp2: 0xfffffffffcb0
+[1]user_handler: sig_ret: start: 0xffff0000000a8078, size: 0x8
+[1]user_handler: sp3: 0xfffffffffca0
+[1]user_handler: sp4: 0xfffffffffc90
+[1]user_handler: tf->sp: 0xfffffffffc90, elf: 0x4002f0
+=== dump trapframe        ===
+  spsr: 0x80000000
+   elr: 0x4002f0
+    sp: 0xfffffffffc90
+ tpidr: 0x409160
+    x1: 0xfffffffffe10
+    x2: 0x0
+    x3: 0x404180
+    x8: 0x71
+   x29: 0xfffffffffe20
+   x30: 0x402f54
+===-----------------------===
+ALARM:    2.04    0.96    1.00
+Main:     2.05    0.95    1.00
+Main:     2.54    0.46    1.00
+[1]user_handler: sig=14
+[1]user_handler: sp1: 0xfffffffffde0
+[1]user_handler: sp2: 0xfffffffffcb0
+[1]user_handler: sig_ret: start: 0xffff0000000a8078, size: 0x8
+[1]user_handler: sp3: 0xfffffffffca0
+[1]user_handler: sp4: 0xfffffffffc90
+[1]user_handler: tf->sp: 0xfffffffffc90, elf: 0x4002f0
+=== dump trapframe        ===
+  spsr: 0x80000000
+   elr: 0x4002f0
+    sp: 0xfffffffffc90
+ tpidr: 0x409160
+    x1: 0xfffffffffe10
+    x2: 0x0
+    x3: 0x404180
+    x8: 0x71
+   x29: 0xfffffffffe20
+   x30: 0x402f54
+===-----------------------===
+ALARM:    3.04    0.96    1.00
+Main:     3.08    0.92    1.00
+Main:     3.58    0.42    1.00
+[1]user_handler: sig=14
+[1]user_handler: sp1: 0xfffffffffde0
+[1]user_handler: sp2: 0xfffffffffcb0
+[1]user_handler: sig_ret: start: 0xffff0000000a8078, size: 0x8
+[1]user_handler: sp3: 0xfffffffffca0
+[1]user_handler: sp4: 0xfffffffffc90
+[1]user_handler: tf->sp: 0xfffffffffc90, elf: 0x4002f0
+=== dump trapframe        ===
+  spsr: 0x80000000
+   elr: 0x4002f0
+    sp: 0xfffffffffc90
+ tpidr: 0x409160
+    x1: 0xfffffffffe10
+    x2: 0x0
+    x3: 0x404180
+    x8: 0x71
+   x29: 0xfffffffffe20
+   x30: 0x402f54
+===-----------------------===
+ALARM:    4.04    0.96    1.00
+That's all folks
+$
+```
+
+## user_handler()を`q.lock`で挟むことでエラー回避
+
+- `clock.c`, `fs/v6/fs.c#v6_iget()`, `bufcache.c#_find_free_memory()`, `proc.c#exit()`内の
+  acquire, releaseも修正
+
+
+```diff
+diff --git a/kern/proc.c b/kern/proc.c
+index 5dd208b..c3a7295 100644
+--- a/kern/proc.c
++++ b/kern/proc.c
+@@ -722,6 +723,8 @@ void stop_handler(struct proc *p)
+ // ユーザハンドラを処理する
+ void user_handler(struct proc *p, int sig)
+ {
++    extern void dump_tf(struct trapframe *tf);
++    acquire(&q.lock);                              // これと
+     trace("sig=%d", sig);
+     uint64_t sp = p->tf->sp;
+     trace("sp1: 0x%llx", sp);
+@@ -730,7 +733,6 @@ void user_handler(struct proc *p, int sig)
+     sp = ROUNDDOWN(sp, 0x10);
+     memmove((void *)sp, (void *)p->tf, sizeof(struct trapframe));
+     p->oldtf = (struct trapframe *)sp;
+-    sp = ROUNDDOWN(sp, 0x10);
+     trace("sp2: 0x%llx", sp);
+
+     // sigret_syscall.Sのコードをユーザスタックにプッシュする
+@@ -760,7 +762,8 @@ void user_handler(struct proc *p, int sig)
+
+     // ユーザハンドラを実行するようにeipを変更する
+     p->tf->elr = (uint64_t)p->signal.actions[sig].sa_handler;
+-    debug("tf->sp: 0x%llx, elf: 0x%llx", p->tf->sp, p->tf->elr);
++    //dump_tf(p->tf);
++    release(&q.lock);                              // これ
+ }
+```
+
+```bash
+$ /bin/timertest 2 0 1 0
+try 3 times
+       Elapsed   Value Interval
+START:    0.01
+Main:     0.50    1.51    1.00
+Main:     1.00    1.01    1.00
+Main:     1.50    0.51    1.00
+Main:     2.00    0.01    1.00
+ALARM:    2.01    1.00    1.00
+Main:     2.50    0.51    1.00
+Main:     3.00    0.01    1.00
+ALARM:    3.01    1.00    1.00
+Main:     3.50    0.51    1.00
+Main:     4.00    0.01    1.00
+ALARM:    4.01    1.00    1.00
+That's all folks
+$
+```
+
+- `$`プロンプトが出てる状態でraspiを切り、再度立ち上げた場合のlockエラーもなくなった。
+- sigtest/2/3も正常終了
+
+```bash
+$ /bin/sigtest
+PID 13 caught sig 2, j 3
+PID 12 caught sig 2, j 2
+13 is dead
+PID 11 caught sig 2, j 1
+12 is dead
+PID 10 caught sig 2, j 0
+11 is dead
+PID 9 caught sig 2, j -1
+10 is dead
+9 is dead
+$ /bin/sigtest2
+part1 start
+PID 14 function A got 10
+PID 14 function A got 999
+PID 14 function B got 10
+
+part2 start
+PID 14 sends signal to PID 15
+PID 15 function C got 10
+PID 15 got signal and sends signal to PID 14
+PID 14 function C got 10
+PID 14 got signal from PID 15
+
+part3 start
+PID 16 function D got 10
+PID 16 function E got 12
+bye bye
+
+all ok
+$ /bin/sigtest3
+Got signal!
+$ /bin/timertest 2 0 1 0
+try 3 times
+       Elapsed   Value Interval
+START:    0.00
+Main:     0.50    1.50    1.00
+Main:     1.00    1.00    1.00
+Main:     1.50    0.50    1.00
+ALARM:    2.00    1.00    1.00
+Main:     2.00    1.00    1.00
+Main:     2.50    0.50    1.00
+ALARM:    3.00    1.00    1.00
+Main:     3.00    1.00    1.00
+Main:     3.50    0.50    1.00
+ALARM:    4.00    1.00    1.00
+That's all folks
+$
+```
