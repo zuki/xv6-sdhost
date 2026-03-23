@@ -1,6 +1,6 @@
 -include ../config.mk
 
-MUSL = /Users/dspace/musl
+MUSL = /Users/zuki/musl
 LIBC_LIBS = $(wildcard /usr/local/musl/lib*)
 LIBC_INCS = $(wildcard /usr/local/musl/include/**/*)
 LIBC_DEPS = $(LIBC_LIBS) $(LIBC_INCS)

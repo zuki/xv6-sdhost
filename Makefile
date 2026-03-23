@@ -1,6 +1,6 @@
 -include config.mk
 
-MUSL_INC = /Users/dspace/musl/include
+MUSL_INC = /Users/zuki/musl/include
 
 CFLAGS := -Wall -g -O2 \
           -fno-pie -fno-pic -fno-stack-protector \
