@@ -35,7 +35,7 @@ void init_bufcache(void)
     }
 }
 
-void sync_bufcache()
+void sync_bufcache(void)
 {
     for (int i = 0; i < BLOCKCACHE_MAX; i++) {
         blocks[i].flags |= BCF_BUSY;

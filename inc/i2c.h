@@ -45,7 +45,7 @@ typedef enum _i2c_status {
     I2CS_CLOCK_TIMEOUT = -3
 } i2c_status;
 
-void i2c_init();
+void i2c_init(int dev);
 i2c_status i2c_recv(uint8_t address, uint8_t *buf, uint32_t size);
 i2c_status i2c_send(uint8_t address, uint8_t *buf, uint32_t size);
 

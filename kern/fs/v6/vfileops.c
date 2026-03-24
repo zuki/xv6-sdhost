@@ -217,7 +217,7 @@ int v6_writeback(struct vfile *file, off_t offset, uint64_t addr)
 }
 
 // TODO
-int v6_chown(struct vfile *file, int owner, int group)
+int v6_chown(struct vfile *file, uid_t owner, gid_t group)
 {
     struct vnode *vp = file->vnode;
     struct v6_inode *ip =VTOI(vp);

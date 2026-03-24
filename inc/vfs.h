@@ -81,7 +81,7 @@ struct vfile_ops {
     int (*readdir)(struct vfile *file, struct dirent *dir);
     int (*getdents)(struct vfile *file, void *buffer, size_t size);
     int (*writeback)(struct vfile *file, off_t offset, uint64_t addr);
-    int (*chown)(struct vfile *file, int owner, int group);
+    int (*chown)(struct vfile *file, uid_t owner, gid_t group);
 };
 
 /* マウント済みファイルシステムの数を表し、マウント済みファイルシステムの走査に使用する */

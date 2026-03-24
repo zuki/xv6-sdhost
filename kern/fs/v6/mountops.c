@@ -3,6 +3,7 @@
 #include <fs/v6/param.h>
 #include <fs/v6/file.h>
 #include <fs/v6/fs.h>
+#include <fs/bufcache.h>
 #include <linux/errno.h>
 #include <console.h>
 
@@ -46,4 +47,5 @@ int v6_sync(struct mount *mp)
 {
     sync_v6_inodes();
     sync_bufcache();
+    return 0;
 }

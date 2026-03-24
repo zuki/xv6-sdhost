@@ -234,7 +234,7 @@ int socket_read(struct vfile *file, char *buf, size_t n)
     return tcp_receive(s->desc, (uint8_t *)buf, n);
 }
 
-int socket_write(struct vfile *file, char *buf, size_t n)
+int socket_write(struct vfile *file, const char *buf, size_t n)
 {
     struct socket *s = SOCKET(file->vnode);
 

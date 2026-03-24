@@ -298,7 +298,7 @@ static int procfs_set_dirent64(struct dirent64 *dir, int ino, off64_t offset, ui
 {
     int namelen, reclen;
 
-    namelen = MIN(name, VFS_FILENAME_MAX) + 1;
+    namelen = MIN(strlen(name), VFS_FILENAME_MAX) + 1;
     reclen = (size_t)(&((struct dirent64 *)0)->d_name) + namelen;
     reclen = (reclen + 0x7) & ~0x7;
     dir->d_ino = ino;

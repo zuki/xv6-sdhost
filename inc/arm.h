@@ -140,7 +140,7 @@ relr()
 
 /* Load Exception Syndrome Register (EL1) */
 static inline void
-lesr()
+lesr(uint64_t _v)
 {
     disb();
     asm volatile("msr esr_el1, %[x]" : : [x]"r"(0));

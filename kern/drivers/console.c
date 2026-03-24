@@ -110,8 +110,7 @@ static void console_intr1(int (*getc)())
     }
 }
 
-void
-console_intr()
+void console_intr(void *_p)
 {
     console_intr1(uart_getchar);
 }

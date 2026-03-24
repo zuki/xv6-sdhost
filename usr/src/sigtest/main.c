@@ -20,7 +20,7 @@ int main(void) {
     int i, zombie, status, pid;
     //sigset_t mask;
 
-    struct sigaction action = { sig_catcher, 0, 0, NULL };
+    struct sigaction action = { sig_catcher, 0, 0, 0};
 
     sigaction(SIGINT, &action, 0);
 
