@@ -5,9 +5,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
-#include <sys/stat.h>
-
 #include <usr_fs.h>
+#include <sys/stat.h>
+#include "../../../inc/fs/fatfs/ff.h"
 
 char *fmtname(char *path)
 {
@@ -84,6 +84,7 @@ void ls(char *path)
     int fd;
     struct dirent de;
     struct stat st;
+    FILINFO info;
 
     if ((fd = open(path, O_RDONLY)) < 0) {
         fprintf(stderr, "ls: cannot open %s\n", path);
@@ -96,29 +97,39 @@ void ls(char *path)
         return;
     }
 
-    if (S_ISREG(st.st_mode)) {
-        printf("%s %4ld %s %5ld %s %s\n", fmtmode(st.st_mode), st.st_ino,
-               fmtuser(st.st_uid, st.st_gid), st.st_size, fmttime(st.st_mtime), fmtname(path));
-    } else if (S_ISDIR(st.st_mode)) {
-        if (strlen(path) + 1 + DIRSIZ + 1 > sizeof(buf)) {
-            fprintf(stderr, "ls: path too long\n");
-        } else {
-            strcpy(buf, path);
-            p = buf + strlen(buf);
-            *p++ = '/';
-            while (read(fd, &de, sizeof(de)) == sizeof(de)) {
-                if (de.inum == 0)
-                    continue;
-                memmove(p, de.name, DIRSIZ);
-                p[DIRSIZ] = 0;
-                if (fstatat(AT_FDCWD, buf, &st, AT_SYMLINK_NOFOLLOW) < 0) {
-                    fprintf(stderr, "ls: cannot get buf's stat %s\n", buf);
-                    continue;
+    switch(st.st_dev) {
+        default:
+            printf("%s %4ld %s %5ld %s %s\n", fmtmode(st.st_mode), st.st_ino,
+            fmtuser(st.st_uid, st.st_gid), st.st_size, fmttime(st.st_mtime), fmtname(path));
+            break;
+        case T_DIR:
+            if (strlen(path) + 1 + DIRSIZ + 1 > sizeof(buf)) {
+                fprintf(stderr, "ls: path too long\n");
+            } else {
+                strcpy(buf, path);
+                p = buf + strlen(buf);
+                *p++ = '/';
+                while (read(fd, &de, sizeof(de)) == sizeof(de)) {
+                    if (de.inum == 0)
+                        continue;
+                    memmove(p, de.name, DIRSIZ);
+                    p[DIRSIZ] = 0;
+                    if (fstatat(AT_FDCWD, buf, &st, AT_SYMLINK_NOFOLLOW) < 0) {
+                        fprintf(stderr, "ls: cannot get buf's stat %s\n", buf);
+                        continue;
+                    }
+                    printf("%s %4ld %s %5ld %s %s\n", fmtmode(st.st_mode),
+                        st.st_ino, fmtuser(st.st_uid, st.st_gid), st.st_size, fmttime(st.st_mtime), fmtname(buf));
                 }
-                printf("%s %4ld %s %5ld %s %s\n", fmtmode(st.st_mode),
-                       st.st_ino, fmtuser(st.st_uid, st.st_gid), st.st_size, fmttime(st.st_mtime), fmtname(buf));
             }
-        }
+            break;
+        case T_DIR_FAT:
+            printf("--- FAT dir --- \n");
+            printf("%s  attr  sz\n", fmtname("name"));
+            while (read(fd, &info, sizeof(info)) == sizeof(info)) {
+                printf("%s %d %d\n", fmtname(info.fname), info.fattrib, info.fsize);
+            }
+            break;
     }
     close(fd);
 }

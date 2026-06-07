@@ -16,6 +16,18 @@
 #define XV6MINOR        2       // xv6 partition [1,2]
 #define PROCFSMINOR     3       // procfs
 
+/* v6/fatのファイルタイプ */
+#define T_DIR       1   // ディレクトリ
+#define T_FILE      2   // 通常ファイル
+#define T_DEV       3   // ブロックデバイス
+#define T_CHR       4   // キャラクタデバイス
+#define T_SYMLINK   5   // シンボリックリンク
+#define T_SOCK      6   // ソケット
+#define T_FIFO      7   // FIFO
+#define T_FILE_FAT  8   // FAT32ファイル
+#define T_DIR_FAT   9   // FAT32ディレクトリ
+#define T_UNKNOWN   10
+
 #define VFS_SEP             '/'
 #define VFS_FILENAME_MAX    58
 

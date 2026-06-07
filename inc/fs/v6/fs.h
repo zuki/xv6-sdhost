@@ -8,16 +8,6 @@
 #include <linux/stat.h>
 #include <fs/v6/param.h>
 
-/* v6固有のファイルタイプ */
-#define T_DIR       1   // ディレクトリ
-#define T_FILE      2   // 通常ファイル
-#define T_DEV       3   // ブロックデバイス
-#define T_CHR       4   // キャラクタデバイス
-#define T_SYMLINK   5   // シンボリックリンク
-#define T_SOCK      6   // ソケット
-#define T_FIFO      7   // FIFO
-#define T_UNKNOWN   8
-
 /* v6ファイルシステムのディスクレイアウト:
  * [ boot block | super block | log | inode blocks | free bit map | data blocks ]
  *

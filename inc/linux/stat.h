@@ -69,7 +69,7 @@ struct stat {
         unsigned long __pad;
         off_t st_size;
         blksize_t st_blksize;
-        int __pad2;
+        int __pad2;             // __pad2: v6/fatのtypeとして使用
         blkcnt_t st_blocks;
         struct timespec st_atime;
         struct timespec st_mtime;

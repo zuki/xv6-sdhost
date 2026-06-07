@@ -11,6 +11,7 @@
 #include <mm.h>
 #include <linux/errno.h>
 #include <linux/fcntl.h>
+#include <linux/stat.h>
 
 FATFS   fatfs;
 
@@ -125,7 +126,7 @@ static int fat_sync(struct mount *mp)
 
 static void ilock(struct fat_inode *ip)
 {
-    if (ip == 0 || ITOV(ip)->refcount < 1)
+    if (ip == 0 || ITOV(ip)->refcount < 0)
         panic("ilock");
 
     acquiresleep(&ip->lock);
@@ -141,7 +142,7 @@ static void ilock(struct fat_inode *ip)
 
 static void iunlock(struct fat_inode *ip)
 {
-    if (ip == 0 || !holdingsleep(&ip->lock) || ITOV(ip)->refcount < 1)
+    if (ip == 0 || !holdingsleep(&ip->lock) || ITOV(ip)->refcount < 0)
         panic("iunlock");
 
     releasesleep(&ip->lock);
@@ -261,6 +262,7 @@ static int fat_read(struct vfile *file, char *buffer, size_t size)
     int r = -EINVAL;
 
     struct fat_inode *ip = (struct fat_inode *)file->vnode->data;
+    trace("ino: %lu, type: %d", ITOV(ip)->ino, ip->type);
 
     if (ip->type != T_FILE_FAT && ip->type != T_DIR_FAT) {
         warn("wrong type: %d", ip->type);
@@ -275,8 +277,9 @@ static int fat_read(struct vfile *file, char *buffer, size_t size)
         }
         unsigned n1;
         ilock(ip);
-        if ((r = f_read(ip->fatfp, buf, size, &n1)) == FR_OK &&
-            copyout(thisproc()->pgdir, buf, buffer, n1) == 0) {
+        if ((r = f_read(ip->fatfp, buf, size, &n1)) == FR_OK) {
+            trace("file read: %d", n1);
+            memmove(buffer, buf, n1);
             file->offset += n1;
             r = (int)n1;
         } else {
@@ -288,15 +291,17 @@ static int fat_read(struct vfile *file, char *buffer, size_t size)
         int sz = sizeof (FILINFO);
         if (size >= sz) {
             FILINFO fno;
-            if (!ip->fatdir) return r;
+            if (!ip->fatdir) {
+                error("ip is dir but has not fatdir");
+                return r;
+            }
             if (f_readdir(ip->fatdir, &fno) == FR_OK) {
                 if (fno.fname[0]) {
-                    if (copyout(thisproc()->pgdir, &fno, buffer, sz) == 0) {
-                        r = sz;
-                    } else {
-                        return r;
-                    }
+                    memmove(buffer, &fno, sz);
+                    trace("readdir: %s", fno.fname);
+                    r = sz;
                 } else {
+                    trace("no more entry");
                     r = 0; // no more dir entries
                 }
             } else {
@@ -304,7 +309,7 @@ static int fat_read(struct vfile *file, char *buffer, size_t size)
             }
         }
     }
-
+    trace("ok: %d", r);
     return r;
 }
 
@@ -359,6 +364,7 @@ static int fat_write(struct vfile *file, const char *buffer, size_t size)
     }
     unsigned n1;
     FRESULT fr = 9999;  // invalid
+
     ilock(ip);
     if (memmove(buf, buffer, size) == 0 &&
         (fr=f_write(ip->fatfp, buf, size, &n1)) == FR_OK) {
@@ -402,14 +408,14 @@ static boolean redirect_fatpath(const char *path, char *fatpath,
 
 // 成功したらfat_inodeを返す。
 // path: fatfsネイティブの絶対パス, 例. "3:/myfile"
-static struct fat_inode *open_path(const char *path, mode_t mode) {
+static struct fat_inode *open_path(const char *path, int omode) {
     struct fat_inode *ip = NULL;
     int flag = 0, isdir = 0;
     unsigned fsize = 0;         // ファイルサイズ
     FRESULT ret;
     FILINFO info;
 
-    trace("%s got path %s mode 0x%x", __func__, path, mode);
+    trace("path: %s omode: 0x%x", path, omode);
 
     if ((ret = f_stat(path, &info)) == FR_OK) { // file/dirは存在
         isdir = info.fattrib & AM_DIR;
@@ -417,29 +423,36 @@ static struct fat_inode *open_path(const char *path, mode_t mode) {
             fsize = info.fsize;
 
         // access rule check (more?)
-        if (isdir && mode != O_RDONLY)
+#if 0
+        if (isdir && omode != O_RDONLY) {
+            debug("isdir but not O_RDONLY");
             return NULL;
-        if ((info.fattrib & AM_RDO) && (mode & 0x3) != O_RDONLY)
+        }
+        if ((info.fattrib & AM_RDO) && (omode & 0x3) != O_RDONLY) {
+            debug("fattrib is ro but omode is not O_RDONLY");
             return NULL;
+        }
+#endif
     }
 
-    if ((mode & 0x3) == O_RDONLY)
+    if ((omode & 0x3) == O_RDONLY)
         flag |= FA_READ;
-    else if (mode & O_WRONLY || mode & O_RDWR)
+    else if (omode & O_WRONLY || omode & O_RDWR)
         flag |= FA_WRITE;
-    if (mode & O_CREAT)
+    if (omode & O_CREAT)
         flag |= FA_CREATE_NEW;
-    if (mode & O_TRUNC) {  // used in sh.c ">"
+    if (omode & O_TRUNC) {  // used in sh.c ">"
         flag |= FA_CREATE_ALWAYS;
     }
     // 仮のinoを取得する。itableのidexとして使用する
     // (XXX need a better way to generate ino..., maybe obj id in FILINFO?)
     // the problem: need to open the file/dir before iget()
-    ip = iget(FAT2MINOR, fatpath_to_ino(path));
+    ip = iget(DEVFAT2, fatpath_to_ino(path));
     ilock(ip);
     if (isdir) {
         ip->type = T_DIR_FAT;
         if (!(ip->fatdir = kmalloc(sizeof(DIR)))) {
+            debug("failed kmalloc for fatdir");
             iunlockput(ip);
             return NULL;
         }
@@ -452,6 +465,7 @@ static struct fat_inode *open_path(const char *path, mode_t mode) {
     } else { // normal file
         ip->type = T_FILE_FAT;
         if (!(ip->fatfp = kmalloc(sizeof(FIL)))) {
+            debug("failed kmalloc for fatfp");
             iunlockput(ip);
             return NULL;
         }
@@ -464,6 +478,7 @@ static struct fat_inode *open_path(const char *path, mode_t mode) {
         ITOV(ip)->size = (flag & FA_CREATE_ALWAYS) ? 0 : fsize;  // O_TRUNC or not?
     }
     iunlock(ip);
+    trace("ino: %d, mode: 0x%x, dir: %d", ITOV(ip)->ino, ITOV(ip)->mode, isdir ? 1 : 0);
     return ip;
 }
 
@@ -476,15 +491,28 @@ long fat_open(char *path, int flags, mode_t mode)
     char fatpath[MAXPATH], *pp;
     struct fat_inode *ip;
     struct proc *p = thisproc();
+    BYTE attr = 0;
 
     if (!redirect_fatpath(path, fatpath, &fat_rela, &fat_abs))
         return -EACCES;
 
     pp = fat_abs ? fatpath : path;
-    if ((ip = open_path(pp, mode)) == NULL) {
+    if ((ip = open_path(pp, flags)) == NULL) {
         error("fat_open failed");
         return -EACCES;
     }
+
+    if (ip->fatdir)
+        attr = ip->fatdir->obj.attr;
+    else if (ip->fatfp)
+        attr = ip->fatfp->obj.attr;
+
+    if (attr & AM_DIR) {
+        ITOV(ip)->mode |= S_IFDIR;
+    } else {
+        ITOV(ip)->mode |= S_IFREG;
+    }
+
     if ((fd = find_unused_fd(p->fd_table, 0)) < 0) {
         error("cound not get fd");
         return fd;
@@ -496,6 +524,7 @@ long fat_open(char *path, int flags, mode_t mode)
     set_fd(p->fd_table, fd, file);
     if (flags & O_CLOEXEC)
         bit_add(p->fdflag, fd);
+    debug("fd: %d, ip: ino: %d, mode: 0x%x, type: %d", fd, ITOV(ip)->ino, ITOV(ip)->mode, ip->type);
     return fd;
 }
 

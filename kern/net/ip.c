@@ -343,7 +343,7 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev)
     hdr = (struct ip_hdr *)data;
     v = hdr->vhl >> 4;
     if (v != IP_VERSION_IPV4) {
-        error("ip version error: v=%u", v);
+        trace("ip version error: v=%u", v);
         return;
     }
     hlen = (hdr->vhl & 0x0f) << 2;

@@ -23,6 +23,7 @@
 #ifdef CONFIG_FAT
 #include <fs/fatfs/fs.h>
 #endif
+#include <fs/v6/fs.h>
 
 extern int execve(const char *, char *const, char *const);
 
@@ -223,6 +224,8 @@ long sys_fstat(void)
     if ((error = argptr(1, (void **)&st, sizeof(struct stat))) < 0)
         return error;
 
+    trace("fd: %d, st: %p", fd, st);
+
     sst.st_dev = 0;
     sst.st_ino = file->vnode->ino;
     sst.st_mode = file->vnode->mode;
@@ -231,12 +234,19 @@ long sys_fstat(void)
     sst.st_gid = file->vnode->gid;
     sst.st_rdev = file->vnode->rdev;
     sst.st_size = file->vnode->size;
+    if (file->vnode->fsname == FSFAT) {
+        sst.st_dev = ((struct fat_inode *)file->vnode->data)->type;
+    } else if (file->vnode->fsname == FSV6) {
+        sst.st_dev = ((struct v6_inode *)file->vnode->data)->type;
+    } else {
+        sst.st_dev = T_FILE;
+    }
     memmove(&sst.st_atime, &file->vnode->atime, sizeof(struct timespec));
     memmove(&sst.st_mtime, &file->vnode->mtime, sizeof(struct timespec));
     memmove(&sst.st_ctime, &file->vnode->ctime, sizeof(struct timespec));
     memmove(st, &sst, sizeof(struct stat));
 
-    trace("fd: %d, ino: %d, mode: 0x%x", fd, st->st_ino, st->st_mode);
+    trace("fd: %d, ino: %d, mode: 0x%x, type: %d", fd, sst.st_ino, sst.st_mode, sst.dev);
     return 0;
 }
 
@@ -304,13 +314,20 @@ long sys_fstatat(void)
     sst.st_gid = vnode->gid;
     sst.st_rdev = vnode->rdev;
     sst.st_size = vnode->size;
+    if (vnode->fsname == FSFAT) {
+        sst.st_dev = ((struct fat_inode *)vnode->data)->type;
+    } else if (vnode->fsname == FSV6) {
+        sst.st_dev = ((struct v6_inode *)vnode->data)->type;
+    } else {
+        sst.st_dev = T_FILE;
+    }
     memmove(&sst.st_atime, &vnode->atime, sizeof(struct timespec));
     memmove(&sst.st_mtime, &vnode->mtime, sizeof(struct timespec));
     memmove(&sst.st_ctime, &vnode->ctime, sizeof(struct timespec));
     memmove(st, &sst, sizeof(struct stat));
     vfs_release_vnode(vnode);
 
-    trace("dirfd: %d, path: %s, ino: %d", dirfd, path, st->st_ino);
+    trace("dirfd: %d, path: %s, ino: %d", dirfd, path, sst->st_ino);
     return 0;
 }
 

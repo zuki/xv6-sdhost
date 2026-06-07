@@ -8,8 +8,6 @@
 
 #define MAXPATH    128
 #define FAT_ROOTINO 2
-#define T_FILE_FAT  0   // FAT32ファイル
-#define T_DIR_FAT   1   // FAT32ディレクトリ
 
 struct fat_inode {
     struct vnode        vnode;      // vnode構造体
