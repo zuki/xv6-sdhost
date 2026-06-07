@@ -1,6 +1,6 @@
 #include <types.h>
 #include <proc.h>
-
+#include <param.h>
 #include <string.h>
 #include <memlayout.h>
 #include <list.h>
@@ -233,6 +233,7 @@ forkret(void)
 
     extern device_t root_dev;
     extern struct mount_ops procfs_mount_ops;
+    extern struct mount_ops fat_mount_ops;
     int err;
 
     static int first = 1;
@@ -241,14 +242,18 @@ forkret(void)
         release(&ptable.lock);
 
         //v6_init();
-        sd_postinit();
-        v6_set_super();
+        sd_postinit();      // パーティション情報のセット
+        v6_set_super();     // v6スーパーブロックの読み込みとmp->superのセット
         err = vfs_mount(NULL, "/proc", DEVPROCFS, &procfs_mount_ops, VFS_MBF_READ_ONLY, 0);
         if (err) {
             error("mount /proc is failed: %d", err);
-        } else {
-            trace("mount proc ok");
         }
+#ifdef CONFIG_FAT
+        err = vfs_mount(NULL, "/d/", DEVFAT2, &fat_mount_ops, 0, 0);
+        if (err) {
+            error("mount /d/ is failed: %d", err);
+        }
+#endif
 
 #if 1
         usb_init();

@@ -11,6 +11,10 @@ CFLAGS := -Wall -g -O2 \
 
 CFLAGS += -DLOG_DEBUG -DRASPI=$(RASPI)
 
+ifeq (${CONFIG_FAT}, 1)
+CFLAGS += -DCONFIG_FAT
+endif
+
 CFLAGS += -mlittle-endian -mcmodel=small -mno-outline-atomics
 
 ifeq ($(strip $(RASPI)), 3)

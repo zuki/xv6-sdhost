@@ -8,11 +8,6 @@
 #define SECTOR_SIZE     512     // セクタサイズ（バイト）
 #define BSIZE           4096
 
-// FIXME: vfsを実装したらvfs.hに移動
-#define SDMAJOR         0       // SD card major block device
-#define FATMINOR        0       // FAT partition [0,0]
-#define XV6MINOR        1       // xv6 partition [0.1]
-
 struct ptable_entry {
     char      flag;         // ブートフラグ
     char      chs1[3];      // 最初のセクタ: CHS方式
@@ -71,5 +66,7 @@ int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size);
 int sd_ioctl(minor_t minor, unsigned int request, void *argp, uid_t uid);
 int sd_poll(minor_t minor, int events);
 off_t sd_seek(minor_t minor, off_t position, int whence, off_t offset);
+
+unsigned long sd_get_nsecs(device_t dev);
 
 #endif

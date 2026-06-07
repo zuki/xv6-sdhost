@@ -1,4 +1,5 @@
 RASPI := 3
+CONFIG_FAT := 1
 
 ARCH := aarch64
 CROSS := aarch64-elf-

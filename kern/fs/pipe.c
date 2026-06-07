@@ -65,7 +65,7 @@ int vfs_create_pipe(struct vfile **rfile, struct vfile **wfile)
 
     if ((vnode = kmalloc(sizeof(struct pipe_vnode))) == NULL)
         return -ENOMEM;
-    vfs_init_vnode(vnode, &pipe_vnode_ops, NULL, 0600, 1, 0, 0, 0, 0, 0, 0, 0, 0);
+    vfs_init_vnode(vnode, &pipe_vnode_ops, NULL, 0600, 1, 0, 0, 0, 0, 0, NOTFS, 0, 0, 0);
     vfs_clone_vnode(vnode);
 
     *rfile = alloc_file(vnode, 0);

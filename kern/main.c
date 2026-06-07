@@ -21,6 +21,7 @@
 #include <net/net.h>
 #include <vfs.h>
 #include <driver.h>
+#include <fs/fatfs/fs.h>
 
 extern struct driver console_driver;
 extern struct driver tty_driver;
@@ -35,9 +36,15 @@ struct driver *drivers[] = {
 
 extern struct mount_ops v6_mount_ops;
 extern struct mount_ops procfs_mount_ops;
+#ifdef CONFIG_FAT
+extern struct mount_ops fat_mount_ops;
+#endif
 
 struct mount_ops *filesystems[] = {
     &v6_mount_ops,
+#ifdef CONFIG_FAT
+    &fat_mount_ops,
+#endif
     &procfs_mount_ops,
     NULL
 };
@@ -74,22 +81,12 @@ main()
         for (int i = 0; filesystems[i]; i++)
             filesystems[i]->init();
         int err = vfs_mount(NULL, "/", root_dev, &v6_mount_ops, 0, 0);
-        if (err < 0)
+        if (err < 0) {
             error("vfs_mount error: %d", err);
-#if 0
-        usb_init();
-        net_init();
-        net_run();
-#endif
+        } else {
+            info("root_dev mount ok");
+        }
         user_init();
-        //kthread_created(kthread_read_ether);
-
-        // Tests
-#if 0
-        mbox_test();
-        mm_test();
-        vm_test();
-#endif
     }
     release(&mp.lock);
 

@@ -435,7 +435,7 @@ static struct vnode *_alloc_vnode(pid_t pid, procfs_filenum_t filenum, mode_t mo
     trace("pid: %d, filenum: %d, mode: 0x%x, mp->root_node: 0x%x", pid, filenum, mode, mp->root_node->ino);
     for (int i = 0; i < MAX_VNODES; i++) {
         if (vnode_table[i].vn.refcount <= 0) {
-            vfs_init_vnode(&vnode_table[i].vn, &procfs_vnode_ops, mp, mode, 1, 0, 0, 0, filenum, 0, &now, &now, &now);
+            vfs_init_vnode(&vnode_table[i].vn, &procfs_vnode_ops, mp, mode, 1, 0, 0, 0, filenum, 0, FSPROCFS, &now, &now, &now);
             PROCFS_DATA(&vnode_table[i]).pid = pid;
             PROCFS_DATA(&vnode_table[i]).filenum = filenum;
             trace("[%d] ALLOC: vnode->ino: %d, mode: 0x%x, filenum: %d", i, vnode_table[i].vn.ino, vnode_table[i].vn.mode, PROCFS_DATA(&vnode_table[i]).filenum);

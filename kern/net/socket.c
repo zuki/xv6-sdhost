@@ -59,7 +59,7 @@ int socket_alloc(int domain, int type, int protocol, uid_t uid, struct vfile **f
 
     if ((vnode = kmalloc(sizeof(struct sock_vnode))) == NULL)
         return -ENOMEM;
-    vfs_init_vnode(&vnode->vn, &sock_vnode_ops, NULL, S_IFSOCK | 0600, 1, uid, 0, 0, 0, 0, 0, 0, 0);
+    vfs_init_vnode(&vnode->vn, &sock_vnode_ops, NULL, S_IFSOCK | 0600, 1, uid, 0, 0, 0, 0, NOTFS, 0, 0, 0);
 
     if ((f = alloc_file(&vnode->vn, 0)) == NULL) {
         kmfree(vnode);
@@ -198,7 +198,7 @@ int socket_accept(struct socket *s, struct sockaddr *addr, int *addrlen)
 
     if ((vnode = kmalloc(sizeof(struct sock_vnode))) == NULL)
         return -ENOMEM;
-    vfs_init_vnode(&vnode->vn, &sock_vnode_ops, NULL, S_IFSOCK | 0600, 1, p->uid, 0, 0, 0, 0, 0, 0, 0);
+    vfs_init_vnode(&vnode->vn, &sock_vnode_ops, NULL, S_IFSOCK | 0600, 1, p->uid, 0, 0, 0, 0, NOTFS, 0, 0, 0);
 
     if ((file = alloc_file(&vnode->vn, 0)) == NULL) {
         kmfree(vnode);

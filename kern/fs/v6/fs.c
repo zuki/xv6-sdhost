@@ -51,7 +51,7 @@ void v6_readsb(device_t dev, struct v6_superblock *sb)
 {
     struct buf *bp;
 
-    bp = get_block(dev, 1);
+    bp = get_block(dev, 1, false);
     memmove(&v6_sb, bp->block, sizeof(struct v6_superblock));
     release_block(bp, 0);
 }
@@ -61,7 +61,7 @@ void v6_bzero(int dev, int bno)
 {
     struct buf *bp;
 
-    bp = get_block(dev, bno);
+    bp = get_block(dev, bno, false);
     memset(bp->block, 0, BLKSIZE);
     put_block(bp);
     release_block(bp, 0);
@@ -78,7 +78,7 @@ uint32_t v6_balloc(uint32_t dev)
     bp = 0;
     for (b = 0; b < v6_sb.nblocks; b += BPB) {
         trace("BBLOCK(%d): 0x%x", b, BBLOCK(b, v6_sb));
-        bp = get_block(dev, BBLOCK(b, v6_sb));
+        bp = get_block(dev, BBLOCK(b, v6_sb), false);
         for (bi = 0; bi < BPB && b + bi < v6_sb.size; bi++) {
             m = 1 << (bi % 8);
             if ((bp->block[bi / 8] & m) == 0) {  // Is block free?
@@ -102,7 +102,7 @@ void v6_bfree(device_t dev, uint32_t b)
     struct buf *bp;
     int bi, m;
 
-    bp = get_block(dev, BBLOCK(b, v6_sb));
+    bp = get_block(dev, BBLOCK(b, v6_sb), false);
     bi = b % BPB;
     m = 1 << (bi % 8);
     if ((bp->block[bi / 8] & m) == 0)
@@ -219,8 +219,8 @@ struct v6_inode *v6_ialloc(struct mount *mp, uint16_t type)
     struct v6_dinode *dip;
 
     for (ino = 1; ino < v6_sb.ninodes; ino++) {
-        bp = get_block(mp->dev, IBLOCK(ino, v6_sb));
-        //bp = get_block(mp->dev, IBLOCK(ino));
+        bp = get_block(mp->dev, IBLOCK(ino, v6_sb), false);
+        //bp = get_block(mp->dev, IBLOCK(ino), false);
         dip = (struct v6_dinode *)bp->block + ino % IPB;
         if (dip->type == 0) {   // a free inode
             memset(dip, 0, sizeof(*dip));
@@ -249,7 +249,7 @@ void v6_iupdate(struct v6_inode *ip)
 
     trace("type: %d, mode: 0x%x, valid: %d", ip->type, vp->mode, ip->valid);
     if ((!S_ISBLK(vp->mode) && !S_ISCHR(vp->mode)) || ip->valid == 0) {
-        bp = get_block(vp->rdev, IBLOCK(vp->ino, v6_sb));
+        bp = get_block(vp->rdev, IBLOCK(vp->ino, v6_sb), false);
         dip = (struct v6_dinode *)(bp->block + vp->ino % IPB);
         dip->nlink = vp->nlink;
         dip->type  = ip->type;
@@ -301,7 +301,7 @@ struct v6_inode *v6_iget(struct mount *mp, uint32_t ino)
     // v6_inodeキャッシュエントリをリサイクル.
     ip = empty;
     trace("mp: 0x%x, mount_node: 0x%x, dev: 0x%x", mp, mp->mount_node, mp->dev);
-    vfs_init_vnode(&ip->vnode, &v6_vnode_ops, mp, 0, 1, 0, 0, mp->dev, ino, 0, 0, 0, 0);
+    vfs_init_vnode(&ip->vnode, &v6_vnode_ops, mp, 0, 1, 0, 0, mp->dev, ino, 0, FSV6, 0, 0, 0);
     ip->valid = 0;
     ITOV(ip)->data = ip;
     //v6_dump(ip, "v6_iget");
@@ -337,14 +337,14 @@ void v6_ilock(struct v6_inode *ip)
         panic("v6_ilock");
 
     trace("ilock: ino=%d", ITOV(ip)->ino);
-    if (ITOV(ip)->ino == 31) trace("acquiresleep: ino: 31");
+
     acquiresleep(&ip->lock);
     vp = ITOV(ip);
-    trace("vp->ino: %d, valid: %d, type: %d, mode: 0x%x", vp->ino, ip->valid, ip->type, vp->mode);
+    trace("vp->ino: %d, rdev: 0x%x, valid: %d, type: %d, mode: 0x%x", vp->ino, vp->rdev, ip->valid, ip->type, vp->mode);
 
     if (ip->valid == 0) {
         //trace("bno: 0x%x, v6_sb: 0x%x, inostart: 0x%x", IBLOCK(vp->ino, v6_sb), v6_sb, v6_sb.inodestart);
-        bp = get_block(vp->rdev, IBLOCK(vp->ino, v6_sb));
+        bp = get_block(vp->rdev, IBLOCK(vp->ino, v6_sb), false);
         dip = (struct v6_dinode *)bp->block + (vp->ino % IPB);
         ip->type  = dip->type;
         vp->nlink = dip->nlink;
@@ -450,7 +450,7 @@ uint32_t v6_bmap(struct v6_inode *ip, uint32_t bn)
                 return 0;
             ip->addrs[NDIRECT] = addr;
         }
-        bp = get_block(vp->rdev, addr);
+        bp = get_block(vp->rdev, addr, false);
         a = (uint32_t*)bp->block;
         if ((addr = a[bn]) == 0) {
             addr = v6_balloc(vp->rdev);
@@ -476,7 +476,7 @@ uint32_t v6_bmap(struct v6_inode *ip, uint32_t bn)
         }
         idx1 = bn / NINDIRECT;
         idx2 = bn % NINDIRECT;
-        bp = get_block(vp->rdev, addr);
+        bp = get_block(vp->rdev, addr, false);
         a = (uint32_t*)bp->block;
         if ((addr = a[idx1]) == 0) {
             addr = v6_balloc(vp->rdev);
@@ -487,7 +487,7 @@ uint32_t v6_bmap(struct v6_inode *ip, uint32_t bn)
         }
         trace("idx1: %d, addr1: 0x%llx", idx1, addr);
         release_block(bp, 0);
-        bp = get_block(vp->rdev, addr);
+        bp = get_block(vp->rdev, addr, false);
         a = (uint32_t*)bp->block;
         if ((addr = a[idx2]) == 0) {
             addr = v6_balloc(vp->rdev);
@@ -526,7 +526,7 @@ void v6_itrunc(struct v6_inode *ip)
     }
 
     if (ip->addrs[NDIRECT]) {
-        bp = get_block(vp->rdev, ip->addrs[NDIRECT]);
+        bp = get_block(vp->rdev, ip->addrs[NDIRECT], false);
         a = (uint32_t *) bp->block;
         for (int j = 0; j < NINDIRECT; j++) {
             if (a[j])
@@ -538,12 +538,12 @@ void v6_itrunc(struct v6_inode *ip)
     }
 
     if (ip->addrs[NDIRECT+1]) {
-        bp = get_block(vp->rdev, ip->addrs[NDIRECT+1]);
+        bp = get_block(vp->rdev, ip->addrs[NDIRECT+1], false);
         a = (uint32_t *)bp->block;
         for (i = 0; i < NINDIRECT; i++) {
             if (a[i]) {
                 release_block(bp, 0);
-                bp = get_block(vp->rdev, a[i]);
+                bp = get_block(vp->rdev, a[i], false);
                 b = (uint32_t *)bp->block;
                 for (j = 0; j < NINDIRECT; j++) {
                     if (b[j]) {
@@ -581,7 +581,7 @@ size_t v6_readi(struct v6_inode *ip, char *dst, off_t off, size_t n)
         n = vp->size - off;
     trace("ip: ino:%x, rdev: 0x%x, off: 0x%x, n: %d", vp->ino, vp->rdev, off, n);
     for (tot = 0; tot < n; tot += m, off += m, dst += m) {
-        bp = get_block(vp->rdev, v6_bmap(ip, off / BLKSIZE));
+        bp = get_block(vp->rdev, v6_bmap(ip, off / BLKSIZE), false);
         m = MIN(n - tot, BLKSIZE - off % BLKSIZE);
         memmove(dst, bp->block + off % BLKSIZE, m);
         release_block(bp, 0);
@@ -607,7 +607,7 @@ size_t v6_writei(struct v6_inode *ip, char *src, off_t off, size_t n)
         return -EFBIG;
 
     for (tot = 0; tot < n; tot += m, off += m, src += m) {
-        bp = get_block(vp->rdev, v6_bmap(ip, off / BLKSIZE));
+        bp = get_block(vp->rdev, v6_bmap(ip, off / BLKSIZE), false);
         m = MIN(n - tot, BLKSIZE - off % BLKSIZE);
         memmove(bp->block + off % BLKSIZE, src, m);
         trace("put_block: dev: 0x%x, bno: 0x%x", bp->dev, bp->blockno);
@@ -647,7 +647,7 @@ struct v6_inode *v6_dirlookup(struct v6_inode *dp, char *name)
         trace("no entry found by name: %s", name);
         return NULL;
     }
-
+    trace("found by name: %s, dev: 0x%x, ino: %d", name, vp->mp->dev, de.ino);
     return v6_iget(vp->mp, de.ino);
 }
 

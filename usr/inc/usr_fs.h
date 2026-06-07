@@ -11,7 +11,7 @@
 
 #define MAXOPBLOCKS     10  // Max # of blocks any FS op writes
 #define LOGSIZE         (MAXOPBLOCKS*3)     // Max data blocks in on-disk log
-#define ROOTDEV         1                   // Device number of file system root disk
+#define ROOTDEV         2                   // Device number of file system root disk
 #define V6_ROOTINO      1                   // Root i-number
 
 #define FSSIZE          1000    // ファイルシステムのブロック単位のサイズ

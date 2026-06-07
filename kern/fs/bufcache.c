@@ -1,5 +1,6 @@
 
 #include <types.h>
+#include <sd.h>
 #include <string.h>
 #include <console.h>
 #include <driver.h>
@@ -16,7 +17,7 @@ static struct queue bufcache;
 static struct buf blocks[BLOCKCACHE_MAX];
 
 static inline struct buf *_find_free_entry();
-static struct buf *_load_block(device_t dev, uint32_t blockno);
+static struct buf *_load_block(device_t dev, uint32_t blockno, boolean issec);
 static inline int _read_entry(struct buf *entry);
 static inline int _write_entry(struct buf *entry);
 
@@ -29,13 +30,14 @@ void init_bufcache(void)
         _queue_node_init(&blocks[i].node);
         blocks[i].refcount = 0;
         blocks[i].flags = 0;
+        blocks[i].issec = false;         // デフォルトはblock (4096バイト)
         blocks[i].dev = 0;
         blocks[i].block = NULL;
         _queue_insert(&bufcache, &blocks[i].node);
     }
 }
 
-void sync_bufcache(void)
+void sync_bufcache()
 {
     for (int i = 0; i < BLOCKCACHE_MAX; i++) {
         blocks[i].flags |= BCF_BUSY;
@@ -47,14 +49,14 @@ void sync_bufcache(void)
 
 /* デバイスdevのブロック番号blocknoのブロックを読み込む : bread を置き換え
  * BCF_BUSYフラグを立てたstruct bufを返す。読み込みが失敗したらpanic */
-struct buf *get_block(device_t dev, uint32_t blockno)
+struct buf *get_block(device_t dev, uint32_t blockno, boolean issec)
 {
     struct buf *cur;
-
+    trace("dev: 0x%x, bno: %u, issec: %d", dev, blockno, issec);
     /* 1. bufcacheにあればrefcountを増分して返す */
     acquire(&bufcache.lock);
     for (cur = (struct buf *) bufcache.head; cur; cur = (struct buf *) cur->node.next) {
-        if (cur->flags & BCF_ALLOCATED && cur->dev == dev && cur->blockno == blockno) {
+        if (cur->flags & BCF_ALLOCATED && cur->dev == dev && cur->blockno == blockno && cur->issec == issec) {
             cur->refcount++;
             trace("hit: dev: 0x%x, bno: 0x%x", cur->dev, cur->blockno);
             /* curをキャッシュリストの先頭に移動させる */
@@ -66,8 +68,8 @@ struct buf *get_block(device_t dev, uint32_t blockno)
         }
     }
     /* 2. bufcacheになければ読み込む */
-    trace("no hit: dev: 0x%x, blockno: 0x%x", dev, blockno);
-    return _load_block(dev, blockno);
+    trace("no hit: dev: 0x%x, blockno: 0x%x, issec: %s", dev, blockno, issec ? "true" : "false");
+    return _load_block(dev, blockno, issec);
 }
 
 /* bwrite を置き換え */
@@ -100,7 +102,7 @@ void mark_block_dirty(struct buf *buf)
 /* デバイスdevのブロック番号blocknoのデータを返す.
  * 呼び出し元は bufcache.lockを保持していなければならない
  */
-static struct buf *_load_block(device_t dev, uint32_t blockno)
+static struct buf *_load_block(device_t dev, uint32_t blockno, boolean issec)
 {
     struct buf *entry;
 
@@ -110,8 +112,12 @@ static struct buf *_load_block(device_t dev, uint32_t blockno)
     entry->refcount = 1;
     entry->flags |= BCF_ALLOCATED;  // すでにBCF_BUSYがセットされている
     entry->dev = dev;
+    entry->issec = issec;
     entry->blockno = blockno;
-    entry->block = (uint8_t *)kalloc();
+    if (issec)
+        entry->block = (uint8_t *)kmalloc(SECTOR_SIZE);
+    else
+        entry->block = (uint8_t *)kalloc();
 
     _read_entry(entry);
 
@@ -143,7 +149,10 @@ static inline struct buf *_find_free_entry()
     if (last->block) {
         // ここでlastがdirtyだったら書き戻す
         _write_entry(last);
-        kfree(last->block);
+        if (last->issec)
+            kmfree(last->block);
+        else
+            kfree(last->block);
         last->block = NULL;
     }
 
@@ -153,10 +162,13 @@ static inline struct buf *_find_free_entry()
 static inline int _read_entry(struct buf *entry)
 {
     assert(entry->flags & BCF_BUSY);
+    int size = entry->issec ? SECTOR_SIZE : BC_BLOCK_SIZE;
+    int bytes;
 
-    trace("read: dev: 0x%x, buffer: 0x%x, bno: 0x%x, size: 0x%x", entry->dev, entry->block, entry->blockno, BC_BLOCK_SIZE);
-    int size = dev_read(entry->dev, entry->block, entry->blockno, BC_BLOCK_SIZE);
-    if (size != BC_BLOCK_SIZE) {
+    trace("read: dev: 0x%x, buffer: 0x%x, bno: 0x%x, size: 0x%x", entry->dev, entry->block, entry->blockno, size);
+
+    bytes = dev_read(entry->dev, entry->block, entry->blockno, size);
+    if (bytes != size) {
         panic("read_entry\n");
         return -1;
     }
@@ -166,15 +178,17 @@ static inline int _read_entry(struct buf *entry)
 static inline int _write_entry(struct buf *entry)
 {
     assert(entry->flags & BCF_BUSY);
+    int size = entry->issec ? SECTOR_SIZE : BC_BLOCK_SIZE;
+    int bytes;
 
     /* 変更されていなければ何もしない */
     if (!(entry->flags & BCF_DIRTY))
         return 0;
 
-    trace("WRITING 0x%x: 0x%x <- 0x%x + 0x%x", entry->dev, entry->blockno, entry->block, BC_BLOCK_SIZE);
+    trace("WRITING 0x%x: 0x%x <- 0x%x + 0x%x", entry->dev, entry->blockno, entry->block, size);
     // デバイスに書き込む
-    int size = dev_write(entry->dev, entry->block, entry->blockno, BC_BLOCK_SIZE);
-    if (size != BC_BLOCK_SIZE) {
+    bytes = dev_write(entry->dev, entry->block, entry->blockno, size);
+    if (bytes != size) {
         panic("write_entry");
         return -1;
     }

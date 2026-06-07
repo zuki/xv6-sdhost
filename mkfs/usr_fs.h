@@ -11,7 +11,6 @@
 
 #define MAXOPBLOCKS     10  // Max # of blocks any FS op writes
 #define LOGSIZE         (MAXOPBLOCKS*3)     // Max data blocks in on-disk log
-#define ROOTDEV         1                   // Device number of file system root disk
 #define V6_ROOTINO      1                   // Root i-number
 
 #define FSSIZE          1000    // ファイルシステムのブロック単位のサイズ
@@ -85,12 +84,15 @@ struct dirent {
 #define minor(x) ((x) & 0xff)
 
 #define DEVFAT          makedev(1, 0)
-#define DEVV6           makedev(1, 1)
+#define DEVFAT2         makedev(1, 1)
+#define DEVV6           makedev(1, 2)
 #define DEVCONS         makedev(2, 1)
 #define DEVTTY1         makedev(3, 1)
 #define DEVTTY2         makedev(3, 2)
 
-#define SDMAJOR         (major(DVV6))
+#define ROOTDEV         (minor(DEVV6))      // Device number of file system root disk
+
+#define SDMAJOR         (major(DEVV6))
 #define TTYMAJOR        (major(DEVTTY1))
 
 #endif

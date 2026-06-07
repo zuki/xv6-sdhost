@@ -4,6 +4,7 @@
 #include <linux/errno.h>
 #include <linux/fcntl.h>
 #include <linux/stat.h>
+#include <param.h>
 #include <vfs.h>
 #include <console.h>
 #include <string.h>
@@ -67,21 +68,29 @@ struct mount *vfs_mount_iter_next(struct mount_iter *iter)
     return mp;
 }
 
+//vfs_mount(NULL, "/", root_dev, &v6_mount_ops, 0, 0);
+//vfs_mount(NULL, "/proc", DEVPROCFS, &procfs_mount_ops, VFS_MBF_READ_ONLY, 0);
 int vfs_mount(struct vnode *cwd, const char *path, device_t dev, struct mount_ops *ops, int mountflags, uid_t uid)
 {
+    trace("lookup path: %s", path);
+
     int error;
-    struct vnode *vnode;
+    struct vnode *vnode = NULL;
 
     if (uid != 0)
         return -EPERM;
     if (!root_fs) {
         vnode = NULL;
     } else {
-        if ((error = vfs_lookup(cwd, path, VLOOKUP_NORMAL, uid, &vnode)) < 0) {
-            return error;
-        }
+#ifdef CONFIG_FAT
+        if (dev != DEVFAT2)
+#endif
+            if ((error = vfs_lookup(cwd, path, VLOOKUP_NORMAL, uid, &vnode)) < 0) {
+                trace("not found %s", path);
+                return error;
+            }
     }
-    trace("path: %s, vnode->ino: %d", path, vnode ? vnode->ino : -1);
+    trace("found path: %s, vnode->ino: %d", path, vnode ? vnode->ino : -1);
     if (vnode && (vnode->bits & VBF_MOUNTED)) {
         vfs_release_vnode(vnode);
         return -EBUSY;
@@ -109,15 +118,18 @@ int vfs_mount(struct vnode *cwd, const char *path, device_t dev, struct mount_op
             }
 #if 0
             if (vnode) {
-                debug("mount %s with flags 0x%x to mp[%d] mount_node->ino: %d, fs: %s, dev: 0x%x, bits: 0x%x", path, mountflags, i, mountpoints[i].mount_node->ino, mountpoints[i].ops->fstype, mountpoints[i].dev, mountpoints[i].bits);
+                trace("mount %s with flags 0x%x to mp[%d] mount_node->ino: %d, fs: %s, dev: 0x%x, bits: 0x%x", path, mountflags, i, mountpoints[i].mount_node->ino, mountpoints[i].ops->fstype, mountpoints[i].dev, mountpoints[i].bits);
             } else {
-                debug("mount %s to mp[%d] mount_node is null", path, i);
-                debug("set root_fs with mp[%d]", i);
+                trace("mount %s to mp[%d] mount_node is null", path, i);
+                trace("set root_fs with mp[%d]", i);
             }
 #endif
             if (vnode) {
                 vnode->bits |= VBF_MOUNTED;
             } else {
+#ifdef CONFIG_FAT
+                if (dev != DEVFAT2)
+#endif
                 root_fs = &mountpoints[i];
             }
             //dump_mp(&mountpoints[i], "vfs_mount");
@@ -156,6 +168,9 @@ int vfs_unmount(device_t dev, uid_t uid)
         mp->mount_node->bits &= ~VBF_MOUNTED;
         vfs_release_vnode(mp->mount_node);
     } else {
+#ifdef CONFIG_FAT
+        if (dev != DEVFAT2)
+#endif
         root_fs = NULL;
     }
     mp->ops = NULL;
@@ -187,9 +202,9 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
 
 #if 0
     if (cwd) {
-        debug("start with [[%s]] cwd->ino: %d, path: %s, flags: 0x%x", cwd->mp->ops->fstype, cwd->ino, path, flags);
+        trace("start with [[%s]] cwd->ino: %d, path: %s, flags: 0x%x", cwd->mp->ops->fstype, cwd->ino, path, flags);
     } else {
-        debug("start with [[UD]] cwd->ino: -1, path: %s, flags: 0x%x", path, flags);
+        trace("start with [[UD]] cwd->ino: -1, path: %s, flags: 0x%x", path, flags);
     }
 #endif
 
@@ -720,7 +735,7 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
 
     trace("cwd: ino: %d, rdev: 0x%x, mp->dev: 0x%x, mp->ops: 0x%x; child: %s, ino: %d, rdev: 0x%x, mp->dev: 0x%x, mp->ops: 0x%x", cwd->ino, cwd->rdev, cwd->mp->dev, cwd->mp->ops, path, vnode->ino, vnode->rdev, vnode->mp->dev, vnode->mp->ops);
 
-    // これから使用するvnodega削除されないようclone
+    // これから使用するvnodeが削除されないようclone
     vfs_clone_vnode(vnode);
     // 処理を進める前にパーミッションをチェックする
     if ((flags & O_ACCMODE) != O_WRONLY)
@@ -926,3 +941,5 @@ static struct vfile *get_file(struct vnode *vnode, int flags)
         return f;
     }
 }
+
+

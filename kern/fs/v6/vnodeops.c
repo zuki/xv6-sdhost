@@ -101,7 +101,7 @@ int v6_mknod(struct vnode *parent, const char *filename, mode_t mode, device_t d
 int v6_lookup(struct vnode *vnode, const char *filename, struct vnode **result)
 {
     struct v6_inode *ip;
-    trace("vnode->ino: %d, mode: 0x%x, ip->valid: %d, COMP: %s", vnode->ino, vnode->mode, VTOI(vnode)->valid, filename);
+    trace("vnode->ino: %d, rdev: 0x%x, mode: 0x%x, ip->valid: %d, COMP: %s", vnode->ino, vnode->rdev, vnode->mode, VTOI(vnode)->valid, filename);
     v6_ilock(VTOI(vnode));
     ip = v6_dirlookup(VTOI(vnode), filename);
     trace("ip->ino: %d", ip ? ITOV(ip)->ino : -1);
@@ -136,7 +136,7 @@ int v6_symlink(struct vnode *parent, const char *target, const char *filename)
 
     v6_ilock(ip);
     // 1. ipに対応するvnodeを初期化する
-    vfs_init_vnode(&ip->vnode, &v6_vnode_ops, parent->mp, S_IFLNK|(0777 & ~p->umask), 1, p->uid, p->gid, parent->rdev, ITOV(ip)->ino, strlen(target), &ts, &ts, &ts);
+    vfs_init_vnode(&ip->vnode, &v6_vnode_ops, parent->mp, S_IFLNK|(0777 & ~p->umask), 1, p->uid, p->gid, parent->rdev, ITOV(ip)->ino, strlen(target), FSV6, &ts, &ts, &ts);
     ip->type = T_SYMLINK;
     trace("vnode: %d, mtime: sec: 0x%llx, nsec: 0x%llx", ITOV(ip)->ino, ITOV(ip)->mtime.tv_sec, ITOV(ip)->mtime.tv_nsec);
     // 2. 親ディレクトリにこのエントリを追加

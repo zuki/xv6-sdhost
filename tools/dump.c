@@ -36,14 +36,18 @@ struct dinode {
 };
 
 // FROM mksd.mk
-// The total sd card image is 128 MB, 64 MB for boot sector and 64 MB for file system.
+// The total sd card image is 192 MB, 64 MB for boot sector and 64 MB for file system.
 // 以下の単位はセクタ
 #define SECTOR_SIZE     512
-#define SECTORS         256 * 1024
+#define SECTORS         2 * 200 * 1024
 #define BOOT_OFFSET     2048
-#define BOOT_SECTORS    128 * 1024
-#define FS_OFFSET       (BOOT_OFFSET) + (BOOT_SECTORS)
-#define FS_ADDR         (FS_OFFSET) * (SECTOR_SIZE)
+#define BOOT_SECTORS    2 * 64 * 1024
+#define FAT_SECTORS     2 * 64 * 1024
+#define V6_SECTORS      2 * 64 * 1024
+#define FAT_OFFSET      (BOOT_OFFSET) + (BOOT_SECTORS)
+#define FAT_ADDR        (FAT_OFFSET) * (SECTOR_SIZE)
+#define V6_OFFSET       (FAT_OFFSET) + (FAT_SECTORS)
+#define V6_ADDR         (V6_OFFSET) * (SECTOR_SIZE)
 
 #define BUFSIZE         4096
 
@@ -68,7 +72,7 @@ struct superblock sb;
 void get_superblock(FILE *f) {
     int n;
 
-    fseek(f, FS_ADDR + BSIZE * 1, SEEK_SET);
+    fseek(f, V6_ADDR + BSIZE * 1, SEEK_SET);
     n = fread(&sb, sizeof(struct superblock), 1, f);
     if (n != 1) {
         perror("super block read");
@@ -114,7 +118,7 @@ void dump(FILE *f, char type, int arg1, int arg2) {
 
     switch(type) {
     case 's':
-        seek = FS_ADDR + BSIZE;
+        seek = V6_ADDR + BSIZE;
         printf("SUPER BLOCK:\n");
         printf("      size: %d (0x%08x)\n", sb.size, sb.size);
         printf("   nblocks: %d (0x%08x)\n", sb.nblocks, sb.nblocks);
@@ -125,7 +129,7 @@ void dump(FILE *f, char type, int arg1, int arg2) {
         printf(" bmapstart: %d (0x%08x)\n", sb.bmapstart, sb.bmapstart);
         break;
     case 'l':
-        seek = FS_ADDR + BSIZE * 2;
+        seek = V6_ADDR + BSIZE * 2;
         fseek(f, seek, SEEK_SET);
         n = fread(buf, sizeof(char), BSIZE, f);
         if (n != BSIZE) {
@@ -136,7 +140,7 @@ void dump(FILE *f, char type, int arg1, int arg2) {
         dump_hex(seek, buf, 128);
         break;
     case 'i':
-        seek = FS_ADDR + BSIZE * sb.inodestart;
+        seek = V6_ADDR + BSIZE * sb.inodestart;
         for (i = arg1; i <= arg2; i++) {
             iseek = seek + sizeof(struct dinode) * i;
             fseek(f, iseek, SEEK_SET);
@@ -165,7 +169,7 @@ void dump(FILE *f, char type, int arg1, int arg2) {
         }
         break;
     case 'b':
-        seek = FS_ADDR + BSIZE * sb.bmapstart;
+        seek = V6_ADDR + BSIZE * sb.bmapstart;
         fseek(f, seek, SEEK_SET);
         n = fread(buf, sizeof(char), BSIZE, f);
         if (n != BSIZE) {
@@ -177,7 +181,7 @@ void dump(FILE *f, char type, int arg1, int arg2) {
         break;
     case 'd':
         for (i = 0; i < arg2; i++) {
-            seek = FS_ADDR + BSIZE * (arg1 + i);
+            seek = V6_ADDR + BSIZE * (arg1 + i);
             fseek(f, seek, SEEK_SET);
             n = fread(buf, sizeof(char), BSIZE, f);
             if (n != BSIZE) {
@@ -237,12 +241,12 @@ int main(int argc, char *argv[]) {
     get_superblock(sdimg);
 
     if (type == 'o') {
-        printf("Boot      : 0x%08x (%d)\n", FS_ADDR, 1);
-        printf("SuperBlock: 0x%08x (%d)\n", FS_ADDR + BSIZE, 1);
-        printf("Log       : 0x%08x (%d)\n", FS_ADDR + BSIZE * 2, sb.nlog);
-        printf("INode     : 0x%08x (%d)\n", FS_ADDR + BSIZE * sb.inodestart, sb.ninodes / IPB + 1);
-        printf("Bitmap    : 0x%08x (%d)\n", FS_ADDR + BSIZE * sb.bmapstart, nbitmap);
-        printf("Data      : 0x%08x\n\n", FS_ADDR + BSIZE * (sb.bmapstart + nbitmap));
+        printf("Boot      : 0x%08x (%d)\n", V6_ADDR, 1);
+        printf("SuperBlock: 0x%08x (%d)\n", V6_ADDR + BSIZE, 1);
+        printf("Log       : 0x%08x (%d)\n", V6_ADDR + BSIZE * 2, sb.nlog);
+        printf("INode     : 0x%08x (%lu)\n", V6_ADDR + BSIZE * sb.inodestart, sb.ninodes / IPB + 1);
+        printf("Bitmap    : 0x%08x (%d)\n", V6_ADDR + BSIZE * sb.bmapstart, nbitmap);
+        printf("Data      : 0x%08x\n\n", V6_ADDR + BSIZE * (sb.bmapstart + nbitmap));
     } else {
          dump(sdimg, type, arg1, arg2);
     }

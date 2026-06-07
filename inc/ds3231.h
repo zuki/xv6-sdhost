@@ -1,5 +1,5 @@
 #ifndef INC_DS3231_H
-#define INC_DS33231_H
+#define INC_DS3231_H
 
 #define CORE_CLOCK_SPEED   1400000000      // 1.4 GHz
 

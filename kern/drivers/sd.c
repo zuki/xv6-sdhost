@@ -180,26 +180,38 @@ int sd_close(minor_t minor)
     return 0;
 }
 
+/* offsetはブロック単位(sector/0)、sizeはバイト単位 */
 int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
 {
-    //trace("minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
+    trace("minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
+    uint64_t bno;
 
     if (minor > ptnum)
         return -ENXIO;
-
     if (offset > ptinfo[minor].nsecs)
         return -EFAULT;
-    if ((offset + (size / BSIZE)) > ptinfo[minor].nsecs)
-        size = ptinfo[minor].nsecs - offset;
 
-    uint64_t bno = (fs_lba(minor) + offset * 8) * SECTOR_SIZE;
-    //trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
-    // seekはバイト単位
-    emmc_seek(&card, bno);
-    for (int count = 0; count < (size / BSIZE); count++) {
-        if (emmc_read(&card, buffer, BSIZE) != BSIZE)
+    boolean sector = (size == SECTOR_SIZE);
+
+    if (sector) {
+        bno = (fs_lba(minor) + offset) * SECTOR_SIZE;
+        //trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+        // seekはバイト単位
+        emmc_seek(&card, bno);
+        if (emmc_read(&card, buffer, SECTOR_SIZE) != SECTOR_SIZE)
             return -EIO;
-        buffer = buffer + BSIZE;
+    } else {
+        if ((offset + (size / BSIZE)) > ptinfo[minor].nsecs)
+            size = ptinfo[minor].nsecs - offset;
+        bno = (fs_lba(minor) + offset * 8) * SECTOR_SIZE;
+        //trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+        // seekはバイト単位
+        emmc_seek(&card, bno);
+        for (int count = 0; count < (size / BSIZE); count++) {
+            if (emmc_read(&card, buffer, BSIZE) != BSIZE)
+                return -EIO;
+            buffer = buffer + BSIZE;
+        }
     }
 
     return size;
@@ -207,22 +219,34 @@ int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
 
 int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size)
 {
+    uint64_t bno;
+
     trace("minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
     if (minor > ptnum)
         return -ENXIO;
 
     if (offset > ptinfo[minor].nsecs)
         return -EFAULT;
-    if ((offset + (size / BSIZE)) > ptinfo[minor].nsecs)
-        size = ptinfo[minor].nsecs - offset;
 
-   uint64_t bno = (fs_lba(minor) + offset * 8) * SECTOR_SIZE;
-    trace("lba: 0x%x, offset: %d, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
-    emmc_seek(&card, bno);
-    for (int count = 0; count < (size / BSIZE); count++) {
-        if (emmc_write(&card, buffer, BSIZE) != BSIZE)
+    boolean sector = (size == SECTOR_SIZE);
+
+    if (sector) {
+        bno = (fs_lba(minor) + offset) * SECTOR_SIZE;
+        trace("lba: 0x%x, offset: %d, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+        emmc_seek(&card, bno);
+        if (emmc_write(&card, buffer, SECTOR_SIZE) != SECTOR_SIZE)
             return -EIO;
-        buffer = buffer + BSIZE;
+    } else {
+        if ((offset + (size / BSIZE)) > ptinfo[minor].nsecs)
+            size = ptinfo[minor].nsecs - offset;
+        bno = (fs_lba(minor) + offset * 8) * SECTOR_SIZE;
+        trace("lba: 0x%x, offset: %d, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+        emmc_seek(&card, bno);
+        for (int count = 0; count < (size / BSIZE); count++) {
+            if (emmc_write(&card, buffer, BSIZE) != BSIZE)
+                return -EIO;
+            buffer = buffer + BSIZE;
+        }
     }
 
     return size;
@@ -261,4 +285,9 @@ off_t sd_seek(minor_t minor, off_t position, int whence, off_t offset)
         position = ptinfo[minor].nsecs;
 
     return position;
+}
+
+unsigned long sd_get_nsecs(device_t dev)
+{
+    return ptinfo[dev].nsecs;
 }

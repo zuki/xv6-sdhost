@@ -15,3 +15,6 @@ inc/config.h
 memos/src/work/*
 tools/dump
 mkfs/mkfs
+
+memos/src/xv6/*.log
+rfc793.txt

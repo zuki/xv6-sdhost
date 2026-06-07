@@ -20,6 +20,9 @@
 #include <net/sockio.h>
 #include <linux/ioctl.h>
 #include <linux/stat.h>
+#ifdef CONFIG_FAT
+#include <fs/fatfs/fs.h>
+#endif
 
 extern int execve(const char *, char *const, char *const);
 
@@ -32,6 +35,11 @@ long check_fdcwd(char *path, int dirfd, struct vnode **cwd)
 {
     struct vfile *f = NULL;
     struct proc *p = thisproc();
+
+#if CONFIG_FAT
+    if (is_fatfs(path))
+        return 0;
+#endif
 
     if (*path != '/' && dirfd != AT_FDCWD) {
         if ((f = get_fd(p->fd_table, dirfd)) == NULL) {
@@ -384,6 +392,11 @@ long sys_unlinkat(void)
     if (flags & ~AT_REMOVEDIR)
         return -EINVAL;
 
+#ifdef CONFIG_FAT
+    if (is_fatfs(pathname))
+        return fat_unlink(pathname);
+#endif
+
     return vfs_unlink(cwd, pathname, flags, thisproc()->uid);
 }
 
@@ -466,13 +479,21 @@ long sys_openat(void)
     if ((error = argint(3, (int *)&mode)) < 0) return error;
 
     trace("dirfd: %d, path: %s, flags : 0x%x, mode: 0x%x", dirfd, path, flags, mode);
+
+    if (mode)
+        mode = (mode & ~(thisproc()->umask)) & 0777;
+
+
+#ifdef CONFIG_FAT
+    if (is_fatfs(path))
+        return fat_open(path, flags, mode);
+#endif
+
     if ((error = check_fdcwd(path, dirfd, &vnode)) < 0) return error;
     trace("vnode->ino: %d", vnode->ino);
     fd = find_unused_fd(thisproc()->fd_table, 0);
     trace("fd: %d", fd);
 
-    if (mode)
-        mode = (mode & ~(thisproc()->umask)) & 0777;
 
     trace("vnode->ino: %d, path: %s, flags : 0x%x, mode: 0x%x", vnode->ino, path, flags, mode);
 
@@ -503,6 +524,11 @@ long sys_mkdirat(void)
     if ((error = argint(0, &dirfd)) < 0) return error;
     if ((error = argstr(1, &path)) < 0) return error;
     if ((error = argint(2, (int *)&mode)) < 0) return error;
+
+#ifdef CONFIG_FAT
+    if (is_fatfs(path))
+        return fat_mkdir(path);
+#endif
 
     if ((error = check_fdcwd(path, dirfd, &vnode)) < 0) return error;
 
@@ -548,6 +574,12 @@ long sys_chdir(void)
 
     if ((error = argstr(0, &path)) < 0) return error;
     trace("path: %s", path);
+
+#ifdef CONFIG_FAT
+    if (is_fatfs(path))
+        return fat_chdir(path);
+#endif
+
     if ((error = vfs_lookup(p->cwd, path, VLOOKUP_NORMAL, p->uid, &vnode)) < 0)
         return error;
 

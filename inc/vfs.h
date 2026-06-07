@@ -10,6 +10,12 @@
 #include <sleeplock.h>
 #include <console.h>
 
+#define SDMAJOR         1       // SD card major block device
+#define FATMINOR        0       // FAT system partition [1,0]
+#define FAT2MINOR       1       // FAT data partition [1,1]
+#define XV6MINOR        2       // xv6 partition [1,2]
+#define PROCFSMINOR     3       // procfs
+
 #define VFS_SEP             '/'
 #define VFS_FILENAME_MAX    58
 
@@ -33,6 +39,14 @@
 #define ATIME               0x01
 #define MTIME               0x02
 #define CTIME               0x04
+
+enum fsname {
+    FSFAT,
+    FSEXT2,
+    FSV6,
+    FSPROCFS,
+    NOTFS,
+};
 
 struct mount;
 struct vnode;
@@ -113,6 +127,7 @@ struct vnode {
     device_t rdev;              /* 40: */
     ino_t ino;                  /* 44: */
     off_t size;                 /* 48: */
+    enum fsname fsname;
 
     struct timespec atime;      /* 54:  */
     struct timespec mtime;      /* */
@@ -206,6 +221,11 @@ const char *path_last_component(const char *path);
 int path_valid_component(const char *path);
 int verify_mode_access(uid_t current_uid, mode_t require_mode, uid_t file_uid, gid_t file_gid, mode_t file_mode, int flags);
 
+static inline enum fsname get_fsname(struct vnode *vnode)
+{
+    return vnode->fsname;
+}
+
 static inline void vfs_init_vnode(
     struct vnode *vnode,
     struct vnode_ops *ops,
@@ -217,6 +237,7 @@ static inline void vfs_init_vnode(
     device_t rdev,
     ino_t ino,
     off_t size,
+    enum fsname fsname,
     struct timespec *atime,
     struct timespec *mtime,
     struct timespec *ctime)
@@ -232,6 +253,7 @@ static inline void vfs_init_vnode(
     vnode->rdev = rdev;
     vnode->ino = ino;
     vnode->size = size;
+    vnode->fsname = fsname;
     if (atime) {
         vnode->atime.tv_sec = atime->tv_sec;
         vnode->atime.tv_nsec = atime->tv_nsec;
