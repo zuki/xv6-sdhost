@@ -236,10 +236,12 @@ long sys_fstat(void)
     sst.st_size = file->vnode->size;
     if (file->vnode->fsname == FSFAT) {
         sst.st_dev = ((struct fat_inode *)file->vnode->data)->type;
+        trace("FSFAT: mp.fstype: %s", file->vnode->mp ? file->vnode->mp->ops->fstype : "none");
     } else if (file->vnode->fsname == FSV6) {
         sst.st_dev = ((struct v6_inode *)file->vnode->data)->type;
+        trace("FSV6: mp.fstype: %s", file->vnode->mp->ops->fstype);
     } else {
-        sst.st_dev = T_FILE;
+        trace("OTHERS: mp.fstype: %s", file->vnode->mp->ops->fstype);
     }
     memmove(&sst.st_atime, &file->vnode->atime, sizeof(struct timespec));
     memmove(&sst.st_mtime, &file->vnode->mtime, sizeof(struct timespec));

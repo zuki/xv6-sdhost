@@ -59,7 +59,7 @@
 #define DTTOIF(x)       ((x)<<12)
 
 struct stat {
-        dev_t st_dev;
+        dev_t st_dev;               // v6/fatのtypeとして使用
         ino_t st_ino;
         mode_t st_mode;
         nlink_t st_nlink;
@@ -69,7 +69,7 @@ struct stat {
         unsigned long __pad;
         off_t st_size;
         blksize_t st_blksize;
-        int __pad2;             // __pad2: v6/fatのtypeとして使用
+        int __pad2;
         blkcnt_t st_blocks;
         struct timespec st_atime;
         struct timespec st_mtime;

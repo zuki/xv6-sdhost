@@ -57,7 +57,7 @@ static int fat_release(struct vnode *vnode);
 
 struct vnode_ops fat_vnode_ops = {
     &fat_file_ops,
-    nop_create,
+    nop_create,     // sys_openatで処理
     nop_mknod,
     nop_lookup,
     nop_link,
@@ -359,6 +359,7 @@ static int fat_write(struct vfile *file, const char *buffer, size_t size)
     int r = 0;
 
     struct fat_inode *ip = (struct fat_inode *)file->vnode->data;
+    debug("file: ino: %ld", file->vnode->ino);
 
     char *buf = kmalloc(size);
     if (!buf) {
@@ -527,7 +528,7 @@ long fat_open(char *path, int flags, mode_t mode)
     set_fd(p->fd_table, fd, file);
     if (flags & O_CLOEXEC)
         bit_add(p->fdflag, fd);
-    debug("fd: %d, ip: ino: %d, mode: 0x%x, type: %d", fd, ITOV(ip)->ino, ITOV(ip)->mode, ip->type);
+    trace("fd: %d, ip: ino: %d, mode: 0x%x, type: %d", fd, ITOV(ip)->ino, ITOV(ip)->mode, ip->type);
     return fd;
 }
 
