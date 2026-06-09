@@ -104,9 +104,12 @@ static int fat_mount(struct mount *mp, device_t dev, struct vnode *parent)
     if (ip == NULL) {
         return -ENOMEM;
     }
+    mp->root_node = ITOV(ip);
+
+    ip->vnode.mp = mp;
     ip->vnode.mode = S_IFDIR | 0755;
     ip->type = T_DIR_FAT;
-    mp->root_node = ITOV(ip);
+    ip->valid = 1;
 
     return 0;
 }
@@ -366,8 +369,8 @@ static int fat_write(struct vfile *file, const char *buffer, size_t size)
     FRESULT fr = 9999;  // invalid
 
     ilock(ip);
-    if (memmove(buf, buffer, size) == 0 &&
-        (fr=f_write(ip->fatfp, buf, size, &n1)) == FR_OK) {
+    memmove(buf, buffer, size);
+    if ((fr=f_write(ip->fatfp, buf, size, &n1)) == FR_OK) {
         if (size != n1)
             warn("f_write ok but disk is full");
         file->offset += n1;
