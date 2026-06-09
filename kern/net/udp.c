@@ -81,12 +81,15 @@ static struct udp_pcb *udp_pcb_alloc(void)
         if (pcb->state == UDP_PCB_STATE_FREE) {
             pcb->state = UDP_PCB_STATE_OPEN;
             sched_ctx_init(&pcb->ctx);
+            queue_init(&pcb->queue);
+            trace("pcb queue: %p", &pcb->queue);
             return pcb;
         }
     }
     return NULL;
 }
 
+// mutex_lock()されていること
 static void udp_pcb_release(struct udp_pcb *pcb)
 {
     struct queue_entry *entry;

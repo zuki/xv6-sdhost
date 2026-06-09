@@ -167,12 +167,15 @@ static struct tcp_pcb *tcp_pcb_alloc(void)
         if (pcb->state == TCP_PCB_STATE_FREE) {
             pcb->state = TCP_PCB_STATE_CLOSED;
             sched_ctx_init(&pcb->ctx);
+            queue_init(&pcb->queue);
+            trace("pcb queue: %p", &pcb->queue);
             return pcb;
         }
     }
     return NULL;
 }
 
+// mutex_lock()されていること
 static void tcp_pcb_release(struct tcp_pcb *pcb)
 {
     struct queue_entry *entry;
@@ -374,6 +377,7 @@ static ssize_t tcp_output(struct tcp_pcb *pcb, uint8_t flg, uint8_t *data, size_
 }
 
 /* rfc793 - section 3.9 [Event Processing > SEGMENT ARRIVES] */
+// mutex_lock()されていること
 static void tcp_segment_arrives(struct tcp_segment_info *seg, uint8_t flags, uint8_t *data, size_t len, struct ip_endpoint *local, struct ip_endpoint *foreign)
 {
     int acceptable = 0;

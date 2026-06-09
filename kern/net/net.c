@@ -45,6 +45,7 @@ static struct net_device *devices;
 static struct net_protocol *protocols;
 //static struct net_timer *timers;
 static struct net_event *events;
+static mutex_t mutex;
 
 static char *net_dev_type_str[5] = {
     "DUMMY",
@@ -209,6 +210,8 @@ int net_protocol_register(uint16_t type, void (*handler)(const uint8_t *data, si
     proto->type = type;
     proto->handler = handler;
     proto->next = protocols;
+    queue_init(&proto->queue);
+    trace("proc queue: type: %d, queue: %p", type, &proto->queue);
     protocols = proto;
     info("type=0x%04x (%s)", type, type == 0x0800 ? "IP" : type == 0x0806 ? "ARP" : "IPv6");
     return 0;
@@ -269,11 +272,13 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
     struct net_protocol *proto;
     struct net_protocol_queue_entry *entry;
 
+    mutex_lock(&mutex);
     for (proto = protocols; proto; proto = proto->next) {
         if (proto->type == type) {
             entry = memory_alloc(sizeof(*entry) + len);
             if (!entry) {
                 error("memory_alloc() failure");
+                mutex_unlock(&mutex);
                 return -1;
             }
             entry->dev = dev;
@@ -282,15 +287,18 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
             if (!queue_push(&proto->queue, entry)) {
                 error("queue_push() failure");
                 memory_free(entry);
+                mutex_unlock(&mutex);
                 return -1;
             }
             trace("queue pushed (num:%u), dev=%s, type=0x%04x, len=%llu", proto->queue.num, dev->name, type, len);
             //debugdump(data, len, "net_input_data");
             intr_raise_irq(INTR_IRQ_SOFTIRQ);
+            mutex_unlock(&mutex);
             return 0;
         }
     }
     /* unsupported protocol */
+    mutex_unlock(&mutex);
     return 0;
 }
 
@@ -299,6 +307,7 @@ int net_softirq_handler(void)
     struct net_protocol *proto;
     struct net_protocol_queue_entry *entry;
 
+    mutex_lock(&mutex);
     for (proto = protocols; proto; proto = proto->next) {
         while (1) {
             entry = queue_pop(&proto->queue);
@@ -311,6 +320,7 @@ int net_softirq_handler(void)
             memory_free(entry);
         }
     }
+    mutex_unlock(&mutex);
     return 0;
 }
 
@@ -385,6 +395,8 @@ void net_shutdown(void)
 
 static int netinit(void)
 {
+    mutex_init(&mutex, "net_mutex");
+
     if (intr_init() == -1) {
         error("intr_init() failure");
         return -1;
@@ -416,7 +428,7 @@ static int netinit(void)
 
 static void set_ip_config(struct net_device *dev)
 {
-    char addr[256];
+    //char addr[256];
 
     struct ip_iface *iface = ip_iface_alloc(LOCAL_IP_ADDR, NETMASK);
     assert(iface != 0);
