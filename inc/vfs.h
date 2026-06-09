@@ -14,7 +14,8 @@
 #define FATMINOR        0       // FAT system partition [1,0]
 #define FAT2MINOR       1       // FAT data partition [1,1]
 #define XV6MINOR        2       // xv6 partition [1,2]
-#define PROCFSMINOR     3       // procfs
+#define EXT2MINOR       3       // ext2 partition [1,3]
+#define PROCFSMINOR     4       // procfs [1, 4]
 
 /* v6/fatのファイルタイプ */
 #define T_DIR       1   // ディレクトリ

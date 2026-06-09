@@ -6,7 +6,8 @@
 #define DEVFAT          makedev(1, 0)
 #define DEVFAT2         makedev(1, 1)
 #define DEVV6           makedev(1, 2)
-#define DEVPROCFS       makedev(1, 6)
+#define DEVEXT2         makedev(1, 3)
+#define DEVPROCFS       makedev(1, 4)
 #define DEVCONS         makedev(2, 1)
 #define DEVTTY1         makedev(3, 1)
 #define DEVTTY2         makedev(3, 2)
@@ -15,6 +16,7 @@
 #define DEV_SD0         3       // partition0
 #define DEV_SD1         4       // partition1
 #define DEV_SD2         5       // partition2
+#define DEV_SD3         6       // partition3
 
 #define GET_DEV(drv)    (makedev(1, (drv - 3)))
 
