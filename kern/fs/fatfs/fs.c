@@ -151,13 +151,16 @@ static void iunlock(struct fat_inode *ip)
     releasesleep(&ip->lock);
 }
 
-// TODO: f_XXXでどのように実現するか検討
-// インメモリのinodeをディスクに書き戻す
+// ilock()されていること
 static void iupdate(struct fat_inode *ip)
 {
     trace("type: %d, mode: 0x%x, valid: %d", ip->type, ITOV(ip)->mode, ip->valid);
+    if (ip->fatfp) {
+        f_sync(ip->fatfp);
+    }
 }
 
+// fat_releaseがすべて処理するので何もしない
 static void iput(struct fat_inode *ip)
 {
     trace("slock: ino=%d", ITOV(ip)->ino);
@@ -246,15 +249,28 @@ static struct fat_inode* namei_fat(char *fatpath) {
 // 以下は FATFS固有のvnode操作関数とvfile操作関数
 
 static int fat_close(struct vfile *file) {
+    //debug(" ");
+    //cprintf("1");
     struct fat_inode *ip = (struct fat_inode *)file->vnode->data;
+    //debug("lock");
+    ilock(ip);
+    //cprintf("2");
     if (ip->fatfp) {
+        //cprintf("3");
         f_close(ip->fatfp);
+        //cprintf("4");
         kmfree(ip->fatfp);
+        //cprintf("5");
     } else if (ip->fatdir) {
+        //cprintf("6");
         f_closedir(ip->fatdir);
+        //cprintf("7");
         kmfree(ip->fatdir);
+        //cprintf("8");
     }
-    iput(ip);
+    //cprintf("9");
+    iunlockput(ip);
+    //debug("unlock");
     return 0;
 }
 
@@ -265,32 +281,44 @@ static int fat_read(struct vfile *file, char *buffer, size_t size)
     int r = -EINVAL;
 
     struct fat_inode *ip = (struct fat_inode *)file->vnode->data;
+    //debug("lock");
+    ilock(ip);
+    //cprintf("1");
     trace("ino: %lu, type: %d", ITOV(ip)->ino, ip->type);
 
     if (ip->type != T_FILE_FAT && ip->type != T_DIR_FAT) {
         warn("wrong type: %d", ip->type);
+        iunlock(ip);
+        //debug("unlock");
         return -EINVAL;
     }
-
+    //cprintf("2");
     if (ip->type == T_FILE_FAT) {
+        //cprintf("3");
         char *buf = kmalloc(size);
+        //cprintf("4");
         if (!buf) {
             error("no memory");
             return r;
         }
         unsigned n1;
-        ilock(ip);
+
         if ((r = f_read(ip->fatfp, buf, size, &n1)) == FR_OK) {
+            //cprintf("5");
             trace("file read: %d", n1);
             memmove(buffer, buf, n1);
+            //cprintf("6");
             file->offset += n1;
             r = (int)n1;
+            //cprintf("7");
         } else {
             warn("f_read failed returns %d, size=%d", r, size);
+            //cprintf("8");
         }
-        iunlock(ip);
         kmfree(buf);
+        //cprintf("9");
     } else {
+        //cprintf("a");
         int sz = sizeof (FILINFO);
         if (size >= sz) {
             FILINFO fno;
@@ -298,20 +326,28 @@ static int fat_read(struct vfile *file, char *buffer, size_t size)
                 error("ip is dir but has not fatdir");
                 return r;
             }
+            //cprintf("b");
             if (f_readdir(ip->fatdir, &fno) == FR_OK) {
+                //cprintf("c");
                 if (fno.fname[0]) {
+                    //cprintf("d");
                     memmove(buffer, &fno, sz);
                     trace("readdir: %s", fno.fname);
                     r = sz;
+                    //cprintf("e");
                 } else {
                     trace("no more entry");
                     r = 0; // no more dir entries
+                    //cprintf("f");
                 }
             } else {
                 warn("f_readdir failed");
             }
         }
+        //cprintf("g");
     }
+    iunlock(ip);
+    //debug("unlock");
     trace("ok: %d", r);
     return r;
 }
@@ -319,7 +355,7 @@ static int fat_read(struct vfile *file, char *buffer, size_t size)
 static off_t fat_seek(struct vfile *file, off_t offset, int whence)
 {
     struct fat_inode *ip = (struct fat_inode *)file->vnode->data;
-
+    //debug("lock");
     ilock(ip);
     off_t size = ITOV(ip)->size;
 
@@ -346,61 +382,85 @@ static off_t fat_seek(struct vfile *file, off_t offset, int whence)
         goto bad;
     file->offset = offset;
     iunlock(ip);
+    //debug("unlock");
     return offset;
 
 bad:
     warn("invalid offset: %d, size: %d", offset, size);
     iunlock(ip);
+    //debug("unlock");
     return -EINVAL;
 }
 
 static int fat_write(struct vfile *file, const char *buffer, size_t size)
 {
     int r = 0;
-
+    //debug(" ");
+    //cprintf("1");
     struct fat_inode *ip = (struct fat_inode *)file->vnode->data;
-    debug("file: ino: %ld", file->vnode->ino);
-
+    //cprintf("2");
+    //debug("lock");
+    ilock(ip);
+    trace("file: ino: %ld", file->vnode->ino);
+    //cprintf("3");
     char *buf = kmalloc(size);
+    //cprintf("4");
     if (!buf) {
         error("no memory");
+        iunlock(ip);
+        //debug("unlock");
         return -2;
     }
+    //cprintf("5");
     unsigned n1;
     FRESULT fr = 9999;  // invalid
-
-    ilock(ip);
+    //cprintf("6");
     memmove(buf, buffer, size);
+    //cprintf("7");
     if ((fr=f_write(ip->fatfp, buf, size, &n1)) == FR_OK) {
+        //cprintf("8");
         if (size != n1)
             warn("f_write ok but disk is full");
         file->offset += n1;
         r = (int)n1;
+        //cprintf("9");
     } else {
         error("failed. f_write returns %d", fr);
         r = -EINVAL;
     }
-    iunlock(ip);
+    //cprintf("a");
     kmfree(buf);
-
+    //cprintf("b");
+    iunlock(ip);
+    //debug("unlock");
     return r;
 }
 
 static int fat_release(struct vnode *vnode)
 {
-    struct fat_inode *ip = VTOI(vnode);
-
+    trace("ino: %d, refcount: %d", vnode->ino, vnode->refcount);
+    //debug(" ");
+    //cprintf("1");
     if (vnode->ino == 0 || vnode->refcount == 0) {
-        trace("ino: %d, refcount: %d", vnode->ino, vnode->refcount);
+        //cprintf("2");
+        struct fat_inode *ip = VTOI(vnode);
+        //cprintf("3");
         ilock(ip);
+        //debug("lock");
         ip->type = 0;
+        //cprintf("4");
         if (ip->fatfp) kmfree(ip->fatfp);
+        //cprintf("5");
         if (ip->fatdir) kmfree(ip->fatdir);
+        //cprintf("6");
         vnode->ino = 0;
         vnode->nlink = 0;
+        //cprintf("7");
         iupdate(ip);
         iunlockput(ip);
+        //debug("unlock");
     }
+    //cprintf("8\n");
     return 0;
 }
 
@@ -452,18 +512,21 @@ static struct fat_inode *open_path(const char *path, int omode) {
     // (XXX need a better way to generate ino..., maybe obj id in FILINFO?)
     // the problem: need to open the file/dir before iget()
     ip = iget(DEVFAT2, fatpath_to_ino(path));
+    //debug("lock");
     ilock(ip);
     if (isdir) {
         ip->type = T_DIR_FAT;
         if (!(ip->fatdir = kmalloc(sizeof(DIR)))) {
             debug("failed kmalloc for fatdir");
             iunlockput(ip);
+            //debug("unlock");
             return NULL;
         }
         if ((ret = f_opendir(ip->fatdir, path)) != FR_OK) {
             warn("f_opendir '%s' failed with ret %d", path, ret);
             kmfree(ip->fatdir);
             iunlockput(ip);
+            //debug("unlock");
             return NULL;
         }
     } else { // normal file
@@ -471,17 +534,20 @@ static struct fat_inode *open_path(const char *path, int omode) {
         if (!(ip->fatfp = kmalloc(sizeof(FIL)))) {
             debug("failed kmalloc for fatfp");
             iunlockput(ip);
+            //debug("unlock");
             return NULL;
         }
         if ((ret = f_open(ip->fatfp, path, flag)) != FR_OK) {
             warn("f_open '%s' failed with ret %d", path, ret);
             kmfree(ip->fatfp);
             iunlockput(ip);
+            //debug("unlock");
             return NULL;
         }
         ITOV(ip)->size = (flag & FA_CREATE_ALWAYS) ? 0 : fsize;  // O_TRUNC or not?
     }
     iunlock(ip);
+    //debug("unlock");
     trace("ino: %d, mode: 0x%x, dir: %d", ITOV(ip)->ino, ITOV(ip)->mode, isdir ? 1 : 0);
     return ip;
 }
@@ -586,9 +652,11 @@ long fat_chdir(char *path)
     }
     // fatpath: the fat native, abs path
     ip = namei_fat(fatpath);
+    //debug("lock");
     ilock(ip);
     ip->type = T_DIR_FAT;
     iunlock(ip);
+    //debug("unlock");
     iput(thisproc()->cwd->data);  // fxl: iput b/c we are leaving this dir
     thisproc()->cwd = ITOV(ip);
     return 0;
