@@ -2,6 +2,7 @@
 #include <config.h>
 #include <console.h>
 #include <mm.h>
+#include <clock.h>
 #include <string.h>
 #include <net/ntp.h>
 #include <net/dns.h>
@@ -87,7 +88,15 @@ int ntp_get_time(void) {
     uint64_t timestamp = ntoh64(ntp->rcv_timestamp);
     uint32_t sec = (uint32_t)((timestamp & 0xffffffff00000000) >> 32);
     uint32_t utc = sec - UNIX_EPOC;
-    debug("timestamp: 0x%x, utc: %d", timestamp, utc);
+    trace("timestamp: 0x%x, utc: %d", timestamp, utc);
+    if (utc > 0) {
+        struct timespec tp;
+        tp.tv_sec = (time_t)utc;
+        tp.tv_nsec = 0;
+        if (clock_settime(CLOCK_REALTIME, &tp) < 0) {
+            error("failed clock_settime: utc: %d", utc);
+        }
+    }
 
 err:
     udp_close(udp_id);
