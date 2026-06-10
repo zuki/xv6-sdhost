@@ -214,3 +214,135 @@ $ /bin/date
 $ /bin/dns
 // ストール
 ```
+
+- fat_write()のバグを修正したところ ls /d/, echo abc > /d/test.txt, cat /d/test.txt
+  が動くようになったが、shに戻らずストールする場合がある。
+
+```bash
+$ /bin/dns
+[0]syscall1: proc[8] sys_gettid called
+[0]syscall1: proc[8] sys_rt_sigprocmask called
+[0]syscall1: proc[8] sys_rt_sigprocmask called
+[0]syscall1: proc[8] sys_brk called
+[0]syscall1: proc[8] sys_brk called
+[0]syscall1: proc[8] sys_execve called
+[2]syscall1: proc[8] sys_gettid called
+[2]syscall1: proc[8] sys_dns called
+[1]ntp_get_time: timestamp: 0x58939f8b, utc: 1780969529
+[1]syscall1: proc[8] sys_exit_group called
+$ /bin/data 1780969529
+[1]syscall1: proc[9] sys_gettid called
+[1]syscall1: proc[9] sys_rt_sigprocmask called
+[1]syscall1: proc[9] sys_rt_sigprocmask called
+[1]syscall1: proc[9] sys_brk called
+[1]syscall1: proc[9] sys_brk called
+[1]syscall1: proc[9] sys_execve called
+[1]syscall1: proc[9] sys_writev called
+execve[1]syscall1: proc[9] sys_writev called
+:[1]syscall1: proc[9] sys_writev called
+ [1]syscall1: proc[9] sys_writev called
+Operation not permitted[1]syscall1: proc[9] sys_writev called
+
+[1]syscall1: proc[9] sys_exit_group called
+$ /bin/ls /d/
+[0]syscall1: proc[10] sys_gettid called
+[0]syscall1: proc[10] sys_rt_sigprocmask called
+[0]syscall1: proc[10] sys_rt_sigprocmask called
+[0]syscall1: proc[10] sys_brk called
+[0]syscall1: proc[10] sys_brk called
+[0]syscall1: proc[10] sys_execve called
+[1]syscall1: proc[10] sys_gettid called
+[1]syscall1: proc[10] sys_openat called
+[1]syscall1: proc[10] sys_fstat called
+[1]syscall1: proc[10] sys_ioctl called
+[1]syscall1: proc[10] sys_writev called
+--- FAT dir ---
+[1]syscall1: proc[10] sys_writev called
+name  attr  sz
+[1]syscall1: proc[10] sys_read called
+[2]syscall1: proc[10] sys_writev called
+fat.txt 32 44
+[2]syscall1: proc[10] sys_read called
+[2]syscall1: proc[10] sys_writev called
+longlongname.txt 32 37
+[2]syscall1: proc[10] sys_read called
+[2]syscall1: proc[10] sys_writev called
+.fseventsd 18 0
+[2]syscall1: proc[10] sys_read called
+[2]syscall1: proc[10] sys_close called
+[2]syscall1: proc[10] sys_exit_group called
+$ /bin/echo abc > /d/test.txt
+[1]syscall1: proc[11] sys_gettid called
+[1]syscall1: proc[11] sys_rt_sigprocmask called
+[1]syscall1: proc[11] sys_rt_sigprocmask called
+[1]syscall1: proc[11] sys_brk called
+[1]syscall1: proc[11] sys_brk called
+[1]syscall1: proc[11] sys_close called
+[1]syscall1: proc[11] sys_openat called
+[1]syscall1: proc[11] sys_execve called
+[1]syscall1: proc[11] sys_gettid called
+[1]syscall1: proc[11] sys_ioctl called
+[1]syscall1: proc[11] sys_writev called
+[1]fat_write: file: ino: -795199120
+[1]fat_write: file: ino: -795199120
+[1]syscall1: proc[11] sys_exit_group called
+$ /bin/cat /d/test.txt
+[3]syscall1: proc[12] sys_gettid called
+[3]syscall1: proc[12] sys_rt_sigprocmask called
+[3]syscall1: proc[12] sys_rt_sigprocmask called
+[3]syscall1: proc[12] sys_brk called
+[3]syscall1: proc[12] sys_brk called
+[3]syscall1: proc[12] sys_execve called
+[1]syscall1: proc[12] sys_gettid called
+[1]syscall1: proc[12] sys_openat called
+[1]syscall1: proc[12] sys_read called
+[1]syscall1: proc[12] sys_ioctl called
+[1]syscall1: proc[12] sys_writev called
+abc
+[1]syscall1: proc[12] sys_read called
+[1]syscall1: proc[12] sys_close called      // sys_exit_group called が呼ばれない
+```
+
+- lock, unlockの競合だと思わるが解決には至らず。一旦、保留。
+
+```bash
+$ /bin/ls /d/
+--- FAT dir ---
+name  attr  sz
+fat.txt 32 44
+longlongname.txt 32 37
+.fseventsd 18 0
+[1]iupdate: type: 0, mode: 0x8000, valid: 1
+[1]iupdate: iupdate ok
+$ /bin/cat /d/fat.txt
+hello fat
+test 123
+abcdef
+2025-02-20
+ebetsu
+$ /bin/echo abc > /d/echo.txt
+$ /bin/ls /d/
+--- FAT dir ---
+name  attr  sz
+fat.txt 32 44
+longlongname.txt 32 37
+.fseventsd 18 0
+echo.txt 32 4
+$ /bin/cat /d/longlongname.txt
+this is a long long file name text.
+$ /bin/cat /d/echo.txt
+abc                     // ここでストール. catやlsでストールすることもあり
+```
+
+## `/bin/dns`がストールする件
+
+```bash
+$ /bin/dns
+[2]net_input_handler: queue pushed (num:1), dev=net0, type=0x0806, len=46
+[1]net_softirq_handler: queue popped (num:0), dev=net0, type=0x0806, len=46
+[2]net_input_handler: queue pushed (num:0), dev=net0, type=0x0806, len=46
+[1]net_softirq_handler: queue popped (num:0), dev=net0, type=0x0806, len=46
+[1]net_softirq_handler: queue popped (num:4294967294), dev=     // num=0xfffffffe = -2
+```
+- udp/tcp/netでqueue_init()をするようにしたところ/bin/dnsが動くようになった
+- /bin/dns実行でrtcに設定するようにした
