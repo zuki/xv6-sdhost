@@ -19,5 +19,7 @@ void rtc_init();
 int rtc_valid_tm(struct rtc_time *tm);
 int rtc_gettime(struct timespec *xtime);
 int rtc_settime(const struct timespec *xtime);
+uint32_t rtc_time_to_fattime(struct timespec *tp);
+void rtc_fattime_to_time(uint32_t fdate, uint32_t ftime, struct timespec *ts);
 
 #endif

@@ -273,6 +273,11 @@ long sys_fstatat(void)
         return error;
     trace("dirfd: %d, path: %s, flags: 0x%x", dirfd, path, flags);
 
+#ifdef CONFIG_FAT
+    if (is_fatfs(path))
+        return fat_stat(path, st);
+#endif
+
     if (flags != 0 && (flags & ~AT_SYMLINK_NOFOLLOW) != 0) {
         warn("unimplemented flags=0x%x", flags);
         return -EINVAL;
@@ -749,15 +754,17 @@ long sys_lseek(void)
 long sys_getdents64(void)
 {
     char *buffer;
+    int fd;
     uint64_t size;
     struct vfile *file;
     long error;
 
-    if ((error = argfd(0, 0, &file)) < 0) return error;
+    if ((error = argfd(0, &fd, &file)) < 0) return error;
     if ((error = argu64(2, &size)) < 0) return error;
     if ((error = argptr(1, (void **)&buffer, size)) < 0) return error;
 
-    return vfs_getdents(file, (void *)buffer, size);
+    trace("fd: %d, ino: %d", fd, file->vnode->ino);
+    return vfs_getdents(file, buffer, size);
 }
 
 /* オープンされたファイルディスクリプター fd により参照されるファイルの許可を変更する */

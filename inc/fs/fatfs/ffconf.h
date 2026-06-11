@@ -57,7 +57,6 @@
 /* このオプションはf_expand関数の動作を切り替えます。（0：無効、1：有効） */
 /* This option switches f_expand function. (0:Disable or 1:Enable) */
 
-// TODO: 要検討
 #define FF_USE_CHMOD	1
 /* このオプションは属性操作関数である f_chmod()、f_utime() の動作を切り替えます
 /  (0:無効、1:有効)。このオプションを有効にするには、FF_FS_READONLY を 0 に設定する必要があります。*/
@@ -338,8 +337,7 @@
 /  To enable exFAT, also LFN needs to be enabled. (FF_USE_LFN >= 1)
 /  Note that enabling exFAT discards ANSI C (C89) compatibility. */
 
-// TODO: 要検討
-#define FF_FS_NORTC		1
+#define FF_FS_NORTC		0
 #define FF_NORTC_MON	1
 #define FF_NORTC_MDAY	1
 #define FF_NORTC_YEAR	2024
@@ -383,7 +381,6 @@
 /  bit1=1: Do not trust last allocated cluster number in the FSINFO.
 */
 
-// TODO: 要検討
 #define FF_FS_LOCK		0
 /* オプション FF_FS_LOCK はファイルの重複オープンやオブジェクトに対する不正な操作を
 /  制御するためのファイルロック機能を切り替えます。FF_FS_READONLY が 1 の場合、

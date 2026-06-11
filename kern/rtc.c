@@ -4,6 +4,7 @@
 #include <ds3231.h>
 #include <console.h>
 #include <types.h>
+#include <linux/time.h>
 
 
 static const unsigned char rtc_days_in_month[] = {
@@ -126,7 +127,23 @@ int rtc_settime(const struct timespec *tp)
     return ds3231_set_datetime(&t);
 }
 
-void rtc_init()
+uint32_t rtc_time_to_fattime(struct timespec *tp)
+{
+    struct rtc_time t;
+
+    rtc_time_to_tm(tp->tv_sec, &t);
+
+    return ((uint32_t)(t.tm_hour - 80) << 25 | (uint32_t)(t.tm_mon + 1) << 21 | (uint32_t)t.tm_mday << 16 | (uint32_t)t.tm_hour << 11 | (uint32_t)t.tm_min << 5 | (uint32_t)(t.tm_sec / 2));
+}
+
+void rtc_fattime_to_time(uint32_t fdate, uint32_t ftime, struct timespec *ts)
+{
+    ts->tv_sec = rtc_tm_to_time((fdate >> 9) + 80, ((fdate >> 5) & 0x0f) - 1,
+        fdate & 0x1f, ftime >> 11, (ftime >> 5) & 0x3f, (ftime & 0x1f) * 2);
+    ts->tv_nsec = 0;
+}
+
+void rtc_init(void)
 {
     ds3231_init();
 }

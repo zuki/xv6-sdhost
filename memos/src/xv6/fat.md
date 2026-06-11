@@ -334,6 +334,21 @@ $ /bin/cat /d/echo.txt
 abc                     // ここでストール. catやlsでストールすることもあり
 ```
 
+## `/bin/ls2`（readdir()でディレクトリを処理し、fstatatシスコールを使用）でFAT対応
+
+- `fs/fatfs/ffconf.h`で`FF_USE_CHMOD 1`, `FF_FS_NORTC 0`に変更
+- get_fattime()を実装
+- fat_stat()を実装
+
+
+```bash
+$ /bin/ls2 /d/
+drwxr-xr-x      0 2026-06-11 13:21:00 dira
+-rw-r--r--     44 2026-06-11 13:21:00 fat.txt
+-rw-r--r--     37 2026-06-11 13:21:00 longlongname.txt
+$
+```
+
 ## `/bin/dns`がストールする件
 
 ```bash

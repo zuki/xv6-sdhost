@@ -35,7 +35,8 @@ $(BOOT_IMG): $(KERN_IMG) $(shell find boot/*)
 $(FAT_IMG): $(shell find fat/*)
 	dd if=/dev/zero of=$@ bs=$(SECTOR_SIZE) count=131072
 	mformat -F -c 1 -v fatfs -i $@ ::
-	$(foreach x, $^, mcopy -i $@ $(x) ::$(notdir $(x));)
+	$(foreach x, $^, mcopy -i $@ $(x) ::;)
+#	$(foreach x, $^, mcopy -i $@ $(x) ::$(notdir $(x));)
 
 mkfs/mkfs: mkfs/mkfs.c
 	cc -o mkfs/mkfs -Imkfs/ mkfs/mkfs.c

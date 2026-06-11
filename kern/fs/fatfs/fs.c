@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/fcntl.h>
 #include <linux/stat.h>
+#include <rtc.h>
 
 FATFS   fatfs;
 
@@ -38,6 +39,7 @@ static int fat_read(struct vfile *file, char *buffer, size_t size);
 static off_t fat_seek(struct vfile *file, off_t offset, int whence);
 static int fat_write(struct vfile *file, const char *buffer, size_t size);
 static int fat_release(struct vnode *vnode);
+static int fat_getdents(struct vfile *file, void *buffer, size_t size);
 
 struct vfile_ops fat_file_ops = {
     nop_open,       // sys_openatで処理
@@ -48,7 +50,7 @@ struct vfile_ops fat_file_ops = {
     nop_poll,
     fat_seek,
     nop_readdir,
-    nop_getdents,
+    fat_getdents,
     nop_writeback,
     nop_chown
 };
@@ -249,28 +251,17 @@ static struct fat_inode* namei_fat(char *fatpath) {
 // 以下は FATFS固有のvnode操作関数とvfile操作関数
 
 static int fat_close(struct vfile *file) {
-    //debug(" ");
-    //cprintf("1");
     struct fat_inode *ip = (struct fat_inode *)file->vnode->data;
-    //debug("lock");
+
     ilock(ip);
-    //cprintf("2");
     if (ip->fatfp) {
-        //cprintf("3");
         f_close(ip->fatfp);
-        //cprintf("4");
         kmfree(ip->fatfp);
-        //cprintf("5");
     } else if (ip->fatdir) {
-        //cprintf("6");
         f_closedir(ip->fatdir);
-        //cprintf("7");
         kmfree(ip->fatdir);
-        //cprintf("8");
     }
-    //cprintf("9");
     iunlockput(ip);
-    //debug("unlock");
     return 0;
 }
 
@@ -281,22 +272,16 @@ static int fat_read(struct vfile *file, char *buffer, size_t size)
     int r = -EINVAL;
 
     struct fat_inode *ip = (struct fat_inode *)file->vnode->data;
-    //debug("lock");
     ilock(ip);
-    //cprintf("1");
     trace("ino: %lu, type: %d", ITOV(ip)->ino, ip->type);
 
     if (ip->type != T_FILE_FAT && ip->type != T_DIR_FAT) {
         warn("wrong type: %d", ip->type);
         iunlock(ip);
-        //debug("unlock");
         return -EINVAL;
     }
-    //cprintf("2");
     if (ip->type == T_FILE_FAT) {
-        //cprintf("3");
         char *buf = kmalloc(size);
-        //cprintf("4");
         if (!buf) {
             error("no memory");
             return r;
@@ -304,21 +289,15 @@ static int fat_read(struct vfile *file, char *buffer, size_t size)
         unsigned n1;
 
         if ((r = f_read(ip->fatfp, buf, size, &n1)) == FR_OK) {
-            //cprintf("5");
             trace("file read: %d", n1);
             memmove(buffer, buf, n1);
-            //cprintf("6");
             file->offset += n1;
             r = (int)n1;
-            //cprintf("7");
         } else {
             warn("f_read failed returns %d, size=%d", r, size);
-            //cprintf("8");
         }
         kmfree(buf);
-        //cprintf("9");
     } else {
-        //cprintf("a");
         int sz = sizeof (FILINFO);
         if (size >= sz) {
             FILINFO fno;
@@ -326,28 +305,21 @@ static int fat_read(struct vfile *file, char *buffer, size_t size)
                 error("ip is dir but has not fatdir");
                 return r;
             }
-            //cprintf("b");
             if (f_readdir(ip->fatdir, &fno) == FR_OK) {
-                //cprintf("c");
                 if (fno.fname[0]) {
-                    //cprintf("d");
                     memmove(buffer, &fno, sz);
                     trace("readdir: %s", fno.fname);
                     r = sz;
-                    //cprintf("e");
                 } else {
                     trace("no more entry");
                     r = 0; // no more dir entries
-                    //cprintf("f");
                 }
             } else {
                 warn("f_readdir failed");
             }
         }
-        //cprintf("g");
     }
     iunlock(ip);
-    //debug("unlock");
     trace("ok: %d", r);
     return r;
 }
@@ -355,10 +327,9 @@ static int fat_read(struct vfile *file, char *buffer, size_t size)
 static off_t fat_seek(struct vfile *file, off_t offset, int whence)
 {
     struct fat_inode *ip = (struct fat_inode *)file->vnode->data;
-    //debug("lock");
+
     ilock(ip);
     off_t size = ITOV(ip)->size;
-
     switch (whence) {
     case SEEK_SET:
         if (offset > size || offset < 0)
@@ -382,86 +353,113 @@ static off_t fat_seek(struct vfile *file, off_t offset, int whence)
         goto bad;
     file->offset = offset;
     iunlock(ip);
-    //debug("unlock");
-    return offset;
+        return offset;
 
 bad:
     warn("invalid offset: %d, size: %d", offset, size);
     iunlock(ip);
-    //debug("unlock");
-    return -EINVAL;
+        return -EINVAL;
 }
 
 static int fat_write(struct vfile *file, const char *buffer, size_t size)
 {
     int r = 0;
-    //debug(" ");
-    //cprintf("1");
     struct fat_inode *ip = (struct fat_inode *)file->vnode->data;
-    //cprintf("2");
-    //debug("lock");
+
     ilock(ip);
     trace("file: ino: %ld", file->vnode->ino);
-    //cprintf("3");
     char *buf = kmalloc(size);
-    //cprintf("4");
     if (!buf) {
         error("no memory");
         iunlock(ip);
-        //debug("unlock");
         return -2;
     }
-    //cprintf("5");
     unsigned n1;
     FRESULT fr = 9999;  // invalid
-    //cprintf("6");
     memmove(buf, buffer, size);
-    //cprintf("7");
     if ((fr=f_write(ip->fatfp, buf, size, &n1)) == FR_OK) {
-        //cprintf("8");
         if (size != n1)
             warn("f_write ok but disk is full");
         file->offset += n1;
         r = (int)n1;
-        //cprintf("9");
     } else {
         error("failed. f_write returns %d", fr);
         r = -EINVAL;
     }
-    //cprintf("a");
     kmfree(buf);
-    //cprintf("b");
     iunlock(ip);
-    //debug("unlock");
     return r;
 }
 
 static int fat_release(struct vnode *vnode)
 {
     trace("ino: %d, refcount: %d", vnode->ino, vnode->refcount);
-    //debug(" ");
-    //cprintf("1");
+
     if (vnode->ino == 0 || vnode->refcount == 0) {
-        //cprintf("2");
         struct fat_inode *ip = VTOI(vnode);
-        //cprintf("3");
         ilock(ip);
-        //debug("lock");
         ip->type = 0;
-        //cprintf("4");
         if (ip->fatfp) kmfree(ip->fatfp);
-        //cprintf("5");
         if (ip->fatdir) kmfree(ip->fatdir);
-        //cprintf("6");
         vnode->ino = 0;
         vnode->nlink = 0;
-        //cprintf("7");
         iupdate(ip);
         iunlockput(ip);
-        //debug("unlock");
     }
-    //cprintf("8\n");
     return 0;
+}
+
+static int fat_getdents(struct vfile *file, void *buffer, size_t size)
+{
+    FILINFO info;
+    FRESULT ret;
+    char *fn;
+
+    int namelen, reclen, tlen = 0;
+    off_t offset = 0;
+    struct dirent64 de64;
+
+    struct fat_inode *ip = VTOI(file->vnode);
+
+    if (!ip->fatdir) {
+        error("ip hasn't fatdir");
+        return -ENOENT;
+    }
+
+//FR_OK, FR_DISK_ERR, FR_INT_ERR, FR_NOT_READY, FR_INVALID_OBJECT, FR_TIMEOUT, FR_NOT_ENOUGH_CORE
+    while(1) {
+        if ((ret = f_readdir(ip->fatdir, &info)) != FR_OK) {
+            error("f_readdir failed: %d", ret);
+            return tlen ? tlen : -EIO;
+        }
+        if (info.fname[0] == 0) {   // すべて読み込み済み
+            return tlen ? tlen : 0;
+        }
+        if (info.fname[0] == '.')
+            continue;               // ドットエントリは無視
+
+        namelen = MIN(strlen(info.fname), DIRSIZE);
+        reclen = (int)(&((struct dirent64 *)0)->d_name);
+        reclen += namelen;
+        reclen = (reclen + 0x7) & ~0x7;
+        memset(&de64, 0, reclen+1); // null終端で+1
+
+        // sizeまで詰めたらreturn
+        if ((tlen + reclen) > size) {
+            trace("break; tlen: %d, reclen: %d, size: %d", tlen, reclen, size);
+            break;
+        }
+
+        de64.d_ino = -1;
+        de64.d_off = offset;
+        de64.d_reclen = reclen;
+        de64.d_type = info.fattrib & AM_DIR ? DT_DIR : DT_REG;
+        memmove(de64.d_name, info.fname, namelen);
+        memmove(buffer + tlen, (char *)&de64, reclen);
+        tlen += reclen;
+        offset += namelen;
+    }
+    return tlen;
 }
 
 // 以下はvs_xxxを通さず、sys_xxxから直接呼び出す
@@ -512,42 +510,37 @@ static struct fat_inode *open_path(const char *path, int omode) {
     // (XXX need a better way to generate ino..., maybe obj id in FILINFO?)
     // the problem: need to open the file/dir before iget()
     ip = iget(DEVFAT2, fatpath_to_ino(path));
-    //debug("lock");
     ilock(ip);
     if (isdir) {
         ip->type = T_DIR_FAT;
         if (!(ip->fatdir = kmalloc(sizeof(DIR)))) {
             debug("failed kmalloc for fatdir");
             iunlockput(ip);
-            //debug("unlock");
             return NULL;
         }
         if ((ret = f_opendir(ip->fatdir, path)) != FR_OK) {
             warn("f_opendir '%s' failed with ret %d", path, ret);
             kmfree(ip->fatdir);
             iunlockput(ip);
-            //debug("unlock");
             return NULL;
         }
+        ip->fatdir->obj.attr |= AM_DIR;
     } else { // normal file
         ip->type = T_FILE_FAT;
         if (!(ip->fatfp = kmalloc(sizeof(FIL)))) {
             debug("failed kmalloc for fatfp");
             iunlockput(ip);
-            //debug("unlock");
             return NULL;
         }
         if ((ret = f_open(ip->fatfp, path, flag)) != FR_OK) {
             warn("f_open '%s' failed with ret %d", path, ret);
             kmfree(ip->fatfp);
             iunlockput(ip);
-            //debug("unlock");
             return NULL;
         }
         ITOV(ip)->size = (flag & FA_CREATE_ALWAYS) ? 0 : fsize;  // O_TRUNC or not?
     }
     iunlock(ip);
-    //debug("unlock");
     trace("ino: %d, mode: 0x%x, dir: %d", ITOV(ip)->ino, ITOV(ip)->mode, isdir ? 1 : 0);
     return ip;
 }
@@ -572,10 +565,13 @@ long fat_open(char *path, int flags, mode_t mode)
         return -EACCES;
     }
 
-    if (ip->fatdir)
+    if (ip->fatdir) {
+        trace("fatdir: attr 0x%x", ip->fatdir->obj.attr);
         attr = ip->fatdir->obj.attr;
-    else if (ip->fatfp)
+    } else if (ip->fatfp) {
+        trace("fatfp: attr 0x%x", ip->fatfp->obj.attr);
         attr = ip->fatfp->obj.attr;
+    }
 
     if (attr & AM_DIR) {
         ITOV(ip)->mode |= S_IFDIR;
@@ -652,13 +648,51 @@ long fat_chdir(char *path)
     }
     // fatpath: the fat native, abs path
     ip = namei_fat(fatpath);
-    //debug("lock");
     ilock(ip);
     ip->type = T_DIR_FAT;
     iunlock(ip);
-    //debug("unlock");
-    iput(thisproc()->cwd->data);  // fxl: iput b/c we are leaving this dir
+        iput(thisproc()->cwd->data);  // fxl: iput b/c we are leaving this dir
     thisproc()->cwd = ITOV(ip);
+    return 0;
+}
+
+long fat_stat(char *path, struct stat *st)
+{
+    struct stat sst;
+    struct timespec ts;
+    int fat_rela = 0, fat_abs = 0;
+    char fatpath[MAXPATH], *pp;
+    FILINFO info;
+    FRESULT ret;
+
+    if (!redirect_fatpath(path, fatpath, &fat_rela, &fat_abs))
+        return -EACCES;
+
+    pp = fat_abs ? fatpath : path;
+    if ((ret = f_stat(pp, &info)) != FR_OK) {
+        error("fat_open failed");
+        return -EACCES;
+    }
+
+
+    sst.st_dev = (info.fattrib & AM_DIR) ? T_DIR_FAT : T_FILE_FAT;
+    sst.st_ino = -1;
+    sst.st_mode = (info.fattrib & AM_DIR) ? (S_IFDIR | 0755) : (S_IFREG | 0644);
+    sst.st_nlink = 1;
+    sst.st_uid = 0;
+    sst.st_gid = 0;
+    sst.st_rdev = DEVFAT2;
+    sst.st_size = info.fsize;
+    trace("fdate: 0x%x, ftime: 0x%x", info.fdate, info.ftime);
+    rtc_fattime_to_time((uint32_t)info.fdate, (uint32_t)info.ftime, &ts);
+    trace("ts.tv_sec: 0x%x", ts.tv_sec);
+    memmove(&sst.st_atime, &ts, sizeof(struct timespec));
+    memmove(&sst.st_mtime, &ts, sizeof(struct timespec));
+    memmove(&sst.st_ctime, &ts, sizeof(struct timespec));
+    memmove(st, &sst, sizeof(struct stat));
+// 0x5cca : 0101110011001010 0101110=0x2e 46+1980=2026 : 0110=0x6 : 01010=0x0a=10
+// 5432109876543210
+// 0x7074 : 0111000001110100 01110=0xe=14 : 000011=3 : 10100=0x14=20
     return 0;
 }
 
@@ -724,3 +758,18 @@ static boolean redirect_fatpath(const char *path /*in*/, char *fatpath /*out*/,
 
     return false;
 }
+
+#if !FF_FS_READONLY && !FF_FS_NORTC
+#include <linux/time.h>
+#include <rtc.h>
+
+DWORD get_fattime (void)
+{
+    struct timespec now;
+
+    if (clock_gettime(CLOCK_REALTIME, &now) < 0) {
+        return ((DWORD)(FF_NORTC_YEAR - 1980) << 25 | (DWORD)FF_NORTC_MON << 21 | (DWORD)FF_NORTC_MDAY << 16);
+    }
+    return (DWORD)rtc_time_to_fattime(&now);
+}
+#endif

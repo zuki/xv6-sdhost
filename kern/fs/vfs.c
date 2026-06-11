@@ -812,8 +812,11 @@ int vfs_readdir(struct vfile *file, struct dirent *dir)
 
 int vfs_getdents(struct vfile *file, void *buffer, size_t size)
 {
-    if (!S_ISDIR(file->vnode->mode))
+    if (!S_ISDIR(file->vnode->mode)) {
+        error("file is not dir: mode: 0x%x", file->vnode->mode);
         return -ENOTDIR;
+    }
+
 
     return file->ops->getdents(file, buffer, size);
 }

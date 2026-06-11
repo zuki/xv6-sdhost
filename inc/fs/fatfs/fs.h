@@ -8,6 +8,7 @@
 
 #define MAXPATH    128
 #define FAT_ROOTINO 2
+#define DIRSIZE     58
 
 struct fat_inode {
     struct vnode        vnode;      // vnode構造体
@@ -25,6 +26,7 @@ long fat_open(char *path, int flags, mode_t mode);
 long fat_unlink(char *path);
 long fat_mkdir(char *path);
 long fat_chdir(char *path);
+long fat_stat(char *path, struct stat *st);
 boolean is_fatfs(const char *path);
 
 #endif
