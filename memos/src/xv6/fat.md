@@ -1,363 +1,571 @@
-# FAT
+# FATファイルシステムを検討
+
+## FATファイルシステムについて
+
+- [FATファイルシステムのしくみと操作法](https://elm-chan.org/docs/fat.html)が詳しい
+- FAT12/FAT16/FAT32の3つのタイプのFATが存在するが、ここではFAT32にしか対応しない
+- FAT32ボリュームの最大容量は実質32GB （仕様上は2TB）
+- FAT32の1ファイルの最大サイズは4GB (2^32 - 1) (0x800000 - 1 セクタ)
+- データはクラスタ単位（クラスタ番号で識別）に分けられデータ領域に格納される
+- FATエントリは1つ4バイトでクラスタと1対1に対応し、対応するクラスタの状態を示す
+- FATの先頭2エントリは予約で、クラスタには結びつけられていない。そのため、有効な
+  クラスタ番号は2から始まる
+- FATは多重化され、通常は先頭のFATが参照され、更新はすべてのコピーに対して行われる
+
+## FAT32ボリューム
+
+- 「セクタ番号」はボリュームの先頭を0とする相対番号
+- 「物理セクタ番号」はSD上の実際のセクタ位置。手元の環境でFAT32ボリュームは0x800セクタから始まるので物理セクタ番号は0x800 + セクタ番号
+- FATエントリは1つ4バイトで先頭の番号は2。FAT32の場合、これはルートディレクトリの先頭クラスタ番号
+
+| 重要な値（セクタ単位） | 実際の値(1sec/cluster) | (8sec/cluster) | struct bpb710 / fat_boot_secotorのフィールド名 |
+|:---------------------------|--------:|--------:|:--------------------------------------|
+| 1 セクタのバイト数         | 512     | 512     | bpbBytesPerSec / sector_size  |
+| セクタ / クラスタ          | 1       | 8       | bpbSecPerClust / sec_per_clus |
+| 全セクタ数                 | 0x20000 | 0x96000 | bpbTotSec32 / total_sect |
+| FATの数                    | 2       | 2       | bpbFATs / length |
+| FATの開始位置（セクタ単位）| 0x20    | 0x20    | bpbResSectors / reserved |
+| FATサイズ                  | 0x3f1   | 0x257   | bpbFATSz32 / fats |
+| FATが占めるセクタ数        | 0x7e2   | 0x4ae   | length * fats  |
+| データ領域の開始位置（セクタ単位） | 0x802   | 0x4ce   | reserved + length * fats |
+| データ領域が占めるセクタ数 | 0x1f7ee | 0x95B32 | total_sect - データ開始位置 |
+| バイト単位 | - | - | - |
+| FATボリュームの先頭アドレス  | 0x100000 | 0x100000 | パーティションテーブルから |
+| FATの開始位置| 0x104000  | 0x104000  |  |
+| データ領域の開始位置| 0x200400 | 0x199c00 |  |
 
 ```bash
-[1]emmc_card_reset: found valid version 3.0x SD card
-[1]sd_postinit: partition[0]: TYPE: 12, LBA = 0x800, #SECS = 0x20000
-[1]sd_postinit: partition[1]: TYPE: 131, LBA = 0x20800, #SECS = 0x20000
-[1]sd_postinit: partition[2]: TYPE: 12, LBA = 0x40800, #SECS = 0x20000
-[1]sd_postinit: sd_postinit ok
-
-[1]release: error: card is not locked
-[1]v6_set_super: v6_sb: size 1000 nblocks 960 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 39
-[1]f_mount: start
-[1]f_mount: vol: 2
-[1]f_mount: call mount_volume
-[1]mount_volume: start
-[1]disk_initialize: disk_initialize, drv 2
-[1]mount_volume: mode: 0x0 ok
-[1]find_volume: fs: 0xffff0000003475f0, part: 0
-[1]check_fs: called
-[1]trap: [1] unknown trap code: 34 at elr: 0x17fffffed4000001 with far: 0x17fffffed4000001
-=== dump trapframe        ===
-  spsr: 0x800003c5
-   elr: 0x17fffffed4000001
-    sp: 0x0
- tpidr: 0xaaaaaaaaaaaaaaaa
-    x1: 0xffff0000073dde00
-    x2: 0x0
-    x3: 0x200
-    x8: 0x31
-   x29: 0xffff0000073fecd0
-   x30: 0xffff0000000b11d4
-===-----------------------===
+--------------------------------    0
+  Bootセクタ
+--------------------------------    1
+  FSInfoセクタ
+--------------------------------    2
+  予約済み / 未定義
+--------------------------------    6 = backup_boot
+  バックアップ
+--------------------------------
+  未定義
+================================    0x20 : (32) = reserved (32)
+  FAT(1)
+--------------------------------
+  FAT(2)
+================================    0x802 (0x4ce) : RsvdSecCnt + NumFats(2) + FATSz
+  クラスタ#2
+--------------------------------
+  クラスタ#3
+--------------------------------
+  ..........
+--------------------------------
+  クラスタ#(全クラスタ数)
+--------------------------------
+  クラスタ#(全クラスタ数 + 1)
+================================   RsvdSecCnt + NumFats(2) + FATSz + NumClus * SecPerClus
+  未定義
+================================
 ```
 
-- V6とFAT2の順番を変え、FAT2のデバイス番号を4とした。
+## クラスタ番号Nに対応するデータと次のクラスタのアドレスの計算法
+
+- データは (N - 2) * 0x200 + Start_of_DATA (0x802) : アドレス 0x200400
+- 次のクラスタは N * 4 + Start_of_FAT (0x20)       : アドレス 0x104000
+
+## ブロックサイズ 4096 (8セクタ) 単位のバッファ操作で注意すべき点
+
+- FATパーティション
+    開始セクタ: 0x800 = 0x10_0000
+
+- Bootセクタ : セクタ0  `memmoce(boot_sec, buf->data(0), 512)`
+- FSinfoセクタ: セクタ1 `memmove(fsinfo, buf->data(0) + 512, 512)`
+- FATセクタ:            `for (i=0; i<127; i++) memmove(fat, buf->data[32+i], 4096)`
+    開始セクタ: 0x20 = BPB_RsvdSecCnt
+    セクタ数;   0x3f1 (0x7f [127] 回の読み取り)
+- DATAセクタ : 0x802 / 8 = 0x100 + 2 => 先頭は8の倍数でないため、別の処理が必要
+    開始セクタ: 0x802 = 0x20 + 0x3f1 * 2 = BPB_RsvdSecCnt + BPB_FATSz * BPB_NumFATs
+    セクタ数:   0x1f7fe = 0x20000 - 0x802 = BPB_TotSec32 - DATA開始セクタ
+
+###
+
+## denodeの構成
+
+- 1つのディレクトリエントリと0個以上のディレクトリスロットで構成される。いずれもサイズは32バイト。
+- 1つのdenodeの最大エントリ数は65,536 (=0x10000) (2Mバイト = 4096セクタ)である
+- ディスク上ではディレクトリスロットの降順、ディレクトリエントリの
+  順で配置される
+- ディレクトリエントリ
+    - ディスク上の構造体 : struct fat_dir_entry
+    - メモリ上の構造体   : struct dirent64
+    - 短い名前、属性値、大文字小文字の区別、ファイルサイズ、c/a/utime
+- ディレクトリスロット
+    - ディスク上の構造体 : struct fat_dir_slot
+    - 長い名前を構成する13文字、シーケンス番号、checksum
+
+### ファイル属性 : DIR_Attr
 
 ```bash
-[3]emmc_card_reset: found valid version 3.0x SD card
-[2]sd_postinit: partition[0]: TYPE: 12, LBA = 0x800, #SECS = 0x20000
-[2]sd_postinit: partition[1]: TYPE: 12, LBA = 0x20800, #SECS = 0x20000
-[2]sd_postinit: partition[2]: TYPE: 131, LBA = 0x40800, #SECS = 0x20000
-[2]sd_postinit: sd_postinit ok
-
-[2]release: error: card is not locked
-[1]v6_set_super: v6_sb: size 1000 nblocks 960 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 39
-[2]forkret: mount /proc is failed: -2
-[2]f_mount: start
-[2]f_mount: vol: 4
-[2]f_mount: call mount_volume
-[2]mount_volume: start
-[2]disk_initialize: disk_initialize, drv 4
-[2]mount_volume: mode: 0x0 ok
-[2]find_volume: fs: 0xffff0000003475f0, part: 0
-[2]check_fs: called
-[2]trap: [1] unknown trap code: 34 at elr: 0x17fffffed4000001 with far: 0x17fffffed4000001
-=== dump trapframe        ===
-  spsr: 0x800003c5
-   elr: 0x17fffffed4000001
-    sp: 0x0
- tpidr: 0x2aaaaa8a2a8a3aaa
-    x1: 0xffff0000073dde00
-    x2: 0x0
-    x3: 0x200
-    x8: 0x32
-   x29: 0xffff0000073fecd0
-   x30: 0xffff0000000b11d4
-===-----------------------===
+0x01: ATTR_READ_ONLY (書き込み禁止)
+0x02: ATTR_HIDDEN (隠しファイル)
+0x04: ATTR_SYSTEM (システム関連ファイル)
+0x08: ATTR_VOLUME_ID (ボリュームラベル)
+0x10: ATTR_DIRECTORY (ディレクトリ)
+0x20: ATTR_ARCHIVE (アーカイブ)
+0x0F: ATTR_LONG_FILE_NAME (LFNエントリ)
 ```
 
-- 6/6
+### 短いファイル名の小文字情報 : DIR_NTRes
 
 ```bash
-[3]emmc_card_reset: found valid version 3.0x SD card
-[1]sd_postinit: partition[0]: TYPE: 12, LBA = 0x800, #SECS = 0x20000
-[1]sd_postinit: partition[1]: TYPE: 12, LBA = 0x20800, #SECS = 0x20000
-[1]sd_postinit: partition[2]: TYPE: 131, LBA = 0x40800, #SECS = 0x20000
-[1]sd_postinit: sd_postinit ok
-
-[1]get_block: dev: 0x102, bno: 1, issec: 0
-[1]_read_entry: read: dev: 0x102, buffer: 0x73e0000, bno: 0x1, size: 0x1000
-[1]sd_read: minor: 2, buffer: 0x73e0000, offset: 0x1, size: 0x1000
-[1]release: error: card is not locked
-[3]v6_set_super: v6_sb: size 1000 nblocks 960 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 39
-[3]vfs_mount: lockup path: /proc
-[3]vfs_lookup: [[v6]] LP[1] cur->ino: 1, ref: 3, bits: 0x0
-[3]vfs_lookup: COMP[1]: 'proc'
-[3]vfs_lookup: FLG (SELF), path[i]: ''
-[3]vfs_lookup: fs of cur->ino 1 is [[v6]] root_node: 1
-[3]vfs_lookup: call ops->lookup with [[v6]] cur: 0xffff000000343f80 (1), component: proc, &cur: 0xffff0000073fede8
-[3]v6_lookup: vnode->ino: 1, rdev: 0x102, mode: 0x41ed, ip->valid: 0, COMP: proc
-[3]v6_ilock: vp->ino: 1, rdev: 0x102, valid: 0, type: 1, mode: 0x41ed
-[3]get_block: dev: 0x102, bno: 32, issec: 0
-[3]_read_entry: read: dev: 0x102, buffer: 0x73df000, bno: 0x20, size: 0x1000
-[3]sd_read: minor: 2, buffer: 0x73df000, offset: 0x20, size: 0x1000
-[3]v6_ilock: type: 1, nlink: 1, rdev: 0x102, size: 0x1000, mode: 0x41fd, addrs[0]: 0x28
-[3]v6_dirlookup: dp->ino: 1, name: proc
-[3]v6_readi: ip: ino:1, rdev: 0x102, off: 0x0, n: 64
-[3]get_block: dev: 0x102, bno: 40, issec: 0
-[3]_read_entry: read: dev: 0x102, buffer: 0x73de000, bno: 0x28, size: 0x1000
-[3]sd_read: minor: 2, buffer: 0x73de000, offset: 0x28, size: 0x1000
-[3]v6_readi: ip: ino:1, rdev: 0x102, off: 0x40, n: 64
-[3]get_block: dev: 0x102, bno: 40, issec: 0
-[3]v6_readi: ip: ino:1, rdev: 0x102, off: 0x80, n: 64
-[3]get_block: dev: 0x102, bno: 40, issec: 0
-[3]v6_readi: ip: ino:1, rdev: 0x102, off: 0xc0, n: 64
-[3]get_block: dev: 0x102, bno: 40, issec: 0
-[3]v6_readi: ip: ino:1, rdev: 0x102, off: 0x100, n: 64
-[3]get_block: dev: 0x102, bno: 40, issec: 0
-[3]v6_dirlookup: found by name: proc, dev: 0x102, ino: 5
-[3]v6_lookup: ip->ino: 5
-[3]v6_ilock: vp->ino: 5, rdev: 0x102, valid: 0, type: 0, mode: 0x0
-[3]get_block: dev: 0x102, bno: 32, issec: 0
-[3]v6_ilock: type: 1, nlink: 1, rdev: 0x102, size: 0x80, mode: 0x41ed, addrs[0]: 0x2b
-[3]vfs_lookup: [[v6]] LP[2] cur->ino: 5, ref: 1, bits: 0x0
-[3]vfs_lookup: [[v6]] OK: cur->ino: 5, ref: 1
-[3]vfs_mount: found path: /proc, vnode->ino: 5
-[3]dump_mp: === dump mount point from vfs_mount ===
-[3]dump_mp: fstype: procfs
-[3]dump_mp: mount_node: 0xffff000000344058 (5)
-[3]dump_mp: root_node: 0xffff00000034a110 (0)
-[3]dump_mp: super: 0x0
-[3]dump_mp: dev: 0x106
-[3]dump_mp: bits: 0x1
-
-[3]vfs_mount: lockup path: /d/
-[3]vfs_mount: found path: /d/, vnode->ino: -1
-[3]f_mount: start
-[3]f_mount: vol: 4
-[3]f_mount: call mount_volume
-[3]mount_volume: start
-[3]disk_initialize: disk_initialize, drv 4
-[3]mount_volume: mode: 0x0
-[3]find_volume: fs: 0xffff000000346a10, part: 0
-[3]check_fs: called
-[3]move_window: sect: 0, winsect: -1
-[3]move_window: fs->win: 0xffff000000346a50
-[3]disk_read: drv: 4, buff: 0xffff000000346a50, sector: 0, count: 1
-[3]get_block: dev: 0x1, bno: 0, issec: 1
-[3]_read_entry: read: dev: 0x1, buffer: 0x73dde00, bno: 0x0, size: 0x200
-[3]trap: [1] unknown trap code: 34 at elr: 0x17fffffed4000001 with far: 0x17fffffed4000001
-=== dump trapframe        ===
-  spsr: 0x800003c5
-   elr: 0x17fffffed4000001
-    sp: 0x0
- tpidr: 0xaa22abaaaaaaaa0a
-    x1: 0xffff0000073dde00
-    x2: 0x0
-    x3: 0x200
-    x8: 0x32
-   x29: 0xffff0000073feba0
-   x30: 0xffff0000000b18fc
-===-----------------------===
+0x08: ボディがすべて小文字
+0x10: 拡張子がすべて小文字
 ```
 
-## shが立ち上がるとこまで成功
+### 日付データ
 
-- drvからdeviceへの変換が間違っていた
-- ドライブ名でFATを判定するコードが間違っていた
+- DIR_CrtTimeTenthはサポートしていない
+- それ以外の日付、時間フィールドはサポートしている
+
+## その他、考慮すべき点
+
+- mode値なし
+- uid/gidなし
+- ハードリンク、シンボリックリンクはできない
+
+## 現在のsd.img内のboot.img
+
+### 16進ダンプ
 
 ```bash
-$ /bin/ls /
-drwxrwxr-x    1 root wheel  4096  6  7 09:28 .
-drwxrwxr-x    1 root wheel  4096  6  7 09:28 ..
-drwxrwxr-x    2 root wheel  1536  6  7 09:28 bin
-drwxrwxr-x    3 root wheel   192  6  7 09:28 dev
-drwxr-xr-x    0 root wheel     0  1  1 09:00 proc
-drwxrwxrwx    6 root wheel   256  6  7 09:28 lib
--rwxr-xr-x    9 root wheel    34  6  7 09:28 test.txt
-$ /bin/ls /d/
-ilockkern/drivers/console.c:264: kernel panic at cpu 1.
+sec[0]
+00100000: eb58 904d 544f 4f34 3033 3800 0201 2000  .X.MTOO4038... .
+00100010: 0200 0000 00f8 0000 3f00 1000 0000 0000  ........?.......
+00100020: 0000 0200 f103 0000 0000 0000 0200 0000  ................
+00100030: 0100 0600 0000 0000 0000 0000 0000 0000  ................
+00100040: 0000 2982 df71 1e4e 4f20 4e41 4d45 2020  ..)..q.NO NAME
+00100050: 2020 4641 5433 3220 2020 fa31 c08e d88e    FAT32   .1....
+00100060: c0fc b900 01be 007c bf00 80f3 a5ea 7200  .......|......r.
+00100070: 0008 b801 02bb 007c ba80 00b9 0100 cd13  .......|........
+00100080: 7205 ea00 7c00 00cd 1900 0000 0000 0000  r...|...........
+...
+001001b0: 0000 0000 0000 0000 0000 0000 0000 8000  ................
+001001c0: 0100 0c0f 3f82 0000 0000 d003 0200 0000  ....?...........
+001001d0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+001001e0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+001001f0: 0000 0000 0000 0000 0000 0000 0000 55aa  ..............U.
+
+sec[1]
+00100200: 5252 6141 0000 0000 0000 0000 0000 0000  RRaA............
+....
+001003e0: 0000 0000 7272 4161 80c1 0100 7f36 0000  ....rrAa.....6..
+001003f0: 0000 0000 0000 0000 0000 0000 0000 55aa  ..............U.
+
+sec[6] : バックアップはboot sectorのみ (FSInfoのバックアップはなし）
+00100c00: eb58 904d 544f 4f34 3033 3800 0201 2000  .X.MTOO4038... .
+00100c10: 0200 0000 00f8 0000 3f00 1000 0000 0000  ........?.......
+00100c20: 0000 0200 f103 0000 0000 0000 0200 0000  ................
+00100c30: 0100 0600 0000 0000 0000 0000 0000 0000  ................
+00100c40: 0000 2982 df71 1e4e 4f20 4e41 4d45 2020  ..)..q.NO NAME
+00100c50: 2020 4641 5433 3220 2020 fa31 c08e d88e    FAT32   .1....
+00100c60: c0fc b900 01be 007c bf00 80f3 a5ea 7200  .......|......r.
+00100c70: 0008 b801 02bb 007c ba80 00b9 0100 cd13  .......|........
+00100c80: 7205 ea00 7c00 00cd 1900 0000 0000 0000  r...|...........
+
+sec[0x20] : FAT : BPB_RsvdSecCnt : 0x20
+00104000: f8ff ffff ffff ff0f c002 0000 0400 0000  ................
+00104010: 0500 0000 0600 0000 0700 0000 0800 0000  ................
+..
+001047e0: f901 0000 fa01 0000 fb01 0000 fc01 0000  ................
+001047f0: fd01 0000 ffff ff0f ff01 0000 0002 0000  ................
+00104800: 0102 0000 0202 0000 0302 0000 0402 0000  ................
+..
+00104880: 2102 0000 2202 0000 ffff ff0f 2402 0000  !...".......$...
+
+sec[0x802] : DATA : BPB_RsvdSecCnt + BPB_FATSz * BPB_NumFATs = 0x20 + 0x3f1 * 2
+[kernel8.img] : データの先頭クラスタは0x03 => (3-2)*0x200 + 0x200400 = 0x200600
+00200400: 4b45 524e 454c 3820 494d 4720 1800 8151  KERNEL8 IMG ...Q
+00200410: 3c5c 3c5c 0000 8151 3c5c 0300 f8f5 0300  <\<\...Q<\......
+[COPYINg.linux]
+00200420: 4143 004f 0050 0059 0049 000f 0012 4e00  AC.O.P.Y.I....N.
+00200430: 4700 2e00 6c00 6900 6e00 0000 7500 7800  G...l.i.n...u.x.
+00200440: 434f 5059 494e 7e31 4c49 4e20 0000 8151  COPYIN~1LIN ...Q
+00200450: 3c5c 3c5c 0000 8151 3c5c fe01 0549 0000  <\<\...Q<\...I..
+[LICENCE.broadcom]
+00200460: 4263 006f 006d 0000 00ff ff0f 0067 ffff  Bc.o.m.......g..
+00200470: ffff ffff ffff ffff ffff 0000 ffff ffff  ................
+00200480: 014c 0049 0043 0045 004e 000f 0067 4300  .L.I.C.E.N...gC.
+00200490: 4500 2e00 6200 7200 6f00 0000 6100 6400  E...b.r.o...a.d.
+002004a0: 4c49 4345 4e43 7e31 4252 4f20 0000 8151  LICENC~1BRO ...Q
+002004b0: 3c5c 3c5c 0000 8151 3c5c 2302 3a06 0000  <\<\...Q<\#.:...
+[Makefile]
+002004c0: 414d 0061 006b 0065 0066 000f 00c1 6900  AM.a.k.e.f....i.
+002004d0: 6c00 6500 0000 ffff ffff 0000 ffff ffff  l.e.............
+002004e0: 4d41 4b45 4649 4c45 2020 2020 0000 8151  MAKEFILE    ...Q
+002004f0: 3c5c 3c5c 0000 8151 3c5c 2702 6303 0000  <\<\...Q<\'.c...
+[armstub8-rpi4.bin]
+00200500: 422e 0062 0069 006e 0000 000f 0072 ffff  B..b.i.n.....r..
+00200510: ffff ffff ffff ffff ffff 0000 ffff ffff  ................
+00200520: 0161 0072 006d 0073 0074 000f 0072 7500  .a.r.m.s.t...ru.
+00200530: 6200 3800 2d00 7200 7000 0000 6900 3400  b.8.-.r.p...i.4.
+00200540: 4152 4d53 5455 7e31 4249 4e20 0000 8151  ARMSTU~1BIN ...Q
+00200550: 3c5c 3c5c 0000 8151 3c5c 2902 0004 0000  <\<\...Q<\).....
+[armstub8.S]
+00200560: 4152 4d53 5455 4238 5320 2020 0800 8151  ARMSTUB8S   ...Q
+00200570: 3c5c 3c5c 0000 8151 3c5c 2b02 7c16 0000  <\<\...Q<\+.|...
+[bootcode.bin]
+00200580: 424f 4f54 434f 4445 4249 4e20 1800 8151  BOOTCODEBIN ...Q
+00200590: 3c5c 3c5c 0000 8151 3c5c 3702 e8cc 0000  <\<\...Q<\7.....
+[config.txt]
+002005a0: 434f 4e46 4947 2020 5458 5420 1800 8151  CONFIG  TXT ...Q
+002005b0: 3c5c 3c5c 0000 8151 3c5c 9e02 7b00 0000  <\<\...Q<\..{...
+[fixup.dat]
+002005c0: 4649 5855 5020 2020 4441 5420 1800 8151  FIXUP   DAT ...Q
+002005d0: 3c5c 3c5c 0000 8151 3c5c 9f02 8f1c 0000  <\<\...Q<\......
+[fixup4.dat]
+002005e0: 4649 5855 5034 2020 4441 5420 1800 8151  FIXUP4  DAT ...Q
+002005f0: 3c5c 3c5c 0000 8151 3c5c ae02 4215 0000  <\<\...Q<\..B...
+
+ルートディレクトリの続き: (0x2c0 - 2) * 0x200 + 200400 = 0x258000
+[fixup4cd.dat]
+00258000: 4649 5855 5034 4344 4441 5420 1800 8151  FIXUP4CDDAT ...Q
+00258010: 3c5c 3c5c 0000 8151 3c5c b902 6f0c 0000  <\<\...Q<\..o...
+[fixup_cd.dat]
+00258020: 4649 5855 505f 4344 4441 5420 1800 8151  FIXUP_CDDAT ...Q
+00258030: 3c5c 3c5c 0000 8151 3c5c c102 6f0c 0000  <\<\...Q<\..o...
+[start.elf]
+00258040: 5354 4152 5420 2020 454c 4620 1800 8151  START   ELF ...Q
+00258050: 3c5c 3c5c 0000 8151 3c5c c802 8019 2d00  <\<\...Q<\....-.
+[start4.elf]
+00258060: 5354 4152 5434 2020 454c 4620 1800 8151  START4  ELF ...Q
+00258070: 3c5c 3c5c 0000 8151 3c5c 5519 a00c 2200  <\<\...Q<\U...".
+[start4cd.elf]
+00258080: 5354 4152 5434 4344 454c 4620 1800 8151  START4CDELF ...Q
+00258090: 3c5c 3c5c 0000 8151 3c5c 5c2a 1c23 0c00  <\<\...Q<\\*.#..
+[start_cd.elf]
+002580a0: 5354 4152 545f 4344 454c 4620 1800 8151  START_CDELF ...Q
+002580b0: 3c5c 3c5c 0000 8151 3c5c 6e30 1c23 0c00  <\<\...Q<\n0.#..
+
+[ルートディレクトリのFATチェーン]
+0x2 -> 0x2c0 : 0x2c0 * 4 + 0x104000 = 0x104b00 [0x0fffffff]で終了
+00104b00: ffff ff0f c202 0000 c302 0000 c402 0000  ................
+
+[kernel6.imgのFATチェーン]
+0x3 -> 0x4 ... -> 0x1fd : 0x1d * 4 + 104000 = 0x1047f4 [0x0fffffff]で終了
+001047f0: fd01 0000 ffff ff0f ff01 0000 0002 0000  ................
+
+[kernel6.imgの内容]
+先頭: (3 - 1) * 0x200 + 0x200400
+00200600: 6001 0010 2100 80d2 4200 80d2 6300 80d2  `...!...B...c...
+00200610: 091b 80d2 2079 21f8 2079 22f8 2079 23f8  .... y!. y". y#.
+2番目: FAT(3+1) => 0x4 => (4-1)*0x200+0x200400
+00200800: 0080 1e91 5730 0094 a001 00d0 0040 2391  ....W0.......@#.
+00200810: 5430 0094 e003 14aa f353 41a9 fd7b c2a8  T0.......SA..{..
+最後: (0x1fd - 2) * 0x200 + 0x200400 = 0x23fa00
+0023fbd0: 00b9 0a00 0000 ffff 60bc 0a00 0000 ffff  ........`.......
+0023fbe0: a0c1 0a00 0000 ffff 0000 0000 0000 0000  ................
+0023fbf0: 0000 0000 0000 0000 0506 e017 0000 0000  ................
 ```
 
-- refcountのチェックを外す
+### bootセクタとFSInfoセクタの各変数の値
+
+#### bootセクタ
 
 ```bash
-$ /bin/ls /d/
-[3]sys_openat: dirfd: -100, path: /d/, flags : 0x20000, mode: 0x0
-[3]open_path: path: 4:/ mode: 0x0
-[3]open_path: ino: 193435586, mode: 0x0, dir: 1
-[3]sys_fstat: fd: 3, st: 0xfffffffffb80
-[3]sys_fstat: fd: 3, ino: 193435586, mode: 0x0
+S_JmpBoot     : 0xeb5890
+BS_OEMName     : 4d544f4f34303338 : MTOO4038
+BPB_BytsPerSec : 0x200
+BPB_SecPerClus : 1
+BPB_RsvdSecCnt : 0x20
+BPB_NumFATs    : 2
+BPB_RootEntCnt : 0
+BPB_TotSec16   : 0
+BPB_Media      : f8
+BPB_FATSz16    : 0
+BPB_SecPerTrk  : 0x3f
+BPB_NumHeads   : 0x10
+BPB_HiddSec    : 0
+BPB_TotSec32   : 0x20000
+
+BPB_FATSz32    : 0x03f1
+BPB_ExtFlags   : 0
+BPB_FSVer      : 0                      : v0.0
+BPB_RootClus   : 2
+BPB_FSInfo     : 1
+BPB_BkBootSec  : 6
+BPB_Reserved   : 0
+BS_DrvNum      : 0
+BS_Reserved    : 0
+BS_BootSig     : 0x29
+BS_VolID       : 0x0245240a
+BS_VolLab      : 4e4f204e414d4520202020	: NO NAME
+BS_FilSysType  : 4641543332202020       : FAT32
+BS_BootCode32  :
+00100050:                          fa31 c08e d88e
+00100060: c0fc b900 01be 007c bf00 80f3 a5ea 7200
+00100070: 0008 b801 02bb 007c ba80 00b9 0100 cd13
+00100080: 7205 ea00 7c00 00cd 1900
 ```
 
-- lsコマンドのコードではst.stmodeで通常ファイルとディレクトリを判定している。
-  modeが設定されていないので表示されないものと思われる
-
-## fatｆｓのｌｓ表示に成功
-
-- lsコマンドもtypeコードでT_DIR_FATは別処理をしていた。
-- typeはv6とfatで別のコードとしてたので統一してvfs.hに移した。
-- muslの`struct stat`にはこのtypeコードはないため、当面、使用されていない
-  st_devにセットしてlsのコードで使うようにした。
-- fat_inodeのinoはhash値を使っているが、大きな数 (193435586など)になる場合が
-  ある。lsの通常ファイルの表示は4桁となっている。
+#### FSInfo
 
 ```bash
-$ /bin/ls /d/
-[3]fat_open: fd: 3, ip: ino: 193435586, mode: 0x4000, type: 9
---- FAT dir ---
-name  attr  sz              // fatのlsはino, 時刻などは表示していない
-fat.txt 32 44
-longlongname.txt 32 37
-.fseventsd 18 0
-$ /bin/ls /
-drwxrwxr-x    1 root wheel  4096  6  7 15:52 .
-drwxrwxr-x    1 root wheel  4096  6  7 15:52 ..
-drwxrwxr-x    2 root wheel  1536  6  7 15:52 bin
-drwxrwxr-x    3 root wheel   192  6  7 15:52 dev
-drwxr-xr-x    0 root wheel     0  1  1 09:00 proc
-drwxrwxrwx    6 root wheel   256  6  7 15:52 lib
--rwxr-xr-x    9 root wheel    34  6  7 15:52 test.txt
-$ /bin/date
-1900年 1日 1日 月曜日  9時 0分30秒 JST          // 電池が切れた?
-$ /bin/dns
-// ストール
+FSI_LeadSig    : 0x41615252
+FSI_Reserved1  : 0
+FSI_StrucSig   : 0x61417272
+FSI_Free_Count : 0x1c180
+FSI_Nxt_Free   : 0x367f         : 0x104000 + 0x367f * 4 = 0x1119fc
+FSI_Reserved2  : 0
+FSI_TrailSig   : 0xaa550000
+
+001119f0: 7d36 0000 7e36 0000 7f36 0000 ffff ff0f  }6..~6...6......
+00111a00: 0000 0000 0000 0000 0000 0000 0000 0000  ................
 ```
 
-- fat_write()のバグを修正したところ ls /d/, echo abc > /d/test.txt, cat /d/test.txt
-  が動くようになったが、shに戻らずストールする場合がある。
+## サブディレクトリ、日本語ファイル名、8.3以外のファイル名の調査
+
+### 以下のファイルを/bootに追加
 
 ```bash
-$ /bin/dns
-[0]syscall1: proc[8] sys_gettid called
-[0]syscall1: proc[8] sys_rt_sigprocmask called
-[0]syscall1: proc[8] sys_rt_sigprocmask called
-[0]syscall1: proc[8] sys_brk called
-[0]syscall1: proc[8] sys_brk called
-[0]syscall1: proc[8] sys_execve called
-[2]syscall1: proc[8] sys_gettid called
-[2]syscall1: proc[8] sys_dns called
-[1]ntp_get_time: timestamp: 0x58939f8b, utc: 1780969529
-[1]syscall1: proc[8] sys_exit_group called
-$ /bin/data 1780969529
-[1]syscall1: proc[9] sys_gettid called
-[1]syscall1: proc[9] sys_rt_sigprocmask called
-[1]syscall1: proc[9] sys_rt_sigprocmask called
-[1]syscall1: proc[9] sys_brk called
-[1]syscall1: proc[9] sys_brk called
-[1]syscall1: proc[9] sys_execve called
-[1]syscall1: proc[9] sys_writev called
-execve[1]syscall1: proc[9] sys_writev called
-:[1]syscall1: proc[9] sys_writev called
- [1]syscall1: proc[9] sys_writev called
-Operation not permitted[1]syscall1: proc[9] sys_writev called
-
-[1]syscall1: proc[9] sys_exit_group called
-$ /bin/ls /d/
-[0]syscall1: proc[10] sys_gettid called
-[0]syscall1: proc[10] sys_rt_sigprocmask called
-[0]syscall1: proc[10] sys_rt_sigprocmask called
-[0]syscall1: proc[10] sys_brk called
-[0]syscall1: proc[10] sys_brk called
-[0]syscall1: proc[10] sys_execve called
-[1]syscall1: proc[10] sys_gettid called
-[1]syscall1: proc[10] sys_openat called
-[1]syscall1: proc[10] sys_fstat called
-[1]syscall1: proc[10] sys_ioctl called
-[1]syscall1: proc[10] sys_writev called
---- FAT dir ---
-[1]syscall1: proc[10] sys_writev called
-name  attr  sz
-[1]syscall1: proc[10] sys_read called
-[2]syscall1: proc[10] sys_writev called
-fat.txt 32 44
-[2]syscall1: proc[10] sys_read called
-[2]syscall1: proc[10] sys_writev called
-longlongname.txt 32 37
-[2]syscall1: proc[10] sys_read called
-[2]syscall1: proc[10] sys_writev called
-.fseventsd 18 0
-[2]syscall1: proc[10] sys_read called
-[2]syscall1: proc[10] sys_close called
-[2]syscall1: proc[10] sys_exit_group called
-$ /bin/echo abc > /d/test.txt
-[1]syscall1: proc[11] sys_gettid called
-[1]syscall1: proc[11] sys_rt_sigprocmask called
-[1]syscall1: proc[11] sys_rt_sigprocmask called
-[1]syscall1: proc[11] sys_brk called
-[1]syscall1: proc[11] sys_brk called
-[1]syscall1: proc[11] sys_close called
-[1]syscall1: proc[11] sys_openat called
-[1]syscall1: proc[11] sys_execve called
-[1]syscall1: proc[11] sys_gettid called
-[1]syscall1: proc[11] sys_ioctl called
-[1]syscall1: proc[11] sys_writev called
-[1]fat_write: file: ino: -795199120
-[1]fat_write: file: ino: -795199120
-[1]syscall1: proc[11] sys_exit_group called
-$ /bin/cat /d/test.txt
-[3]syscall1: proc[12] sys_gettid called
-[3]syscall1: proc[12] sys_rt_sigprocmask called
-[3]syscall1: proc[12] sys_rt_sigprocmask called
-[3]syscall1: proc[12] sys_brk called
-[3]syscall1: proc[12] sys_brk called
-[3]syscall1: proc[12] sys_execve called
-[1]syscall1: proc[12] sys_gettid called
-[1]syscall1: proc[12] sys_openat called
-[1]syscall1: proc[12] sys_read called
-[1]syscall1: proc[12] sys_ioctl called
-[1]syscall1: proc[12] sys_writev called
+$ ls
+COPYING.linux      armstub8.S    fixup4.dat    start4.elf
+LICENCE.broadcom   bootcode.bin  fixup4cd.dat  start4cd.elf
+Makefile           config.txt    fixup_cd.dat  start_cd.elf
+armstub8-rpi4.bin  fixup.dat     start.elf     test
+$ cd test
+ls -l
+total 12
+-rw-r--r-- 1 dspace staff 18  2  3 09:54 longlonglong.txt
+-rw-r--r-- 1 dspace staff 15  2  3 09:54 test.txt
+-rw-r--r-- 1 dspace staff 40  2  3 09:54 日本語.txt
+$ cat longlonglong.txt
+longlonglong
 abc
-[1]syscall1: proc[12] sys_read called
-[1]syscall1: proc[12] sys_close called      // sys_exit_group called が呼ばれない
+
+$ cat test.txt
+test data
+123
+
+$ cat 日本語.txt
+日本語データ
+abc
+あいうえお
+
 ```
 
-- lock, unlockの競合だと思わるが解決には至らず。一旦、保留。
+### bootセクタ
 
 ```bash
-$ /bin/ls /d/
---- FAT dir ---
-name  attr  sz
-fat.txt 32 44
-longlongname.txt 32 37
-.fseventsd 18 0
-[1]iupdate: type: 0, mode: 0x8000, valid: 1
-[1]iupdate: iupdate ok
-$ /bin/cat /d/fat.txt
-hello fat
-test 123
-abcdef
-2025-02-20
-ebetsu
-$ /bin/echo abc > /d/echo.txt
-$ /bin/ls /d/
---- FAT dir ---
-name  attr  sz
-fat.txt 32 44
-longlongname.txt 32 37
-.fseventsd 18 0
-echo.txt 32 4
-$ /bin/cat /d/longlongname.txt
-this is a long long file name text.
-$ /bin/cat /d/echo.txt
-abc                     // ここでストール. catやlsでストールすることもあり
+S_JmpBoot     : 0xeb5890
+BS_OEMName     : 4d544f4f34303338 : MTOO4038
+BPB_BytsPerSec : 0x200
+BPB_SecPerClus : 1
+BPB_RsvdSecCnt : 0x20
+BPB_NumFATs    : 2
+BPB_RootEntCnt : 0
+BPB_TotSec16   : 0
+BPB_Media      : f8
+BPB_FATSz16    : 0
+BPB_SecPerTrk  : 0x3f
+BPB_NumHeads   : 0x10
+BPB_HiddSec    : 0
+BPB_TotSec32   : 0x20000
+
+BPB_FATSz32    : 0x03f1
+BPB_ExtFlags   : 0
+BPB_FSVer      : 0                      : v0.0
+BPB_RootClus   : 2
+BPB_FSInfo     : 1
+BPB_BkBootSec  : 6
+BPB_Reserved   : 0
+BS_DrvNum      : 0
+BS_Reserved    : 0
+BS_BootSig     : 0x29
+BS_VolID       : 0x03f1f720
+BS_VolLab      : 4e4f204e414d4520202020	: NO NAME
+BS_FilSysType  : 4641543332202020       : FAT32
+BS_BootCode32  :
 ```
 
-## `/bin/ls2`（readdir()でディレクトリを処理し、fstatatシスコールを使用）でFAT対応
-
-- `fs/fatfs/ffconf.h`で`FF_USE_CHMOD 1`, `FF_FS_NORTC 0`に変更
-- get_fattime()を実装
-- fat_stat()を実装
-
+### FSInof
 
 ```bash
-$ /bin/ls2 /d/
-drwxr-xr-x      0 2026-06-11 13:21:00 dira
--rw-r--r--     44 2026-06-11 13:21:00 fat.txt
--rw-r--r--     37 2026-06-11 13:21:00 longlongname.txt
-$
+FSI_Free_Count : 0x01c179
+FSI_Nxt_Free   : 0x3686
 ```
 
-## `/bin/dns`がストールする件
+### 追加したディレクトリ、ファイルの内容
 
 ```bash
-$ /bin/dns
-[2]net_input_handler: queue pushed (num:1), dev=net0, type=0x0806, len=46
-[1]net_softirq_handler: queue popped (num:0), dev=net0, type=0x0806, len=46
-[2]net_input_handler: queue pushed (num:0), dev=net0, type=0x0806, len=46
-[1]net_softirq_handler: queue popped (num:0), dev=net0, type=0x0806, len=46
-[1]net_softirq_handler: queue popped (num:4294967294), dev=     // num=0xfffffffe = -2
+[testサブディレクトリ]
+002580c0: 5445 5354 2020 2020 2020 2010 0800 e44e  TEST       ....N
+002580d0: 435c 435c 0000 e44e 435c 8036 0000 0000  C\C\...NC\.6....
+
+[testサブディレクトリの内容] : (0x3680 - 2) * 0x200 + 0x200400 = 0x8d0000
+[.]
+008d0000: 2e20 2020 2020 2020 2020 2010 0000 e44e  .          ....N
+008d0010: 435c 435c 0000 e44e 435c 8036 0000 0000  C\C\...NC\.6....
+[..]
+008d0020: 2e2e 2020 2020 2020 2020 2010 0000 e44e  ..         ....N
+008d0030: 435c 435c 0000 e44e 435c 0000 0000 0000  C\C\...NC\......
+[longlonglong.txt]
+008d0040: 4274 0078 0074 0000 00ff ff0f 008d ffff  Bt.x.t..........
+008d0050: ffff ffff ffff ffff ffff 0000 ffff ffff  ................
+008d0060: 016c 006f 006e 0067 006c 000f 008d 6f00  .l.o.n.g.l....o.
+008d0070: 6e00 6700 6c00 6f00 6e00 0000 6700 2e00  n.g.l.o.n...g...
+
+008d0080: 4c4f 4e47 4c4f 7e31 5458 5420 0000 e44e  LONGLO~1TXT ...N
+008d0090: 435c 435c 0000 e44e 435c 8136 1200 0000  C\C\...NC\.6....
+[日本語.txt] : U+65e5 (日) U+672c (本) U+8a9e (語) U+002e U+0074 U+0078 U+0074 (.txt)
+008d00a0: 41e5 652c 679e 8a2e 0074 000f 0095 7800  A.e,g....t....x.
+008d00b0: 7400 0000 ffff ffff ffff 0000 ffff ffff  t...............
+
+008d00c0: 7e31 2020 2020 2020 5458 5420 0000 e44e  ~1      TXT ...N
+008d00d0: 435c 435c 0000 e44e 435c 8236 2800 0000  C\C\...NC\.6(...
+[test.txt]
+008d00e0: 5445 5354 2020 2020 5458 5420 1800 e44e  TEST    TXT ...N
+008d00f0: 435c 435c 0000 e44e 435c 8336 0f00 0000  C\C\...NC\.6....
+
+[testサブディレクトリの次のFATチェーン] : (0x3680) * 4 + 0x104000 = 0x111a00 : 終了
+00111a00: [ffff ff0f] ffff ff0f ffff ff0f ffff ff0f  ................
+
+[longlonglong.txtの内容] : (0x3681 - 2) * 0x200 + 0x200400 = 0x8d0200
+008d0200: 6c6f 6e67 6c6f 6e67 6c6f 6e67 0a61 6263  longlonglong.abc
+008d0210: 0a0a a90f c127 a90f ca27 a90f d427 a90f  .....'...'...'..
+
+[日本語.txtの内容] : U+E697A5 U+E69CAC U+E8AA9E U+E38387 U+E383BC U+E382BF (日本語データ)
+008d0400: e697 a5e6 9cac e8aa 9ee3 8387 e383 bce3  ................
+008d0410: 82bf 0a61 6263 0ae3 8182 e381 84e3 8186  ...abc..........
+008d0420: e381 88e3 818a 0a0a b500 d400 f300 1101  ................
+
+[test.txtの内容]
+008d0600: 7465 7374 2064 6174 610a 3132 330a 0a00  test data.123...
+
+=====================
+
+以下の3ファイルがルートディレクトリにあるのはmksd.mkの問題(SDカードにもある)で今回は無視
+[longlonglong.txtのdirentry]
+002580e0: 4274 0078 0074 0000 00ff ff0f 008d ffff  Bt.x.t..........
+002580f0: ffff ffff ffff ffff ffff 0000 ffff ffff  ................
+00258100: 016c 006f 006e 0067 006c 000f 008d 6f00  .l.o.n.g.l....o.
+00258110: 6e00 6700 6c00 6f00 6e00 0000 6700 2e00  n.g.l.o.n...g...
+00258120: 4c4f 4e47 4c4f 7e31 5458 5420 0000 e44e  LONGLO~1TXT ...N
+00258130: 435c 435c 0000 e44e 435c 8436 1200 0000  C\C\...NC\.6....
+[日本語.txtのdirentry]
+00258140: 41e5 652c 679e 8a2e 0074 000f 0095 7800  A.e,g....t....x.
+00258150: 7400 0000 ffff ffff ffff 0000 ffff ffff  t...............
+00258160: 7e31 2020 2020 2020 5458 5420 0000 e44e  ~1      TXT ...N
+00258170: 435c 435c 0000 e44e 435c 8536 2800 0000  C\C\...NC\.6(...
+[test.txtのdirentry]
+00258180: 5445 5354 2020 2020 5458 5420 1800 e44e  TEST    TXT ...N
+00258190: 435c 435c 0000 e44e 435c 8636 0f00 0000  C\C\...NC\.6....
 ```
-- udp/tcp/netでqueue_init()をするようにしたところ/bin/dnsが動くようになった
-- /bin/dns実行でrtcに設定するようにした
+
+## FAT32ボリュームを8セクタ/クラスタで作成
+
+- xv6は問題なく実行できた
+- FAT32領域が小さいと"Too few clusters for 32 bit fat"のエラー
+    - 256MBはだめだが、257MBではOKだった。
+    - 300MBとした
+
+    ```diff
+    diff --git a/mksd.mk b/mksd.mk
+    index 31d8cfd..a7080f5 100644
+    --- a/mksd.mk
+    +++ b/mksd.mk
+    @@ -7,11 +7,11 @@ FS_IMG := $(BUILD_DIR)/fs.img
+    SECTOR_SIZE := 512
+
+    # The total sd card image is 128 MB, 64 MB for boot sector and 64 MB for file system.
+    -# SDカードイメージ: 128MB = ブートセクタ: 64MB + ファイル・システム: 64MB
+    +# SDカードイメージ: 364MB = ブートセクタ: 300MB + ファイル・システム: 64MB
+    # セクタ（512バイト）単位
+    -SECTORS := 256*1024
+    +SECTORS := (600+128)*1024
+    BOOT_OFFSET := 2048
+    -BOOT_SECTORS= 128*1024
+    +BOOT_SECTORS= 600*1024
+    FS_OFFSET := $$(($(BOOT_OFFSET)+$(BOOT_SECTORS)))
+    FS_SECTORS := $$(($(SECTORS)-$(FS_OFFSET)))
+
+    @@ -25,7 +25,7 @@ $(BOOT_IMG): $(KERN_IMG) $(shell find boot/*)
+        dd if=/dev/zero of=$@ seek=$$(($(BOOT_SECTORS) - 1)) bs=$(SECTOR_SIZE) count=1
+        # -F specify FAT32
+        # -c 1 specify one sector per cluster so that we can create a smaller one
+    -	mformat -F -c 1 -i $@ ::
+    +	mformat -F -c 8 -s $(BOOT_SECTORS) -i $@ ::
+        # Copy files into boot partition
+        $(foreach x, $^, mcopy -i $@ $(x) ::$(notdir $(x));)
+    ```
+
+### BIOS Parameter Block (BPB)
+
+```bash
+00100000: eb58 904d 544f 4f34 3033 3800 0208 2000  .X.MTOO4038... .
+00100010: 0200 0000 00f8 0000 3f00 1000 0000 0000  ........?.......
+00100020: 0060 0900 5702 0000 0000 0000 0200 0000  .`..W...........
+00100030: 0100 0600 0000 0000 0000 0000 0000 0000  ................
+00100040: 0000 2912 1f25 484e 4f20 4e41 4d45 2020  ..)..%HNO NAME
+00100050: 2020 4641 5433 3220 2020 fa31 c08e d88e    FAT32   .1....
+
+BPB_BytsPerSec : 0x200
+BPB_SecPerClus : 8
+BPB_RsvdSecCnt : 0x0020
+BPB_NumFATs    : 2
+BPB_RootEntCnt : 0
+BPB_TotSec16   : 0
+BPB_Media      : 0xf8
+BPB_FATSz16    : 0
+BPB_HiddSec    : 0
+BPB_TotSec32   : 0x96000
+
+BPB_FATSz32    : 0x257
+BPB_ExtFlags   : 0
+BPB_FSVer      : 0                      : v0.0
+BPB_RootClus   : 2
+BPB_FSInfo     : 1
+BPB_BkBootSec  : 6
+```
+
+### 各領域のダンプ
+
+```bash
+// PBP
+00100000: eb58 904d 544f 4f34 3033 3800 0208 2000  .X.MTOO4038... .
+00100010: 0200 0000 00f8 0000 3f00 1000 0000 0000  ........?.......
+00100020: 0060 0900 5702 0000 0000 0000 0200 0000  .`..W...........
+00100030: 0100 0600 0000 0000 0000 0000 0000 0000  ................
+00100040: 0000 2912 1f25 484e 4f20 4e41 4d45 2020  ..)..%HNO NAME
+00100050: 2020 4641 5433 3220 2020 fa31 c08e d88e    FAT32   .1....
+
+// FSInfo
+00100200: 5252 6141 0000 0000 0000 0000 0000 0000  RRaA............
+00100210: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+001003e0: 0000 0000 7272 4161 8e24 0100 d906 0000  ....rrAa.$......
+001003f0: 0000 0000 0000 0000 0000 0000 0000 55aa  ..............U.
+
+// BACKUP
+00100c00: eb58 904d 544f 4f34 3033 3800 0208 2000  .X.MTOO4038... .
+00100c10: 0200 0000 00f8 0000 3f00 1000 0000 0000  ........?.......
+
+// FAT(0)
+00104000: f8ff ffff ffff ff0f ffff ff0f 0400 0000  ................
+00104010: 0500 0000 0600 0000 0700 0000 0800 0000  ................
+
+// FAT(1)
+0014ee00: f8ff ffff ffff ff0f ffff ff0f 0400 0000  ................
+0014ee10: 0500 0000 0600 0000 0700 0000 0800 0000  ................
+
+// (2 - 2) * 0x1000 + 0x99c00 : root directory
+00199c00: 4b45 524e 454c 3820 494d 4720 1800 3991  KERNEL8 IMG ..9.
+00199c10: 535c 535c 0000 3991 535c 0300 f8f5 0300  S\S\..9.S\......
+00199c20: 4143 004f 0050 0059 0049 000f 0012 4e00  AC.O.P.Y.I....N.
+00199c30: 4700 2e00 6c00 6900 6e00 0000 7500 7800  G...l.i.n...u.x.
+00199c40: 434f 5059 494e 7e31 4c49 4e20 0000 3991  COPYIN~1LIN ..9.
+00199c50: 535c 535c 0000 3991 535c 4300 0549 0000  S\S\..9.S\C..I..
+00199c60: 4263 006f 006d 0000 00ff ff0f 0067 ffff  Bc.o.m.......g..
+00199c70: ffff ffff ffff ffff ffff 0000 ffff ffff  ................
+
+// (3 - 2) * 0x1000 + 0x99c00 : kernel8.img
+0019ac00: 6001 0010 2100 80d2 4200 80d2 6300 80d2  `...!...B...c...
+0019ac10: 091b 80d2 2079 21f8 2079 22f8 2079 23f8  .... y!. y". y#.
+0019ac20: 9f3f 03d5 df3f 03d5 9f20 03d5 4942 38d5  .?...?... ..IB8.
+0019ac30: 2905 7e92 3f21 00f1 2001 0054 2c00 0054  ).~.?!.. ..T,..T
+0019ac40: 29b6 80d2 0911 1ed5 2939 80d2 0940 1ed5  ).......)9...@..
+```
