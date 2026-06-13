@@ -1,13 +1,24 @@
-#include <stdint.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <string.h>
 #include <fcntl.h>
 #include <time.h>
-#include <usr_fs.h>
-#include <sys/stat.h>
-#include "../../../inc/fs/fatfs/ff.h"
+#include <dirent.h>
+
+#define DIRSIZ      58
+#define T_DIR       1   // ディレクトリ
+#define T_FILE      2   // 通常ファイル
+#define T_DEV       3   // ブロックデバイス
+#define T_CHR       4   // キャラクタデバイス
+#define T_SYMLINK   5   // シンボリックリンク
+#define T_SOCK      6   // ソケット
+#define T_FIFO      7   // FIFO
+#define T_FILE_FAT  8   // FAT32ファイル
+#define T_DIR_FAT   9   // FAT32ディレクトリ
+#define T_UNKNOWN   10
 
 char *fmtname(char *path)
 {
@@ -26,20 +37,11 @@ char *fmtname(char *path)
     return buf;
 }
 
-char * fmttime(time_t time)
+void format_file_mode(mode_t mode, char *fmod)
 {
-    static char mtime_s[12];
+    mode_t curbit = 0400;
 
-    struct tm *tm = localtime(&time);
-    sprintf(mtime_s, "%2d %2d %02d:%02d",
-        tm->tm_mon + 1, tm->tm_mday,  tm->tm_hour, tm->tm_min);
-    return mtime_s;
-}
-
-char *
-fmtmode(mode_t mode)
-{
-    static char fmod[11];
+    strcpy(fmod, "-rwxrwxrwx");
 
     if (S_ISDIR(mode)) fmod[0] = 'd';
     else if (S_ISCHR(mode)) fmod[0] = 'c';
@@ -47,27 +49,19 @@ fmtmode(mode_t mode)
     else if (S_ISFIFO(mode)) fmod[0] = 'f';
     else if (S_ISLNK(mode)) fmod[0] = 'l';
     else if (S_ISSOCK(mode)) fmod[0] = 's';
-    else fmod[0] = '-';
 
-    fmod[1] = (S_IRUSR & mode) ? 'r' : '-';
-    fmod[2] = (S_IWUSR & mode) ? 'w' : '-';
-    fmod[3] = (S_IXUSR & mode) ? 'x' : '-';
-    fmod[4] = (S_IRGRP & mode) ? 'r' : '-';
-    fmod[5] = (S_IWGRP & mode) ? 'w' : '-';
-    fmod[6] = (S_IXGRP & mode) ? 'x' : '-';
-    fmod[7] = (S_IROTH & mode) ? 'r' : '-';
-    fmod[8] = (S_IWOTH & mode) ? 'w' : '-';
-    fmod[9] = (S_IXOTH & mode) ? 'x' : '-';
+    for (char i = 1; i < 10; i++) {
+        if (!(mode & curbit))
+            fmod[i] = '-';
+        curbit >>= 1;
+    }
+
     if (S_ISUID & mode) fmod[3] = 's';
     if (S_ISGID & mode) fmod[6] = 's';
     if (S_ISVTX & mode) fmod[9] = 't';
-    fmod[10] = 0;
-
-    return fmod;
 }
 
-char *
-fmtuser(uid_t uid, gid_t gid)
+char * fmtuser(uid_t uid, gid_t gid)
 {
     if (uid == 0 && gid == 0)
         return "root wheel";
@@ -77,70 +71,72 @@ fmtuser(uid_t uid, gid_t gid)
         return "anon anon ";
 }
 
-
-void ls(char *path)
+int ls(char *path)
 {
-    char buf[512], *p;
     int fd;
-    struct dirent de;
-    struct stat st;
-    FILINFO info;
+    struct dirent *dent;
+    struct stat statbuf;
+    char filemode[16];
+    char filename[64];
+    char timestamp[32];
+    DIR *dir;
 
-    if ((fd = open(path, O_RDONLY)) < 0) {
-        fprintf(stderr, "ls: cannot open %s\n", path);
-        return;
+    if (fstatat(AT_FDCWD, path, &statbuf, AT_SYMLINK_NOFOLLOW) < 0) {
+        fprintf(stderr, "can't get stat of %s\n", path);
+        return (EXIT_FAILURE);
     }
 
-    if (fstat(fd, &st) < 0) {
-        fprintf(stderr, "ls: cannot get fd's stat %s\n", path);
-        close(fd);
-        return;
-    }
-
-    switch(st.st_dev) {
-        default:
-            printf("%s %4ld %s %5ld %s %s\n", fmtmode(st.st_mode), st.st_ino,
-            fmtuser(st.st_uid, st.st_gid), st.st_size, fmttime(st.st_mtime), fmtname(path));
-            break;
+    switch(statbuf.st_dev) {
         case T_DIR:
-            if (strlen(path) + 1 + DIRSIZ + 1 > sizeof(buf)) {
-                fprintf(stderr, "ls: path too long\n");
-            } else {
-                strcpy(buf, path);
-                p = buf + strlen(buf);
-                *p++ = '/';
-                while (read(fd, &de, sizeof(de)) == sizeof(de)) {
-                    if (de.inum == 0)
-                        continue;
-                    memmove(p, de.name, DIRSIZ);
-                    p[DIRSIZ] = 0;
-                    if (fstatat(AT_FDCWD, buf, &st, AT_SYMLINK_NOFOLLOW) < 0) {
-                        fprintf(stderr, "ls: cannot get buf's stat %s\n", buf);
-                        continue;
-                    }
-                    printf("%s %4ld %s %5ld %s %s\n", fmtmode(st.st_mode),
-                        st.st_ino, fmtuser(st.st_uid, st.st_gid), st.st_size, fmttime(st.st_mtime), fmtname(buf));
-                }
-            }
-            break;
         case T_DIR_FAT:
-            printf("--- FAT dir --- \n");
-            printf("%s  attr  sz\n", fmtname("name"));
-            while (read(fd, &info, sizeof(info)) == sizeof(info)) {
-                printf("%s %d %d\n", fmtname(info.fname), info.fattrib, info.fsize);
+            if ((dir = opendir(path)) < 0) {
+                perror(path);
+                return(EXIT_FAILURE);
             }
+
+            int start = strlen(path) - 1;
+            strcpy(filename, path);
+            if (filename[start] != '/')
+                filename[++start] = '/';
+            start++;
+
+            while ((dent = readdir(dir))) {
+                strcpy(&filename[start], dent->d_name);
+                if (stat(filename, &statbuf) < 0) {
+                    printf("Error at stat %s\n", filename);
+                    return(EXIT_FAILURE);
+                }
+
+                format_file_mode(statbuf.st_mode, filemode);
+                strftime(timestamp, 100, "%Y-%m-%d %H:%M:%S", gmtime(&statbuf.st_mtime));
+                if (S_ISBLK(statbuf.st_mode) || S_ISCHR(statbuf.st_mode))
+                    printf("%s %4ld %s %s %2d, %2d %s\n", filemode, statbuf.st_ino, fmtuser(statbuf.st_uid, statbuf.st_gid), timestamp, (statbuf.st_rdev >> 8) & 0x00ff, statbuf.st_rdev & 0x00ff, dent->d_name);
+                else
+                    printf("%s %4ld %s %s %6d %s\n", filemode, statbuf.st_ino, fmtuser(statbuf.st_uid, statbuf.st_gid), timestamp, statbuf.st_size, dent->d_name);
+            }
+            closedir(dir);
             break;
+        default:
+            format_file_mode(statbuf.st_mode, filemode);
+            strftime(timestamp, 100, "%Y-%m-%d %H:%M:%S", gmtime(&statbuf.st_mtime));
+            if (S_ISBLK(statbuf.st_mode) || S_ISCHR(statbuf.st_mode))
+                printf("%s %4ld %s %s %2d, %2d %s\n", filemode, statbuf.st_ino, fmtuser(statbuf.st_uid, statbuf.st_gid), timestamp, (statbuf.st_rdev >> 8) & 0x00ff, statbuf.st_rdev & 0x00ff, path);
+            else
+                printf("%s %4ld %s %s %6d %s\n", filemode, statbuf.st_ino, fmtuser(statbuf.st_uid, statbuf.st_gid), timestamp, statbuf.st_size, path);
+            break;
+
     }
-    close(fd);
+    return 0;
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
+    int ret = 0;
+
     if (argc < 2)
-        ls(".");
+        ret += ls(".");
     else
         for (int i = 1; i < argc; i++)
-            ls(argv[i]);
-    return 0;
+            ret += ls(argv[i]);
+    return ret;
 }

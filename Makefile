@@ -90,5 +90,6 @@ lint:
 clean:
 	$(MAKE) -C usr clean
 	rm -rf $(BUILD_DIR)
+	rm -f mkfs/mkfs
 
 .PHONY: init all lint clean qemu qemu-gdb gdb

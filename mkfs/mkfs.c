@@ -152,14 +152,14 @@ main(int argc, char *argv[])
     // Create /dev
     devino = make_dir(rootino, "dev", 0, 0, S_IFDIR|0775);
 
-    // Create /dev/tty1
-    make_dev(devino, "tty1", TTYMAJOR, 1, 0, 0, S_IFCHR|0666);
-
     // Create /proc
     procino = make_dir(rootino, "proc", 0, 0, S_IFDIR|0755);
 
     // Create /lib
     libino = make_dir(rootino, "lib", 0, 0, S_IFDIR|0777);
+
+    // Create /dev/tty1
+    make_dev(devino, "tty1", TTYMAJOR, 1, 0, 0, S_IFCHR|0666);
 
     // copy /lib/*
     copy_file(0, nelms(lib_files), lib_files, libino, 0, 0, S_IFREG|0755);

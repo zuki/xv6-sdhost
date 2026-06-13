@@ -229,6 +229,11 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
          * マウントされているファイルシステムのルートノードに置き換える */
         if (cur->bits & VBF_MOUNTED) {
             mp = _find_mount_by_vnode(cur);
+            // TODO: /procをls表示する場合は特別な処理が必要。いずれprocfsを書き換える
+            if (strcmp(mp->ops->fstype, "procfs") == 0 && path[i] == '\0') {
+                *result = cur;
+                return 0;
+            }
             vfs_release_vnode(cur);
             if (!mp) {
                 error("%d has not mount_vnode");

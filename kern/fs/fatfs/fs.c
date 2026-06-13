@@ -555,6 +555,7 @@ long fat_open(char *path, int flags, mode_t mode)
     struct fat_inode *ip;
     struct proc *p = thisproc();
     BYTE attr = 0;
+    FRESULT ret;
 
     if (!redirect_fatpath(path, fatpath, &fat_rela, &fat_abs))
         return -EACCES;
@@ -563,6 +564,11 @@ long fat_open(char *path, int flags, mode_t mode)
     if ((ip = open_path(pp, flags)) == NULL) {
         error("fat_open failed");
         return -EACCES;
+    }
+
+    if (flags & O_DIRECTORY && !ip->fatdir) {
+        debug("opendir but path %s isnot dir", pp);
+        return -ENOTDIR;
     }
 
     if (ip->fatdir) {
@@ -669,14 +675,14 @@ long fat_stat(char *path, struct stat *st)
         return -EACCES;
 
     pp = fat_abs ? fatpath : path;
+    trace("pp: %s", pp);
     if ((ret = f_stat(pp, &info)) != FR_OK) {
         error("fat_open failed");
         return -EACCES;
     }
 
-
     sst.st_dev = (info.fattrib & AM_DIR) ? T_DIR_FAT : T_FILE_FAT;
-    sst.st_ino = -1;
+    sst.st_ino = 0;
     sst.st_mode = (info.fattrib & AM_DIR) ? (S_IFDIR | 0755) : (S_IFREG | 0644);
     sst.st_nlink = 1;
     sst.st_uid = 0;

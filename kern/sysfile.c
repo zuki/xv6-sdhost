@@ -173,9 +173,9 @@ ssize_t sys_writev(void)
         return error;
 
 #if 0
-    debug("[%d] fd %d, iovcnt: %d", thisproc()->pid, fd, iovcnt);
+    trace("[%d] fd %d, iovcnt: %d", thisproc()->pid, fd, iovcnt);
     for (int i=0; i < iovcnt; i++) {
-        debug("iov[%d]: base=%p, len=%lld", i, iov[i].iov_base, iov[i].iov_len);
+        trace("iov[%d]: base=%p, len=%lld", i, iov[i].iov_base, iov[i].iov_len);
     }
 #endif
 
@@ -274,8 +274,10 @@ long sys_fstatat(void)
     trace("dirfd: %d, path: %s, flags: 0x%x", dirfd, path, flags);
 
 #ifdef CONFIG_FAT
-    if (is_fatfs(path))
+    if (is_fatfs(path)) {
+        trace("cal fat_stat: %s", path);
         return fat_stat(path, st);
+    }
 #endif
 
     if (flags != 0 && (flags & ~AT_SYMLINK_NOFOLLOW) != 0) {
@@ -283,9 +285,12 @@ long sys_fstatat(void)
         return -EINVAL;
     }
 
-    if ((error = check_fdcwd(path, dirfd, &cwd)) < 0)
+    if ((error = check_fdcwd(path, dirfd, &cwd)) < 0) {
+        error("failed check_fdcwd: path: %s, dirfd: %d", path, dirfd);
         return error;
+    }
 
+    trace("lookup cwd: %d, path: %s", cwd->ino, path);
     if ((error = vfs_lookup(cwd, path, VLOOKUP_NORMAL, thisproc()->uid, &vnode)) < 0) {
         error("vfs_lookup error: cwd: %d, path: %s", cwd->ino, path);
         return error;
@@ -313,7 +318,7 @@ long sys_fstatat(void)
     }
 
     trace("(3) vnode: %d", vnode->ino);
-    sst.st_dev = vnode->mp->dev;
+    //sst.st_dev = vnode->mp->dev;
     sst.st_ino = vnode->ino;
     sst.st_mode = vnode->mode;
     sst.st_nlink = vnode->nlink;
@@ -321,20 +326,19 @@ long sys_fstatat(void)
     sst.st_gid = vnode->gid;
     sst.st_rdev = vnode->rdev;
     sst.st_size = vnode->size;
-    if (vnode->fsname == FSFAT) {
-        sst.st_dev = ((struct fat_inode *)vnode->data)->type;
-    } else if (vnode->fsname == FSV6) {
+    enum fsname fsname = get_fsname(vnode);
+    if (fsname == FSV6)
         sst.st_dev = ((struct v6_inode *)vnode->data)->type;
-    } else {
-        sst.st_dev = T_FILE;
-    }
+    else
+        sst.st_dev = T_UNKNOWN;
     memmove(&sst.st_atime, &vnode->atime, sizeof(struct timespec));
     memmove(&sst.st_mtime, &vnode->mtime, sizeof(struct timespec));
     memmove(&sst.st_ctime, &vnode->ctime, sizeof(struct timespec));
     memmove(st, &sst, sizeof(struct stat));
+    trace("st_dev: %d", sst.st_dev);
     vfs_release_vnode(vnode);
 
-    trace("dirfd: %d, path: %s, ino: %d", dirfd, path, sst->st_ino);
+    trace("dirfd: %d, path: %s, ino: %d", dirfd, path, sst.st_ino);
     return 0;
 }
 
@@ -686,8 +690,9 @@ long sys_ioctl(void)
     uint64_t req;
     uint64_t argp;
     long error;
+    int fd;
 
-    if ((error = argfd(0, 0, &file)) < 0) return error;
+    if ((error = argfd(0, &fd, &file)) < 0) return error;
     if ((error = argu64(1, &req)) < 0) return error;
     if ((error = argu64(2, &argp)) < 0) return error;
     trace("[%d] fd: %d, file: %d, req: 0x%x", thisproc()->pid, fd, file->vnode->ino, req);
