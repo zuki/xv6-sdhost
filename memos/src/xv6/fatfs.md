@@ -349,6 +349,106 @@ drwxr-xr-x      0 2026-06-11 13:21:00 dira
 $
 ```
 
+## `/bin/ls2`が単一ファイルのlsができないことが判明したので修正
+
+- `/proc`のvfa_lookupでカレントvnodeがマウントされたvnodeの場合に
+  カレントvnodeがマウントしたファイルシステムのroot vnodeで置き換えられ
+  vnode idが0（これはprocfsにおけるroot id）になり、lsコマンドで正しい
+  inoが得られず、fstatatがストールしていた。
+
+```bash
+$ /bin/ls3 /
+drwxrwxr-x    1 root wheel 2026-06-12 23:45:37   4096 .
+drwxrwxr-x    1 root wheel 2026-06-12 23:45:37   4096 ..
+drwxrwxr-x    2 root wheel 2026-06-12 23:45:37   1600 bin
+drwxrwxr-x    3 root wheel 2026-06-12 23:45:37    192 dev
+[3]sys_fstatat: dirfd: -100, path: /proc, flags: 0x0
+[3]sys_fstatat: lookup cwd: 1, path: /proc
+[3]vfs_lookup: [[v6]] LP[1] cur->ino: 1, ref: 20, bits: 0x0
+[3]vfs_lookup: [[v6]] LP[2] cur->ino: 4, ref: 2, bits: 0x1
+[3]vfs_lookup: CHG: cur to [[procfs]] 0             // ここで置き換えが行われ、
+[3]vfs_lookup: [[procfs]] OK: cur->ino: 0, ref: 2   // cur->ino = 0 となっている
+[3]sys_fstatat: (3) vnode: 0                        // このvnodeを取り出せないためストール
+```
+
+- 当面、procfsではこの置き換えをやめることで回避した。
+- 単一ファイルを指定した場合のprint処理でファイル名に存在しないdent_dnameを
+  使っていたためストールした。
+
+```bash
+$ /bin/ls3 test.txt
+[0]syscall1: proc[8] sys_execve called
+[1]syscall1: proc[8] sys_gettid called
+[1]syscall1: proc[8] sys_fstatat called         // ここでストールかと思われたが
+
+$ /bin/ls3 test.txt
+[1]sys_fstatat: dirfd: -100, path: test.txt, flags: 0x100
+[1]sys_fstatat: lookup cwd: 1, path: test.txt
+[1]sys_fstatat: (1) path: test.txt, vnode: 9
+[1]sys_fstatat: (3) vnode: 9
+[1]sys_fstatat: st_dev: 2
+[3]sys_fstatat: dirfd: -100, path: test.txt, ino: 9     // sys_fstatatは正常
+
+$ /bin/ls3 test.txt
+mode: -rwxr-xr-x
+timestamp: 2026-06-13 01:05:41
+user: root wheel                                // stat出力の個々の要素は正しい
+                                                // ファイル名を不正な変数からセットしていた
+```
+
+- これらの修正でlsコマンドが正常稼働
+- fatfsにはinode番号の概念がないので0としたが、全ファイルシステム共通のinode番号を導入すべきか
+- fatfsのディレクトのファイルサイズが0なのは変更が必要か?
+
+```bash
+$ /bin/ls /
+drwxrwxr-x    1 root wheel 2026-06-13 01:20:28   4096 .
+drwxrwxr-x    1 root wheel 2026-06-13 01:20:28   4096 ..
+drwxrwxr-x    2 root wheel 2026-06-13 01:20:28   1664 bin
+drwxrwxr-x    3 root wheel 2026-06-13 01:20:28    192 dev
+drwxr-xr-x    4 root wheel 2026-06-13 01:20:28    128 proc
+drwxrwxrwx    5 root wheel 2026-06-13 01:20:28    256 lib
+-rwxr-xr-x    9 root wheel 2026-06-13 01:20:28     34 test.txt
+$ /bin/ls /d/
+drwxr-xr-x    0 root wheel 2026-06-13 08:45:36      0 dira
+-rw-r--r--    0 root wheel 2026-06-13 08:45:36     44 fat.txt
+-rw-r--r--    0 root wheel 2026-06-13 08:45:36     37 longlongname.txt
+$ /bin/ls test.txt
+-rwxr-xr-x    9 root wheel 2026-06-13 01:20:28     34 test.txt
+$ /bin/ls /d/fat.txt
+-rw-r--r--    0 root wheel 2026-06-13 08:45:36     44 /d/fat.txt
+$ /bin/ls /bin
+drwxrwxr-x    2 root wheel 2026-06-13 01:20:28   1664 .
+drwxrwxr-x    1 root wheel 2026-06-13 01:20:28   4096 ..
+-rwxr-xr-x   10 root wheel 2026-06-13 01:20:28  41816 cat
+-rwxr-xr-x   11 root wheel 2026-06-13 01:20:28  22312 init
+-rwxr-xr-x   12 root wheel 2026-06-13 01:20:28  42720 echo
+-rwxr-xr-x   13 root wheel 2026-06-13 01:20:28  48168 ifconfig
+-rwxr-xr-x   14 root wheel 2026-06-13 01:20:28  53296 date
+-rwxr-xr-x   15 root wheel 2026-06-13 01:20:28  42152 wc
+-rwxr-xr-x   16 root wheel 2026-06-13 01:20:28  69456 ls2
+-rwxr-xr-x   17 root wheel 2026-06-13 01:20:28  71512 ls3
+-rwxr-xr-x   18 root wheel 2026-06-13 01:20:28  44304 grep
+-rwxr-xr-x   19 root wheel 2026-06-13 01:20:28  58960 ls4
+-rwxr-xr-x   20 root wheel 2026-06-13 01:20:28  57448 sh
+-rwxr-xr-x   21 root wheel 2026-06-13 01:20:28  22016 sigtest3
+-rwxr-xr-x   22 root wheel 2026-06-13 01:20:28  51856 sigtest2
+-rwxr-xr-x   23 root wheel 2026-06-13 01:20:28  17656 utest
+-rwxr-xr-x   24 root wheel 2026-06-13 01:20:28  98472 mmaptest2
+-rwxr-xr-x   25 root wheel 2026-06-13 01:20:28  48272 sigtest
+-rwxr-xr-x   26 root wheel 2026-06-13 01:20:28  40176 ln
+-rwxr-xr-x   27 root wheel 2026-06-13 01:20:28  71512 ls
+-rwxr-xr-x   28 root wheel 2026-06-13 01:20:28  42288 udpecho
+-rwxr-xr-x   29 root wheel 2026-06-13 01:20:28  10784 dns
+-rwxr-xr-x   30 root wheel 2026-06-13 01:20:28  43840 tcpecho
+-rwxr-xr-x   31 root wheel 2026-06-13 01:20:28  50936 timertest
+-rwxr-xr-x   32 root wheel 2026-06-13 01:20:28  57224 mmaptest
+-rwxr-xr-x   33 root wheel 2026-06-13 01:20:28   4080 hello-dyn
+$ /bin/ls /bin/ls /bin/ls2
+-rwxr-xr-x   27 root wheel 2026-06-13 01:20:28  71512 /bin/ls
+-rwxr-xr-x   16 root wheel 2026-06-13 01:20:28  69456 /bin/ls2
+```
+
 ## `/bin/dns`がストールする件
 
 ```bash
