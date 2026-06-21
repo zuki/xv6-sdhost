@@ -23,10 +23,25 @@
 - [動的リンク機能の実装](xv6/dynamic.md)
 - [symlinkの修正](xv6/symlink.md)
 - [インターバルタイマーの実装](xv6/interval_timer.md)
+- [操作関数について](xv6/ops.md)
 - [FatFsを組み込む](xv6/fatfs.md)
     - [FATファイルシステムを検討](xv6/fat.md)
     - [FatFs: 汎用FATファイルシステム・モジュール](xv6/fatfs_module.md)
+- [Silicon Macで実行](xv6/m3.md)
 
 ## その他のメモ
 
 - [デフォルトで使用されるリンカスクリプト](others/lds.md)
+- [wifi機能に関するGoogleの回答](others/google_answer.md)
+- [SDIOプラットフォームサポートガイド](others/sdio_support_guide.md)
+
+## スクリーンを使う
+
+- [SSFN通常レンダラで文字列表示](screen/normal_renderer.md)
+- [SSFN簡易レンダラで文字列表示](screen/simple_renderer.md)
+
+## フォント
+
+- [PC Screen Font](fonts/pcscreen_font.md)
+- [PSF v1のunicodeテーブル](fonts/psf_v1_unicode.md)
+- [PSF v2のunicodeテーブル](fonts/psf_v2_unicode.md)
