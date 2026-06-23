@@ -139,7 +139,7 @@ mbox_get_clock_rate(int clock_id)
 }
 
 /*
- * Set clock state of sdhost, undocumented.
+ * sdhostのクロックstateをセットする。ドキュメント化されていない
  * Return -1 if failed.
  */
 int
@@ -164,7 +164,9 @@ mbox_set_sdhost_clock(uint32_t msg[3])
     return 0;
 }
 
-/* Undocumented. Return -1 if failed. */
+/* ドキュメント化されていない（ドキュメントではオンボードLEDの状態設定となっている）.
+ * Return -1 if failed.
+ */
 int
 mbox_set_gpio_state(uint32_t gpio, uint32_t state)
 {
@@ -233,10 +235,10 @@ mbox_get_macaddr(char *address)
         MBOX_TAG_END};
     buf[0] = sizeof(buf);
     asserts((V2P(buf) & 0xF) == 0, "Buffer should align to 16 bytes. ");
- 
+
     if (mbox_send(buf, sizeof(buf)) < 0)
         return false;
- 
+
     if ((buf[4] >> 31) == 0) {              // 成功の場合はbit31=1
         debug("unexpected tag resp %d", buf[4]);
         return false;

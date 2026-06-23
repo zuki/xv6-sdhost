@@ -1357,7 +1357,7 @@ emmc_card_reset(struct emmc *self)
     delayus(2000);
 #endif
 
-    // Check for a valid card
+    // カード挿入をチェック : このビットはundocumented
     trace("checking for an inserted card");
     emmc_timeout_wait(EMMC_STATUS, 1 << 16, 1, 500000);
     uint32_t status_reg = get32(EMMC_STATUS);

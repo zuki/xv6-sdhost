@@ -2,6 +2,13 @@ arm_64bit=1
 enable_uart=1
 # disable_l2cache=1
 
+// sd -> sdhost, wifi -> emmc にするための設定
+//   本当に必要か、要チェック
+#dtoverlay=miniuart-bt
+#core_freq=250
+#dtparam=sd_poll_once=off
+
+
 [pi4]
 device_tree=
 enable_gic=0

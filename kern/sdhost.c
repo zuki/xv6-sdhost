@@ -1208,25 +1208,24 @@ sdhost_set_clock_inner(struct bcm2835_host *host, uint32_t clock)
         clock = host->overclock_50 * MHZ + (MHZ - 1);
 
     /*
-     * The SDCDIV register has 11 bits, and holds (div - 2).
-     * But in data mode the max is 50MHz wihout a minimum, and only the
-     * bottom 3 bits are used. Since the switch over is automatic (unless
-     * we have marked the card as slow...), chosen values have to make
-     * sense in both modes.
-     * Ident mode must be 100-400KHz, so can range check the requested
-     * clock. CMD15 must be used to return to data mode, so this can be
-     * monitored.
+     * SDCDIVレジスタは11ビットで構成され、(div - 2)を格納する。
+     * しかし、データモードでは最大50MHz（最小値なし）であり、
+     * 下位3ビットしか使用されない。切り替えは（カードを「低速」と
+     * 設定していない限り）自動で行われるため、選択する値は両モードで
+     * 妥当なものでなければならない。
+     * Identモードは100～400kHzでなければならないため、要求された
+     * クロックの範囲チェックが可能である。データモードに戻るには
+     * CMD15を使用する必要があるため、これを監視することができる。
      *
-     * clock 250MHz -> 0->125MHz, 1->83.3MHz, 2->62.5MHz, 3->50.0MHz
-     *                     4->41.7MHz, 5->35.7MHz, 6->31.3MHz, 7->27.8MHz
+     * クロック 250MHz -> 0 -> 125MHz, 1 -> 83.3MHz, 2 -> 62.5MHz, 3 -> 50.0MHz,
+     *      4 -> 41.7MHz, 5 -> 35.7MHz, 6 -> 31.3MHz, 7 -> 27.8MHz
      *
-     *       623->400KHz/27.8MHz
-     *       reset value (507)->491159/50MHz
+     *      623 -> 400KHz/27.8MHz
+     *      リセット値 (507) -> 491159/50MHz
      *
-     * BUT, the 3-bit clock divisor in data mode is too small if the
-     * core clock is higher than 250MHz, so instead use the SLOW_CARD
-     * configuration bit to force the use of the ident clock divisor
-     * at all times.
+     * ただし、コアクロックが250MHzを超える場合、データモードの3ビットの
+     * クロック分周器では小さすぎるため、代わりにSLOW_CARD設定ビットを使用して、
+     * 常に同一のクロック分周器を使用するように強制する。
      */
 
     host->mmc.actual_clock = 0;
@@ -1510,6 +1509,7 @@ sdhost_probe(struct bcm2835_host *host)
 //         goto err;
 //     }
 
+    // COREのクロックを取得
     host->max_clk = mbox_get_clock_rate(MBOX_CLOCK_CORE);
 
     // FIXME:
