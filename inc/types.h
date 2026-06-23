@@ -61,7 +61,7 @@ typedef uint64_t        handler_t;
 typedef uint32_t        socklen_t;
 
 typedef int             boolean;
-typedef boolean         bool;
+
 #define true            1
 #define false           0
 

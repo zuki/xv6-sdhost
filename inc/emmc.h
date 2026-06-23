@@ -13,11 +13,7 @@ struct tscr // SD configuration register
 struct emmc {
     uint64_t ull_offset;
 
-#ifdef USE_SDHOST
     struct bcm2835_host host;
-#else
-	uint32_t hci_ver;
-#endif
 
 	// was: struct emmc_block_dev
 	uint32_t device_id[4];
@@ -27,9 +23,6 @@ struct emmc {
 	uint32_t card_supports_18v;
 	uint32_t card_ocr;
 	uint32_t card_rca;
-#ifndef USE_SDHOST
-	uint32_t last_interrupt;
-#endif
 	uint32_t last_error;
 
     struct tscr scr;
@@ -47,14 +40,6 @@ struct emmc {
 	void *buf;
 	int blocks_to_transfer;
 	size_t block_size;
-
-#ifndef USE_SDHOST
-	int card_removal;
-	uint32_t base_clock;
-#endif
-	// static const char *sd_versions[];
-	// static const uint32_t sd_commands[];
-	// static const uint32_t sd_acommands[];
 };
 
 void emmc_clear_interrupt();

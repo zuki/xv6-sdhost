@@ -33,6 +33,7 @@ KERN_IMG := $(BUILD_DIR)/kernel8.img
 SD_IMG := $(BUILD_DIR)/sd.img
 
 all:
+	rm -f $(SD_IMG)
 	$(MAKE) -C boot
 	$(MAKE) -C usr
 	$(MAKE) -C dyn
