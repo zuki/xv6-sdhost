@@ -32,8 +32,13 @@
 ## その他のメモ
 
 - [デフォルトで使用されるリンカスクリプト](others/lds.md)
-- [wifi機能に関するGoogleの回答](others/google_answer.md)
 - [SDIOプラットフォームサポートガイド](others/sdio_support_guide.md)
+
+## Google AIへの質問
+
+- [wifi機能の実装について](google/wifi.md)
+- [有線LANと無線LANの併存について](google/network.md)
+
 
 ## スクリーンを使う
 

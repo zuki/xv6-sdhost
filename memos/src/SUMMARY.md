@@ -32,8 +32,11 @@
 
 - [その他のメモ](others/README.md)
     - [デフォルトで使用されるリンカスクリプト](others/lds.md)
-    - [wifi機能に関するGoogleの回答](others/google_answer.md)
     - [SDIOプラットフォームサポートガイド](others/sdio_support_guide.md)
+
+- [Google AIへの質問](google/README.md)
+    - [wifi機能の実装について](google/wifi.md)
+    - [有線LANと無線LANの併存について](google/network.md)
 
 - [スクリーンを使う](screen/README.md)
     - [SSFN通常レンダラで文字列表示](screen/normal_renderer.md)

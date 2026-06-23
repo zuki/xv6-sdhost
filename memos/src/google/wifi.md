@@ -1,4 +1,4 @@
-# wifi機能に関するGoogleの回答
+# wifi機能の実装について
 
 ## 質問 1
 
@@ -280,4 +280,104 @@ dtparam=sd_poll_once=off
 
 現在作成されている独自OSは32bit（AArch32）と64bit（AArch64）のどちらで開発されていますか？ また、PL011 UARTのレジスタ操作（ボーレート計算など）や、SDIOコントローラのベースアドレスなど、コード実装部分で確認したい情報があれば教えてください。
 
+# 電源とクロックについて
 
+SDHOST（Device ID = 0）の電源ONがプログラム済みで、バス電圧の切り替え（3.3V / 1.8V）も別途制御されている状況において、eMMCをSDIOデバイスとして使用する場合のMailbox電源管理の要否と、使用するデバイスIDについて回答します。
+
+## 結論：Mailboxでの追加の電源ON（Set Power State）は不要です [2]
+
+結論から申し上げますと、すでに SDHOST（Device ID = 0x00000000）の電源がONになっていれば、eMMCをSDIOとして駆動させるためにMailboxで追加の「Set Power State」を呼び出す必要はありません。 [1, 2]
+理由は以下の通りです。
+
+   1. SDHOST/EMMCブロックの電源は共通
+   Mailboxの Device ID = 0x00000000 (SD Card) は、SoC内部のSDHOSTコントローラーおよびEMMC（Arasan）コントローラー周辺の、SD/MMC関連ペリフェラル全体のメイン電源ドメイン（Power Domain）の有効化を意味しています。すでにID=0で電源を投入している場合、SDIOとして接続されたeMMCを動かすためのコントローラーマクロ側の電源はすでに確保されています。 [1, 2]
+   2. eMMC自体の物理電源は制御対象外
+   Mailboxの「Set Power State」はSoC内部の回路の電源をON/OFFするものです。外部に接続されたeMMCチップ自体の電源（VCC/VCCQ）や、バス電圧の1.8V/3.3V切り替え回路の制御はSoC内部の電源ドメインとは独立しているため、質問者様がすでに別途プログラムされている電圧制御で賄うことができます。 [1]
+
+## 代わりに必要となる制御：クロックの有効化（必須）
+
+電源ON（Set Power State）の追加手続きは不要ですが、ベアメタル環境でEMMC/Arasanコントローラー側を使ってSDIO通信を行う（あるいはSDHOSTでマルチホスト接続を行う）場合、Mailboxを通じた「クロック（Clock）の有効化」が必ず必要になります。 [2]
+Raspberry PiのeMMC/SDIOコントローラーは、Mailboxの Clock ID = 0x1（EMMCコアクロック）または 0xc（EMMC2コアクロック、RPi4以降）から供給されるクロックで動作します。 [3]
+もしSDHOST（ID=0）のみを動かしていた状態から、もう一つのEMMCコントローラー等を使ってSDIO（eMMC）を動かす場合は、以下のMailboxタグを使用してEMMC側のクロックを有効化（および周波数設定）してください。
+
+## クロック制御に使用するMailboxタグとID
+
+* Tag (Set Clock Rate): 0x00038002
+* Clock ID:
+* 0x00000001 (EMMC): Pi 3以前、またはPi 4の標準EMMCコアクロック
+* 0x0000000c (EMMC2): Pi 4 / CM4のメインeMMC用（Arasanコントローラー） [3]
+
+## 初期化の流れ
+
+   1. 既存の電源ON: Device ID = 0 (SD Card) で全体の電源ドメインを確保（完了済み） [1, 2]
+   2. クロック有効化: Mailboxの 0x00038002 タグを使い、使用するEMMCのClock ID（0x1 または 0xc）に対して初期クロック（例: 400kHz = 400000）を設定・有効化する [3]
+   3. レジスタ初期化: コントローラー内部のレジスタ（SDHOSTまたはEMMCのベースアドレス）をリセットし、eMMCデバイスに対して CMD0 からのSDIO/eMMC初期化コマンドを発行する [4, 5]
+
+現在使用されているのは、Raspberry Pi 3以前（BCM2837など）、Pi 4 / CM4（BCM2711）、あるいはPi 5のいずれのモデルでしょうか？
+モデルによって使用するコントローラーのベースアドレス（EMMCまたはEMMC2）やClock IDが変わるため、ターゲットモデルを教えていただければ、より絞り込んだハードウェア仕様をお伝えできます。 [3]
+
+[1] [https://www.scribd.com](https://www.scribd.com/document/669566109/Mailbox-property-interface-Message-TAGS-1)
+[2] [https://forums.raspberrypi.com](https://forums.raspberrypi.com/viewtopic.php?t=187187)
+[3] [https://github.com](https://github.com/raspberrypi/firmware/issues/1179)
+[4] [https://forums.raspberrypi.com](https://forums.raspberrypi.com/viewtopic.php?t=94133)
+[5] [https://community.renesas.com](https://community.renesas.com/mcu/ra/f/forum/29355/fsp-emmc-get-cid-register-content)
+
+
+Raspberry Pi 3B+（BCM2837B0）における環境情報、ありがとうございます。
+Pi 3B+のベアメタル環境で、すでにSDHOST（SD Card全体）の電源ONとバス電圧切り替えが実装されている場合、EMMCコントローラーをSDIOデバイス（外付けeMMCなど）として動かすための具体的な設定（クロックIDとベースアドレス）は以下の通りになります。
+
+## 1. クロック制御に使用する「Clock ID」
+
+電源ONは不要ですが、EMMCコントローラーに供給するコアクロックの有効化・周波数設定が必須です。Mailboxの TAG_SET_CLOCK_RATE (0x00038002) タグに渡すIDは以下を使用します。
+
+* Clock ID: 0x00000001 (CLK_EMMC_ID) [1]
+
+## Mailboxメッセージの構造例（C言語）
+
+初期化時に、まず安全な初期クロック（例：SDIO初期化用の 400kHz = 400000）を設定します。
+
+```c
+volatile uint32_t __attribute__((aligned(16))) mailbox_buf[9];
+
+mailbox_buf[0] = 9 * 4;           // バッファ全体のサイズ（バイト）
+mailbox_buf[1] = 0;               // 要求コード (Request)
+mailbox_buf[2] = 0x00038002;      // タグ: SET_CLOCK_RATE
+mailbox_buf[3] = 8;               // 値バッファのサイズ（バイト）
+mailbox_buf[4] = 0;               // レスポンス用インジケータ
+mailbox_buf[5] = 0x00000001;      // クロックID (EMMC)
+mailbox_buf[6] = 400000;          // 要求する周波数 (400,000 Hz = 400kHz)
+mailbox_buf[7] = 0;               // ターボフラグ (0 = オフ)
+mailbox_buf[8] = 0;               // 終端タグ (0x00000000)
+// このバッファのアドレスを Mailbox チャネル 8 (Property チャネル) に書き込んで送信します。
+```
+
+※eMMCデバイスとの初期ハンドシェイク（CMD0〜CMD1など）が成功し、高速転送モードへ移行する段階になったら、再度このタグを使って周波数を 25MHz (25000000) や 50MHz (50000000) へ引き上げてください。
+
+------------------------------
+
+## 2. 使用するコントローラーの「ベースアドレス」
+
+Raspberry Pi 3B+（BCM2837B0）のARM（CPU）側からアクセス可能なペリフェラルのベースアドレスは 0x3F000000 です。 [2, 3]
+Pi 3B+には2つのSD/MMC用コントローラーが搭載されていますが、EMMCとして使用するコントローラー（Arasan SDHCI）のベースアドレスは以下になります。
+
+* EMMCコントローラー ベースアドレス: 0x3F300000
+
+（ちなみに、ご自身がすでにプログラム済みであるSDHOSTコントローラーのベースアドレスは 0x3F202000 です）。
+
+------------------------------
+
+## 3. 次のステップ（GPIOの割り当て）
+
+EMMCコントローラー（0x3F300000）を使って外部のSDIO（eMMC）と通信させる場合、内部の信号をどの物理ピンに出力するか、GPIOのAlternative Function（オルタナティブ関数）を切り替える必要があります。
+一般的には以下のいずれかのピンアサインが使われます。
+
+* GPIO22〜27: （Alt3 = SD1 / EMMC）
+* GPIO48〜53: （Alt3 = SD1 / EMMC） ※標準のMicroSDカードスロットが結線されているピンです。
+
+もしMicroSDカードスロット（GPIO48-53）にSDHOSTを割り当てている場合は、SDIO用のeMMCはGPIO22-27側に配置し、GPIOのファンクションレジスタ（GPFSEL2など）を Alt3 に書き換えることで、通信が可能になります。
+eMMCの接続先として、GPIO22〜27などの外部ピンを使用される予定でしょうか？
+もし必要であれば、EMMCコントローラー（0x3F300000）内の主要な制御レジスタ（コマンド、引数、クロック制御など）のオフセットマップについてもご案内できます。
+
+[1] [https://github.com](https://github.com/LdB-ECM/Xinu/blob/master/system/platforms/arm-rpi/rpi-mailbox.h)
+[2] [https://forums.raspberrypi.com](https://forums.raspberrypi.com/viewtopic.php?t=203607)
+[3] [https://www.reddit.com](https://www.reddit.com/r/osdev/comments/uc98tz/raspberry_pi_3_base_peripheral_address/)
