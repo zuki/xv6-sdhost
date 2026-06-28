@@ -572,6 +572,8 @@ int lan7800_net_init(lan7800_t *self)
     dev->priv = self;
     //memcpy(dev->name, "eth00", sizeof("eth00"));
     dev->ops = &lan7800_net_ops;
+    dev->index = NET_INDEX_LAN7800;
+    snprintf(dev->name, sizeof(dev->name), "net%d", dev->index);
     if (net_device_register(dev) == -1) {
         error("net_device_register() failure");
         memory_free(dev);

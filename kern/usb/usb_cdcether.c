@@ -271,6 +271,8 @@ int usb_cdcether_net_init(usb_cdcether_t *self)
     dev->priv = self;
     //memcpy(dev->name, "eth01", sizeof("eth01"));
     dev->ops = &usb_cdcether_net_ops;
+    dev->index = NET_INDEX_CDC;
+    snprintf(dev->name, sizeof(dev->name), "net%d", dev->index);
     trace("call net_device_register");
     if (net_device_register(dev) == -1) {
         error("net_device_register() failure");

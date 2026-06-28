@@ -40,6 +40,13 @@
 
 #define NET_IFACE(x) ((struct net_iface *)(x))
 
+typedef enum net_index {
+    NET_INDEX_LAN7800,
+    NET_INDEX_CDC,
+    NET_INDEX_BCM4343,
+    NET_INDEX_NUMS
+} net_index_t;
+
 struct net_device {
     struct net_device *next;
     struct net_iface *ifaces; /* NOTE: net_run()後に追加/削除する場合はmutexでifacesを守る必要がある */
