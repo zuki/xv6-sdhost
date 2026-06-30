@@ -33,6 +33,7 @@
 - [その他のメモ](others/README.md)
     - [デフォルトで使用されるリンカスクリプト](others/lds.md)
     - [SDIOプラットフォームサポートガイド](others/sdio_support_guide.md)
+    - [Wi-Fiホストドライバ (WHD) APIリファレンスガイド](others/whd.md)
 
 - [Google AIへの質問](google/README.md)
     - [wifi機能の実装について](google/wifi.md)

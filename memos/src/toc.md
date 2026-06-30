@@ -33,6 +33,7 @@
 
 - [デフォルトで使用されるリンカスクリプト](others/lds.md)
 - [SDIOプラットフォームサポートガイド](others/sdio_support_guide.md)
+- [Wi-Fiホストドライバ (WHD) APIリファレンスガイド](others/whd.md)
 
 ## Google AIへの質問
 
