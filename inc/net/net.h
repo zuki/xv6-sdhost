@@ -26,6 +26,7 @@
 #endif
 
 #define NET_DEVICE_ADDR_LEN         6
+#define MAC_ADDRESS_SIZE            6
 
 #define NET_DEVICE_IS_UP(x)     ((x)->flags & IFF_UP)
 #define NET_DEVICE_STATE(x)     (NET_DEVICE_IS_UP(x) ? "up" : "down")

@@ -358,7 +358,8 @@ sdhost_init_gpio()
 {
     for (int i = 0; i <= 5; i++) {
         int64_t npin, off, shift, sel, val;
-        // pin [34:39]: input => 未使用 (WiFiとして使用する場合はALT3とする)
+        // pin [34:39]: input : ここではEMMCとの接続を切り離しておく
+        //    wlan/ether43430.cでEMMCモジュールをSDIOとしてWiFiにつなげる
         npin = 34 + i;
         off = npin / 10 * 4, shift = (npin % 10) * 3;
 

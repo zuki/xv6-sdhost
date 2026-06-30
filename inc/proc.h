@@ -118,6 +118,7 @@ struct proc {
     struct signal signal;       /* シグナルを保持 */
     struct trapframe *oldtf;    /* トラップフレームを保存 */
     int paused;                 /* 停止中か? */
+    void *userdata;             /* proc/thread固有データへのポインタ */
 };
 
 /* Per-CPU state */
@@ -162,8 +163,8 @@ void exit(int err);
 int  wait4(pid_t pid, int *status, int options, struct rusage *ru);
 int  fork(void);
 void procdump();
-void kthread_read_ether(void);
-void kthread_created(void(*func)(void));
+void kthread_read_ether(void *);
+void kthread_created(const char *name, void(*func)(void *), void *param);
 struct proc *get_proc(pid_t pid);
 void proc_iter_start(struct process_iter *iter);
 struct proc *proc_iter_next(struct process_iter *iter);

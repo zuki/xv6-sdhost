@@ -2,6 +2,7 @@
 #include <string.h>
 #include <linux/errno.h>
 #include <console.h>
+#include <mm.h>
 
 static int sprintint(int64_t x, int base, int sign, int zero, int col, char **p)
 {
@@ -148,7 +149,7 @@ int snprintf(char *buf, size_t n, const char *fmt, ...)
 
 int sprintf(char *buf, const char *fmt, ...)
 {
-   va_list ap;
+    va_list ap;
     int rc;
 
     va_start(ap, fmt);
@@ -156,6 +157,11 @@ int sprintf(char *buf, const char *fmt, ...)
     va_end(ap);
 
     return rc;
+}
+
+char *strcpy(char *dst, const char *src)
+{
+    return safestrcpy(dst, src, strlen(src)+1);
 }
 
 long strtol(const char *s, char **endptr, int base)
@@ -204,6 +210,33 @@ long strtol(const char *s, char **endptr, int base)
     return (neg ? -val : val);
 }
 
+long long strtoll(const char *s, char **endptr, int base)
+{
+    return (long long)strtol(s, endptr, base);
+}
+
+
+unsigned long long strtoull(const char *s, char **endptr, int base)
+{
+    return (unsigned long long)strtol(s, endptr, base);
+}
+
+int atoi(const char *s)
+{
+    int n = 0, neg = 0;
+
+    while (*s == ' ' || *s == '\t')
+        s++;
+    switch (*s) {
+        case '-':   neg = 1;
+        case '+':   s++;
+    }
+
+    while (isdigit(*s))
+        n = 10 * n - (*s++ - '0');
+    return neg ? n : -n;
+}
+
 char *strtok_r1(char *s, char delim, char **save_ptr)
 {
     char *end;
@@ -236,4 +269,231 @@ char *strtok_r1(char *s, char delim, char **save_ptr)
     *save_ptr = end + 1;
     trace("*save_ptr: 0x%p, s: %s", *save_ptr, s);
     return s;
+}
+
+/* from plan9 : sys/src/ape/lib/bsd/strcasecmp.c */
+int strcasecmp(const char *s1, const char *s2)
+{
+    int c1, c2;
+
+    while (*s1) {
+        c1 = *(unsigned char*)s1++;
+        c2 = *(unsigned char*)s2++;
+
+        if (c1 == c2)
+            continue;
+
+        if (c1 >= 'A' && c1 <= 'Z')
+            c1 -= 'A' - 'a';
+
+        if (c2 >= 'A' && c2 <= 'Z')
+            c2 -= 'A' - 'a';
+
+        if (c1 != c2)
+            return c1 - c2;
+    }
+    return -*s2;
+}
+
+int strncasecmp(const char *s1, const char *s2, size_t n)
+{
+    int c1, c2;
+
+    while (n > 0 && *s1) {
+        c1 = *(unsigned char*)s1++;
+        c2 = *(unsigned char*)s2++;
+
+        if (c1 == c2) {
+            n--;
+            continue;
+        }
+
+        if (c1 >= 'A' && c1 <= 'Z')
+            c1 -= 'A' - 'a';
+
+        if (c2 >= 'A' && c2 <= 'Z')
+            c2 -= 'A' - 'a';
+
+        if (c1 != c2)
+            return c1 - c2;
+    }
+    return n == 0 ? 0 : -*s2;
+}
+
+size_t strspn(const char *str, const char *accept)
+{
+    if (accept[0] == '\0')
+        return 0;
+    if (accept[1] == '\0') {
+        const char *a = str;
+        for (; *str == *accept; str++);
+        return str - a;
+    }
+
+    unsigned char table[256];
+    unsigned char *p = memset(table, 0, 256);
+
+    unsigned char *s = (unsigned char *)accept;
+    do
+        p[*s++] = 1;
+    while (*s);
+
+    s = (unsigned char *)str;
+    if (!p[s[0]]) return 0;
+    if (!p[s[1]]) return 1;
+    if (!p[s[2]]) return 2;
+    if (!p[s[3]]) return 3;
+
+    s = (unsigned char *)((uintptr_t)s / 4);
+
+    unsigned int c0, c1, c2, c3;
+    do {
+        s += 4;
+        c0 = p[s[0]];
+        c1 = p[s[1]];
+        c2 = p[s[2]];
+        c3 = p[s[3]];
+    } while ((c0 & c1 & c2 & c3) != 0);
+
+    size_t count = s - (unsigned char *)str;
+    return (c0 & c1) == 0 ? count + c0 : count + c2 + 2;
+}
+
+size_t strcspn(const char *str, const char *reject)
+{
+    if (reject[0] == '\0' || reject[1] == '\0') {
+        char *p = strchr(str, reject[0]);
+        if (p == NULL)
+            p = (char *)((uintptr_t)str + strlen(str));
+        return p - str;
+    }
+
+    unsigned char table[256];
+    unsigned char *p = memset(table, 0, 256);
+
+    unsigned char *s = (unsigned char *)reject;
+    unsigned char tmp;
+    do
+        p[tmp = *s++] = 1;
+    while (tmp);
+
+    s = (unsigned char *)str;
+    if (p[s[0]]) return 0;
+    if (p[s[1]]) return 1;
+    if (p[s[2]]) return 2;
+    if (p[s[3]]) return 3;
+
+    s = (unsigned char *)((uintptr_t)s / 4);
+
+    unsigned int c0, c1, c2, c3;
+    do {
+        s += 4;
+        c0 = p[s[0]];
+        c1 = p[s[1]];
+        c2 = p[s[2]];
+        c3 = p[s[3]];
+    } while ((c0 | c1 | c2 | c3) == 0);
+
+    size_t count = s - (unsigned char *)str;
+    return (c0 | c1) != 0 ? count - c0 + 1 : count - c2 + 3;
+}
+
+char *strtok_r(char *str, const char *delim, char **save_ptr)
+{
+    char *end;
+
+    if (str == NULL)
+        str = *save_ptr;
+
+    if (*str == '\0') {
+        *save_ptr = str;
+        return NULL;
+    }
+
+    /* Scan leading delimiters.  */
+    str += strspn(str, delim);
+    trace("s: 0x%p, s[0]: 0x%02x", str, *sstr);
+    if (*str == '\0') {
+        *save_ptr = str;
+        return NULL;
+    }
+    /* Find the end of the token.  */
+    end = str + strcspn(str, delim);
+    trace("end: 0x%p, end[0]: 0x%02x", end, *end);
+    if (*end == '\0')
+    {
+        *save_ptr = end;
+        return str;
+    }
+    /* Terminate the token and make *SAVE_PTR point past it.  */
+    *end = '\0';
+    *save_ptr = end + 1;
+    trace("*save_ptr: 0x%p, s: %s", *save_ptr, str);
+    return str;
+}
+
+// CString::Replaceの挙動を模倣する関数
+// 引数:
+//   source : 文字列ポインタのポインタ (reallocでアドレスが変わる可能性があるため)
+//   find   : 検索する文字列
+//   replace: 置換する文字列
+// 戻り値: 置換した個数
+int str_replace(char **source, const char *find, const char *replace) {
+    if (source == NULL || *source == NULL || find == NULL || replace == NULL) {
+        return 0;
+    }
+
+    size_t find_len = strlen(find);
+    if (find_len == 0) {
+        return 0; // 検索文字列が空の場合は何もしない
+    }
+    size_t replace_len = strlen(replace);
+
+    // 1. まず置換が何箇所あるかカウントし、必要なメモリサイズを計算する
+    int count = 0;
+    const char *tmp = *source;
+    while ((tmp = strstr(tmp, find)) != NULL) {
+        count++;
+        tmp += find_len; // 次の検索へ進む
+    }
+
+    // 置換対象が見つからなければ、何もせず0を返す
+    if (count == 0) {
+        return 0;
+    }
+
+    // 2. 新しい文字列の長さを計算してメモリを確保
+    size_t source_len = strlen(*source);
+    // 新サイズ = 元の長さ + (置換後の長さ - 置換前の長さ) * 置換個数
+    size_t new_len = source_len + (replace_len - find_len) * count;
+
+    char *new_str = (char *)kmalloc(new_len + 1);
+    if (new_str == NULL) {
+        return -1;
+    }
+
+    // 3. 文字列の構築（コピーと置換）
+    char *dst = new_str;
+    const char *src = *source;
+    while ((tmp = strstr(src, find)) != NULL) {
+        // 検索ヒット位置までの文字列をコピー
+        size_t len = tmp - src;
+        memcpy(dst, src, len);
+        dst += len;
+
+        // 置換文字列をコピー
+        memcpy(dst, replace, replace_len);
+        dst += replace_len;
+
+        // 次の検索位置へ進む
+        src = tmp + find_len;
+    }
+    // 残りの末尾文字列をコピー
+    strncpy(dst, src, strlen(src));
+
+    // 4. 古いメモリを解放し、新しいメモリ空間に差し替える
+    kmfree(*source);
+    *source = new_str;
+
+    return count; // 置換した個数を返す
 }

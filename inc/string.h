@@ -165,6 +165,29 @@ memscan(void *addr, int c, size_t size)
     return (void *)a;
 }
 
+/* from plan9 : sys/src/libc/port/strstr.c */
+static inline char *strstr(const char *s1, const char *s2)
+{
+    char *p, *pa, *pb;
+    int c0, c;
+
+    c0 = *s2;
+    if (c0 == 0)
+        return s1;
+    s2++;
+    for (p = strchr(s1, c0); p; p = strchr(p+1, c0)) {
+        pa = p;
+        for (pb = s2; ; pb++) {
+            c = *pb;
+            if (c == 0)
+                return p;
+            if (c != *++pa)
+                break;
+        }
+    }
+    return 0;
+}
+
 static inline void format(uint8_t c, char *sc) {
     const char digit[] = "0123456789abcdef";
     sc[0] = digit[c >> 4];
@@ -186,11 +209,20 @@ static __inline int __isspace(int _c)
 #define islower(a) (((unsigned)(a)-'a') < 26)
 #define isupper(a) (((unsigned)(a)-'A') < 26)
 #define isgraph(a) (((unsigned)(a)-0x21) < 0x5e)
-#define isspace(a) __isspace(a)
+#define issapce(a) __isspace(a)
 
+char *strcpy(char *dst, const char *src);
+int atoi(const char *s);
 long strtol(const char *s, char **endptr, int base);
+long long strtoll(const char *s, char **endptr, int base);
+unsigned long long strtoull(const char *s, char **endptr, int base);
 int sprintf(char *buf, const char *fmt, ...);
 int snprintf(char *buf, size_t n, const char *fmt, ...);
 char *strtok_r1(char *s, char delim, char **save_ptr);
-
+size_t strspn(const char *str, const char *accept);
+size_t strcspn(const char *str, const char *reject);
+char *strtok_r(char *str, const char *delim, char **save_ptr);
+int str_replace(char **source, const char *find, const char *replace);
+int strcasecmp(const char *s1, const char *s2);
+int strncasecmp(const char *s1, const char *s2, size_t n);
 #endif

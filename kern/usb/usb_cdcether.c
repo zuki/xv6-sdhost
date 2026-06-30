@@ -286,7 +286,7 @@ int usb_cdcether_net_init(usb_cdcether_t *self)
 
 void usb_cdcether_net_handler(void)
 {
-    struct net_device *dev = net_device_by_name("net0");
+    struct net_device *dev = net_device_by_index(NET_INDEX_CDC);
     if (!dev) return;
 
     if (ether_input_helper(dev, usb_cdcether_receive_frame) == 0)

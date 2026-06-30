@@ -71,10 +71,6 @@ struct net_device *net_device_alloc(void)
 /* NOTE: must not be call after net_run() */
 int net_device_register(struct net_device *dev)
 {
-    //static unsigned int index = 0;
-
-    //dev->index = index++;
-    //snprintf(dev->name, sizeof(dev->name), "net%d", dev->index);
     dev->next = devices;
     devices = dev;
     info("dev=%s, type=%d (%s)", dev->name, dev->type, net_dev_type_str[dev->type]);
@@ -450,8 +446,6 @@ void net_init(void)
         dev = net_device_by_index(i);
         if (dev) break;
     }
-    //struct net_device *dev = net_device_by_name("net0");
-    //assert(dev != 0);
     set_ip_config(dev);
     info("net_init ok");
 }

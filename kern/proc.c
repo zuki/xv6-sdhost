@@ -162,6 +162,8 @@ proc_initx(char *name, char *code, size_t len)
 
     p->tf->elr = 0;
 
+    p->userdata = 0;
+
     safestrcpy(p->name, name, sizeof(p->name));
     return p;
 }
@@ -259,7 +261,7 @@ forkret(void)
         usb_init();
         net_init();
         net_run();
-        kthread_created(kthread_read_ether);
+        kthread_created("ether", kthread_read_ether, NULL);
 #endif
     } else {
         release(&ptable.lock);
@@ -626,7 +628,7 @@ procdump(void)
 
 extern uint64_t kpgdir;
 
-void kthread_created(void(*func)(void))
+void kthread_created(const char *name, void(*func)(void *), void *param)
 {
     struct proc *p;
 
@@ -652,7 +654,7 @@ void kthread_created(void(*func)(void))
     release(&ptable.lock);
 }
 
-void kthread_read_ether(void)
+void kthread_read_ether(void *param)
 {
     while(1) {
 #ifdef USING_RASPI

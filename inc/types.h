@@ -62,6 +62,15 @@ typedef uint32_t        socklen_t;
 
 typedef int             boolean;
 
+typedef unsigned char       uchar;
+typedef unsigned short      ushort;
+typedef unsigned int        uint;
+typedef unsigned long       ulong;
+typedef unsigned long long  uvlong;
+
+typedef uint32_t            u32int;
+
+
 #define true            1
 #define false           0
 
