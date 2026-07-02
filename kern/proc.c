@@ -36,10 +36,10 @@ static void idle_init();
 struct cpu cpu[NCPU];
 
 struct {
-    struct proc proc[NPROC];
-    struct list_head slpque[SQSIZE];
-    struct list_head sched_que;
-    struct spinlock lock;
+    struct proc proc[NPROC];            /* proc/kthread */
+    struct list_head slpque[SQSIZE];    /* sleep queue, chan毎に存在 */
+    struct list_head sched_que;         /* runnable queue */
+    struct spinlock lock;               /* 以上を保護するロック */
 } ptable;
 
 /* シグナル処理を行う際に使用する2つのロック */
@@ -169,6 +169,7 @@ proc_initx(char *name, char *code, size_t len)
 }
 
 /* Initialize per-cpu idle process. */
+// TODO: idle関数を変更する
 static void
 idle_init(void)
 {
@@ -261,7 +262,7 @@ forkret(void)
         usb_init();
         net_init();
         net_run();
-        kthread_created("ether", kthread_read_ether, NULL);
+        kthread_create("ether", kthread_read_ether, NULL);
 #endif
     } else {
         release(&ptable.lock);
@@ -628,7 +629,57 @@ procdump(void)
 
 extern uint64_t kpgdir;
 
-void kthread_created(const char *name, void(*func)(void *), void *param)
+
+static void recycle_proc(void)
+{
+    struct proc *p;
+
+    acquire(&ptable.lock);
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if (p->iskthread && p->state == ZOMBIE) {
+            kfree(p->kstack);
+            p->state = UNUSED;
+            p->iskthread = 0;
+            p->fn_ptr = NULL;
+            p->fn_arg = NULL;
+            release(&ptable.lock);
+        }
+    }
+    release(&ptable.lock);
+}
+
+
+static void kthread_exit(void)
+{
+    struct proc *p = thisproc();
+
+    if (!p->iskthread)
+        panic("kthread_exit: not a kthread");
+
+    acquire(&ptable.lock);
+    wakeup(p);
+    p->state = ZOMBIE;
+    list_drop(&p->link);
+    release(&ptable.lock);
+
+    yield();
+
+}
+
+static void kthread_stub(void)
+{
+    release(&ptable.lock);
+
+    struct proc *p = thisproc();
+    if (p->iskthread && p->fn_ptr) {
+        p->fn_ptr(p->fn_arg);
+    }
+
+    kthread_exit();
+
+}
+
+void kthread_create(const char *name, void(*func)(void *), void *param)
 {
     struct proc *p;
 
@@ -639,14 +690,13 @@ void kthread_created(const char *name, void(*func)(void *), void *param)
     // and data into it.
     //uvminit(p->pagetable, initcode, sizeof(initcode));
     p->sz = PGSIZE;
-    safestrcpy(p->name,"rxether",sizeof(p->name));
-    p->context->lr = (uint64_t)func;
+    safestrcpy(p->name, name, sizeof(p->name));
 
-    // prepare for the very first "return" from kernel to user.
-    //p->trapframe->epc = 0;      // user program counter
-    //p->trapframe->sp = PGSIZE;  // user stack pointer
+    p->iskthread = 1;
+    p->fn_ptr = func;
+    p->fn_arg = param;
+    p->context->lr = (uint64_t)kthread_stub;
 
-    //safestrcpy(p->name, "initcode", sizeof(p->name));
     p->cwd = 0;
     p->state = RUNNABLE;
     acquire(&ptable.lock);

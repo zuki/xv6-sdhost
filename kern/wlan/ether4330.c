@@ -2480,9 +2480,9 @@ static void etherbcmattach(Ether *edev)
         /* 3. sbを有効にする */
         sbenable(ctlr);
         /* 4. 受信処理を行うrproc()を実行するカーネルプロセスを作成する */
-        kthread_created("wifireader", rproc, edev);
+        kthread_create("wifireader", rproc, edev);
         /* 5. スキャン処理を行うlproc()を実行するカーネルプロセスを作成する */
-        kthread_created("wifitimer", lproc, edev);
+        kthread_create("wifitimer", lproc, edev);
         /* 6. 規制ファイルが存在する場合はロードする */
         if (ctlr->regufile)
             reguload(ctlr, ctlr->regufile);     // brcmfmac43455-sdio.clm_blob
