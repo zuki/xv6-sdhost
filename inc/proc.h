@@ -150,6 +150,10 @@ struct workqueue {
     int shutdown;               // キューを閉じるフラグ
 };
 
+struct recycle {
+    struct spinlock lock;
+};
+
 struct process_iter {
     int slot;
 };

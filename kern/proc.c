@@ -54,6 +54,8 @@ struct slab_cache *VMA;
 /* ワークキュー　*/
 static struct workqueue wq;
 
+static struct recycle recycle;
+
 static int procid = 0;
 
 void
@@ -64,6 +66,7 @@ proc_init(void)
     initlock(&ptable.lock, "ptable");
     initlock(&q.lock, "q_lock");
     initlock(&q.siglock, "q_siglock");
+    initlock(&recycle.lock, "recycle");
     list_init(&ptable.sched_que);
     for (i = 0; i < SQSIZE; i++)
         list_init(&ptable.slpque[i]);
@@ -270,7 +273,7 @@ forkret(void)
         net_run();
         kthread_create("ether", kthread_read_ether, NULL);
         workqueue_init();
-        //queue_work(&wq, recycle_proc, 0);
+        kthread_create("recycle", recycle_proc, NULL);
 #endif
     } else {
         release(&ptable.lock);
@@ -653,7 +656,8 @@ static void kthread_exit(void)
     release(&ptable.lock);
 
     yield();
-
+    // zombieの回収
+    wakeup(&recycle);
 }
 
 /* ワークキューの常駐スレッド */
@@ -694,18 +698,24 @@ static void recycle_proc(void *arg)
 {
     struct proc *p;
 
-    acquire(&ptable.lock);
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-        if (p->iskthread && p->state == ZOMBIE) {
-            kfree(p->kstack);
-            p->kstack = 0;
-            p->state = UNUSED;
-            p->iskthread = 0;
-            p->fn_ptr = NULL;
-            p->fn_arg = NULL;
+    while(1) {
+        acquire(&recycle.lock);
+        sleep(&recycle, &recycle.lock);
+        release(&recycle.lock);
+
+        acquire(&ptable.lock);
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+            if (p->iskthread && p->state == ZOMBIE) {
+                kfree(p->kstack);
+                p->kstack = 0;
+                p->state = UNUSED;
+                p->iskthread = 0;
+                p->fn_ptr = NULL;
+                p->fn_arg = NULL;
+            }
         }
+        release(&ptable.lock);
     }
-    release(&ptable.lock);
 }
 
 static void kthread_stub(void)
@@ -794,7 +804,6 @@ void kthread_read_ether(void *param)
 #else
         usb_cdcether_net_handler();
 #endif
-        //thisproc()->state = RUNNABLE;
         yield();
     }
 }
