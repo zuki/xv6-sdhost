@@ -28,6 +28,7 @@
     - [FATファイルシステムを検討](xv6/fat.md)
     - [FatFs: 汎用FATファイルシステム・モジュール](xv6/fatfs_module.md)
 - [Silicon Macで実行](xv6/m3.md)
+- [kthreadの実装を修正](xv6/kthread.md)
 
 ## その他のメモ
 
