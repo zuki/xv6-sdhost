@@ -169,6 +169,7 @@ static inline int _read_entry(struct buf *entry)
 
     bytes = dev_read(entry->dev, entry->block, entry->blockno, size);
     if (bytes != size) {
+        error("panic: bytes: %d != size: %d", bytes, size);
         panic("read_entry\n");
         return -1;
     }

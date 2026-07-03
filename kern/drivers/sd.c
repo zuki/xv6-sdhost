@@ -186,8 +186,11 @@ int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
     trace("minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
     uint64_t bno;
 
-    if (minor > ptnum)
+    if (minor > ptnum) {
+        error("minor: %d, ptnum: %d", minor, ptnum);
         return -ENXIO;
+    }
+
     if (offset > ptinfo[minor].nsecs)
         return -EFAULT;
 
