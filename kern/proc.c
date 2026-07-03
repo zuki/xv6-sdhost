@@ -1171,6 +1171,7 @@ long sigreturn(void)
     struct proc *p = thisproc();
 
     memmove((void *)p->tf, (void *)p->oldtf, sizeof(struct trapframe));
+    delayus(10000);
     return 0;
 }
 
