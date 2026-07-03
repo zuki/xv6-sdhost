@@ -51,6 +51,9 @@ struct _q {
 struct proc *initproc;
 struct slab_cache *VMA;
 
+/* ワークキュー　*/
+static struct workqueue wq;
+
 static int procid = 0;
 
 void
@@ -120,6 +123,7 @@ proc_alloc(void)
     p->paused = 0;
 
     list_init(&p->child);
+    trace("ksp: %p", sp);
 
     return p;
 }
@@ -229,6 +233,8 @@ scheduler(void)
  * A fork child's very first scheduling by scheduler()
  * will swtch here. "Return" to user space.
  */
+static void recycle_proc(void *arg);
+
 static void
 forkret(void)
 {
@@ -263,6 +269,8 @@ forkret(void)
         net_init();
         net_run();
         kthread_create("ether", kthread_read_ether, NULL);
+        workqueue_init();
+        //queue_work(&wq, recycle_proc, 0);
 #endif
     } else {
         release(&ptable.lock);
@@ -358,6 +366,7 @@ fork(void)
 {
     int ret = 0;
     struct proc *cp = thisproc();
+    trace("call proc_alloc for fork");
     struct proc *np = proc_alloc();
 
     if (np == 0) {
@@ -604,50 +613,31 @@ void
 procdump(void)
 {
     static char *states[] = {
-        [UNUSED] "unused",
-        [EMBRYO] "embryo",
-        [SLEEPING] "sleep ",
-        [RUNNABLE] "runble",
-        [RUNNING] "run   ",
-        [ZOMBIE] "zombie"
+        [UNUSED]   "unused  ",
+        [EMBRYO]   "embryo  ",
+        [SLEEPING] "sleeping",
+        [RUNNABLE] "runnable",
+        [RUNNING]  "running ",
+        [ZOMBIE]   "zombie  "
     };
     struct proc *p;
 
     // Donot acquire ptable.lock to avoid deadlock
     // acquire(&ptable.lock);
+    cprintf("\n");
     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
         if (p->state == UNUSED)
             continue;
         if (p->parent)
-            cprintf("%d %s %s fa: %d\n", p->pid, states[p->state], p->name,
+            cprintf("%-3d %s %s ppid: %d\n", p->pid, states[p->state], p->name,
                     p->parent->pid);
         else
-            cprintf("%d %s %s\n", p->pid, states[p->state], p->name);
+            cprintf("%-3d %s %s\n", p->pid, states[p->state], p->name);
     }
     // release(&ptable.lock);
 }
 
 extern uint64_t kpgdir;
-
-
-static void recycle_proc(void)
-{
-    struct proc *p;
-
-    acquire(&ptable.lock);
-    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-        if (p->iskthread && p->state == ZOMBIE) {
-            kfree(p->kstack);
-            p->state = UNUSED;
-            p->iskthread = 0;
-            p->fn_ptr = NULL;
-            p->fn_arg = NULL;
-            release(&ptable.lock);
-        }
-    }
-    release(&ptable.lock);
-}
-
 
 static void kthread_exit(void)
 {
@@ -666,29 +656,119 @@ static void kthread_exit(void)
 
 }
 
+/* ワークキューの常駐スレッド */
+static void wq_worker(void *arg)
+{
+    struct workqueue *wq = (struct workqueue *)arg;
+
+    for (;;) {
+        acquire(&wq->lock);
+
+        while (wq->head == 0 && !wq->shutdown) {
+            sleep(wq, &wq->lock);
+        }
+
+        if (wq->shutdown && wq->head == 0) {
+            release(&wq->lock);
+            break;
+        }
+
+        struct work *w = wq->head;
+        wq->head = w->next;
+        if (wq->head == 0)
+            wq->tail = 0;
+
+        release(&wq->lock);
+
+        if (w->func) {
+            w->func(w->arg);
+        }
+
+        kmfree(w);
+    }
+
+    kthread_exit();
+}
+
+static void recycle_proc(void *arg)
+{
+    struct proc *p;
+
+    acquire(&ptable.lock);
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if (p->iskthread && p->state == ZOMBIE) {
+            kfree(p->kstack);
+            p->kstack = 0;
+            p->state = UNUSED;
+            p->iskthread = 0;
+            p->fn_ptr = NULL;
+            p->fn_arg = NULL;
+        }
+    }
+    release(&ptable.lock);
+}
+
 static void kthread_stub(void)
 {
-    release(&ptable.lock);
+    //release(&ptable.lock);
 
     struct proc *p = thisproc();
+    assert(p);
     if (p->iskthread && p->fn_ptr) {
         p->fn_ptr(p->fn_arg);
     }
 
     kthread_exit();
-
 }
 
-void kthread_create(const char *name, void(*func)(void *), void *param)
+void workqueue_init(void)
+{
+    initlock(&wq.lock, "workqueue");
+    acquire(&wq.lock);
+    wq.head = 0;
+    wq.tail = 0;
+    wq.shutdown = 0;
+
+    wq.worker = kthread_create("workqueue", wq_worker, &wq);
+    release(&wq.lock);
+    info("workqueue_init ok, worker pid - %d", wq.worker->pid);
+}
+
+int queue_work(struct workqueue *wq, void (*func)(void *), void *arg)
+{
+    struct work *w = kmalloc(sizeof(struct work));
+    if (w == 0) {
+        error("no memory");
+        return -ENOMEM;
+    }
+
+    w->func = func;
+    w->arg = arg;
+    w->next = 0;
+
+    acquire(&wq->lock);
+    if (wq->tail == 0) {
+        wq->head = w;
+        wq->tail = w;
+    } else {
+        wq->tail->next = w;
+        wq->tail = w;
+    }
+
+    wakeup(wq);
+
+    release(&wq->lock);
+
+    return 0;
+}
+
+struct proc *kthread_create(const char *name, void(*func)(void *), void *param)
 {
     struct proc *p;
 
     p = proc_alloc();
     p->pgdir = (void *)kpgdir;
 
-    // allocate one user page and copy init's instructions
-    // and data into it.
-    //uvminit(p->pagetable, initcode, sizeof(initcode));
     p->sz = PGSIZE;
     safestrcpy(p->name, name, sizeof(p->name));
 
@@ -702,6 +782,8 @@ void kthread_create(const char *name, void(*func)(void *), void *param)
     acquire(&ptable.lock);
     list_push_back(&ptable.sched_que, &p->link);
     release(&ptable.lock);
+
+    return p;
 }
 
 void kthread_read_ether(void *param)

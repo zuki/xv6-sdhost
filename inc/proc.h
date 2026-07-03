@@ -135,6 +135,21 @@ struct cpu {
     struct spinlock lock;
 };
 
+/* ワークキューエントリ構造体 */
+struct work {
+    void (*func)(void *arg);    // 実行するカーネル関数
+    void *arg;                  // 関数の引数
+    struct work *next;          // 次のworkへのポインタ
+};
+
+struct workqueue {
+    struct spinlock lock;
+    struct work *head;          // キューの先頭
+    struct work *tail;          // キューの末尾
+    struct proc *worker;        // 処理を担当するカーネルスレッド
+    int shutdown;               // キューを閉じるフラグ
+};
+
 struct process_iter {
     int slot;
 };
@@ -169,7 +184,10 @@ int  wait4(pid_t pid, int *status, int options, struct rusage *ru);
 int  fork(void);
 void procdump();
 void kthread_read_ether(void *);
-void kthread_create(const char *name, void(*func)(void *), void *param);
+struct proc *kthread_create(const char *name, void(*func)(void *), void *param);
+int queue_work(struct workqueue *wq, void (*func)(void *), void *arg);
+void workqueue_init(void);
+
 struct proc *get_proc(pid_t pid);
 void proc_iter_start(struct process_iter *iter);
 struct proc *proc_iter_next(struct process_iter *iter);
