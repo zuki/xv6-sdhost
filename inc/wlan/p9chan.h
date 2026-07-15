@@ -2,7 +2,7 @@
 #define H_INC_WLAN_P9CHAN_H
 
 #include <fs/fatfs/ff.h>
-#include "p9util.h"
+#include <p9util.h>
 
 #ifdef __cplusplus
 extern "C" {

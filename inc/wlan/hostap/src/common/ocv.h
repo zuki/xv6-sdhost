@@ -1,0 +1,47 @@
+/*
+ * Operating Channel Validation (OCV)
+ * Copyright (c) 2018, Mathy Vanhoef
+ *
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
+ */
+
+#ifndef INC_WLAN_COMMON_OCV_H
+#define INC_WLAN_COMMON_OCV_H
+
+struct wpa_channel_info;
+
+struct oci_info {
+	/* Values in the OCI element */
+	uint8_t op_class;
+	uint8_t channel;
+	uint8_t seg1_idx;
+
+	/* Derived values for easier verification */
+	int freq;
+	int sec_channel;
+	int chanwidth;
+};
+
+#define OCV_OCI_LEN		3
+#define OCV_OCI_EXTENDED_LEN	(3 + OCV_OCI_LEN)
+#define OCV_OCI_KDE_LEN		(2 + RSN_SELECTOR_LEN + OCV_OCI_LEN)
+
+enum oci_verify_result {
+	OCI_SUCCESS, OCI_NOT_FOUND, OCI_INVALID_LENGTH, OCI_PARSE_ERROR,
+	OCI_PRIMARY_FREQ_MISMATCH, OCI_CHANNEL_WIDTH_MISMATCH,
+	OCI_SECONDARY_FREQ_MISMATCH, OCI_SEG_1_INDEX_MISMATCH
+};
+
+extern char ocv_errorstr[256];
+
+int ocv_derive_all_parameters(struct oci_info *oci);
+int ocv_insert_oci(struct wpa_channel_info *ci, uint8_t **argpos);
+int ocv_insert_oci_kde(struct wpa_channel_info *ci, uint8_t **argpos);
+int ocv_insert_extended_oci(struct wpa_channel_info *ci, uint8_t *pos);
+enum oci_verify_result
+ocv_verify_tx_params(const uint8_t *oci_ie, size_t oci_ie_len,
+		     struct wpa_channel_info *ci, int tx_chanwidth,
+		     int tx_seg1_idx);
+
+#endif /* OCV_H */

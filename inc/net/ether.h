@@ -18,6 +18,15 @@
 #define ETHER_TYPE_IP           0x0800
 #define ETHER_TYPE_ARP          0x0806
 #define ETHER_TYPE_IPV6         0x86dd
+#define ETHER_TYPE_EAPOL        0x888e
+#define ETHER_TYPE_PRE_AUTH     0x88c7
+
+// Ethernetヘッダー構造体
+struct ether_hdr {
+    uint8_t dst[ETHER_ADDR_LEN];
+    uint8_t src[ETHER_ADDR_LEN];
+    uint16_t type;
+};
 
 extern const uint8_t ETHER_ADDR_ANY[ETHER_ADDR_LEN];
 extern const uint8_t ETHER_ADDR_BROADCAST[ETHER_ADDR_LEN];

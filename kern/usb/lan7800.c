@@ -584,11 +584,14 @@ int lan7800_net_init(lan7800_t *self)
     return 0;
 }
 
+// kthread_read_ether()で実行
 void lan7800_net_handler(void)
 {
     struct net_device *dev = net_device_by_index(NET_INDEX_LAN7800);
     if (!dev) return;
 
     if (ether_input_helper(dev, lan7800_receive_frame) == 0)
+        // 割り込みをかける : バッファにはethernetヘッダーが
+        // 取り除かれたデータがセットされている
         intr_raise_irq(INTR_IRQ_SOFTIRQ);
 }

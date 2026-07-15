@@ -269,6 +269,42 @@ void *kmalloc(size_t nbytes)
     }
 }
 
+void *kmzalloc(size_t nbytes) {
+    void *ptr = kmalloc(nbytes);
+    if (ptr != NULL)
+        memset(ptr, 0, nbytes);
+    return ptr;
+}
+
+void *kmrealloc(void *ptr, size_t new_size, size_t old_size)
+{
+    // 1. 古いポインタがNULLの場合は kmalloc と同じ
+    if (ptr == NULL) {
+        return kmalloc(new_size);
+    }
+
+    // 2. 新しいサイズが0の場合は kmfree と同じ
+    if (new_size == 0) {
+        kmfree(ptr);
+        return NULL;
+    }
+
+    // 3. 新しい領域を確保
+    void *new_ptr = kmalloc(new_size);
+    if (new_ptr == NULL) {
+        return NULL; // 確保失敗
+    }
+
+    // 4. 古いデータを新しい領域にコピー
+    size_t copy_size = (old_size < new_size) ? old_size : new_size;
+    memcpy(new_ptr, ptr, copy_size);
+
+    // 5. 古い領域を解放
+    kmfree(ptr);
+
+    return new_ptr;
+}
+
 void mm_test(void)
 {
 #ifdef DEBUG

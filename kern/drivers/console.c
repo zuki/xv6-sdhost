@@ -24,14 +24,14 @@ int console_poll(minor_t minor, int events);
 off_t console_seek(minor_t minor, off_t position, int whence, off_t offset);
 
 struct driver console_driver = {
-	console_init,
-	console_open,
-	console_close,
-	console_read,
-	console_write,
-	console_ioctl,
-	console_poll,
-	console_seek,
+    console_init,
+    console_open,
+    console_close,
+    console_read,
+    console_write,
+    console_ioctl,
+    console_poll,
+    console_seek,
 };
 
 #define INPUT_BUF 128

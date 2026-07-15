@@ -7,7 +7,7 @@
 static inline void
 barrier()
 {
-    asm volatile("" ::: "memory");
+    __asm__ __volatile__("" ::: "memory");
 }
 
 /* cntfrq_el0 = 19200000 : armstub8.Sで設定 */
@@ -15,7 +15,7 @@ static inline uint64_t
 timerfreq()
 {
     uint64_t f;
-    asm volatile ("mrs %[freq], cntfrq_el0" : [freq]"=r"(f));
+    __asm__ __volatile__ ("mrs %[freq], cntfrq_el0" : [freq]"=r"(f));
     return f;
 }
 
@@ -24,7 +24,7 @@ timestamp()
 {
     uint64_t t;
     barrier();
-    asm volatile ("mrs %[cnt], cntpct_el0" : [cnt]"=r"(t));
+    __asm__ __volatile__ ("mrs %[cnt], cntpct_el0" : [cnt]"=r"(t));
     barrier();
     return t;
 }
@@ -33,7 +33,7 @@ timestamp()
 static inline void
 delay(uint32_t n)
 {
-    asm volatile("__delay_%=: subs %[n], %[n], #1; bne __delay_%=\n":
+    __asm__ __volatile__("__delay_%=: subs %[n], %[n], #1; bne __delay_%=\n":
                  "=r"(n): [n]"0"(n) : "cc");
 }
 
@@ -53,28 +53,28 @@ delayus(uint32_t n)
 static inline void
 isb()
 {
-    asm volatile("isb" ::: "memory");
+    __asm__ __volatile__("isb" ::: "memory");
 }
 
 /* Instruction memory barrier. */
 static inline void
 imb()
 {
-    asm volatile("isb" ::: "memory");
+    __asm__ __volatile__("isb" ::: "memory");
 }
 
 /* Data synchronization barrier. */
 static inline void
 dsb()
 {
-    asm volatile("dsb sy" ::: "memory");
+    __asm__ __volatile__("dsb sy" ::: "memory");
 }
 
 /* Data memory barrier. */
 static inline void
 dmb()
 {
-    asm volatile("dmb sy" ::: "memory");
+    __asm__ __volatile__("dmb sy" ::: "memory");
 }
 
 /* Brute-force data and instruction synchronization barrier. */
@@ -90,7 +90,7 @@ static inline void
 put32(uint64_t p, uint32_t x)
 {
     barrier();
-    *(volatile uint32_t *)p = x;
+    *(__volatile__ uint32_t *)p = x;
     barrier();
 }
 
@@ -98,7 +98,7 @@ static inline uint32_t
 get32(uint64_t p)
 {
     barrier();
-    uint32_t val = *(volatile uint32_t *)p;
+    uint32_t val = *(__volatile__ uint32_t *)p;
     barrier();
     return val;
 }
@@ -110,8 +110,8 @@ dccivac(void *p, int n)
 {
     disb();
     while (n--) {
-        asm volatile("dc civac, %[x]" : : [x]"r"(p + n));
-        asm volatile("dc cvau, %[x]" : : [x]"r"(p + n));
+        __asm__ __volatile__("dc civac, %[x]" : : [x]"r"(p + n));
+        __asm__ __volatile__("dc cvau, %[x]" : : [x]"r"(p + n));
     }
     disb();
 }
@@ -122,7 +122,7 @@ resr()
 {
     disb();
     uint64_t r;
-    asm volatile("mrs %[x], esr_el1" : [x]"=r"(r));
+    __asm__ __volatile__("mrs %[x], esr_el1" : [x]"=r"(r));
     disb();
     return r;
 }
@@ -133,7 +133,7 @@ relr()
 {
     disb();
     uint64_t r;
-    asm volatile("mrs %[x], elr_el1" : [x]"=r"(r));
+    __asm__ __volatile__("mrs %[x], elr_el1" : [x]"=r"(r));
     disb();
     return r;
 }
@@ -143,7 +143,7 @@ static inline void
 lesr(uint64_t _v)
 {
     disb();
-    asm volatile("msr esr_el1, %[x]" : : [x]"r"(0));
+    __asm__ __volatile__("msr esr_el1, %[x]" : : [x]"r"(0));
     disb();
 }
 
@@ -153,7 +153,7 @@ rfar()
 {
     disb();
     uint64_t r;
-    asm volatile("mrs %[x], far_el1" : [x]"=r"(r));
+    __asm__ __volatile__("mrs %[x], far_el1" : [x]"=r"(r));
     disb();
     return r;
 }
@@ -163,7 +163,7 @@ static inline void
 lvbar(void *p)
 {
     disb();
-    asm volatile("msr vbar_el1, %[x]" : : [x]"r"(p));
+    __asm__ __volatile__("msr vbar_el1, %[x]" : : [x]"r"(p));
     disb();
 }
 
@@ -171,7 +171,7 @@ static inline void
 tlbi1()
 {
     disb();
-    asm volatile("tlbi vmalle1is");
+    __asm__ __volatile__("tlbi vmalle1is");
     disb();
 }
 
@@ -180,7 +180,7 @@ static inline void
 lttbr0(uint64_t p)
 {
     disb();
-    asm volatile("msr ttbr0_el1, %[x]" : : [x]"r"(p));
+    __asm__ __volatile__("msr ttbr0_el1, %[x]" : : [x]"r"(p));
     tlbi1();
 }
 
@@ -189,7 +189,7 @@ static inline void
 lttbr1(uint64_t p)
 {
     disb();
-    asm volatile("msr ttbr1_el1, %[x]" : : [x]"r"(p));
+    __asm__ __volatile__("msr ttbr1_el1, %[x]" : : [x]"r"(p));
     tlbi1();
 }
 
@@ -197,70 +197,70 @@ static inline int
 cpuid()
 {
     int64_t id;
-    asm volatile("mrs %[x], mpidr_el1" : [x]"=r"(id));
+    __asm__ __volatile__("mrs %[x], mpidr_el1" : [x]"=r"(id));
     return id & 0xFF;
 }
 
 static inline void
 nop()
 {
-    asm volatile ("nop");
+    __asm__ __volatile__ ("nop");
 }
 
 static inline void
 wfi()
 {
-    asm volatile ("wfi");
+    __asm__ __volatile__ ("wfi");
 }
 
 static inline void
 wfe()
 {
-    asm volatile ("wfe");
+    __asm__ __volatile__ ("wfe");
 }
 
 static inline void
 sev()
 {
-    asm volatile ("sev");
+    __asm__ __volatile__ ("sev");
 }
 
 static inline void
 enable_irq(void)
 {
-    asm volatile ("msr DAIFClr, #2");
+    __asm__ __volatile__ ("msr DAIFClr, #2");
 }
 
 static inline void
 disable_irq(void)
 {
-    asm volatile ("msr DAIFSet, #2");
+    __asm__ __volatile__ ("msr DAIFSet, #2");
 }
 
 static inline void
 enable_fiq(void)
 {
-    asm volatile ("msr DAIFClr, #1");
+    __asm__ __volatile__ ("msr DAIFClr, #1");
 }
 
 static inline void
 disable_fiq(void)
 {
-    asm volatile ("msr DAIFSet, #1");
+    __asm__ __volatile__ ("msr DAIFSet, #1");
 }
 
 static inline int
 irq_enabled(void)
 {
     uint64_t r;
-    asm volatile("mrs %[x], daif" : [x]"=r"(r));
+    __asm__ __volatile__("mrs %[x], daif" : [x]"=r"(r));
     return (r & 0x80) == 0;
 }
 
 static inline uint64_t get_sp(void)
 {
     uint64_t x;
-    asm volatile("mov %0, sp" : "=r" (x) );
+    __asm__ __volatile__("mov %0, sp" : "=r" (x) );
     return x;
 }
 

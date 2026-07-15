@@ -17,7 +17,7 @@ void lock(Lock *l)
 
     // AARCH == 64 : Acquiring a lock with Load-Acquire Exclusive, Store-Release Exclusive
     // See: ARMv8-A Architecture Reference Manual, Section K10.3.1
-    asm volatile
+    __asm__ __volatile__
     (
         "mov x1, %0\n"
         "mov w2, #1\n"
@@ -35,7 +35,7 @@ void lock(Lock *l)
 void unlock (Lock *l)
 {
     // See: ARMv8-A Architecture Reference Manual, Section K10.3.2
-    asm volatile
+    __asm__ __volatile__
     (
         "mov x1, %0\n"
         "stlr wzr, [x1]\n"

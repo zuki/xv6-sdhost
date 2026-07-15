@@ -82,12 +82,13 @@ static inline void intr_shutdown(void)
  */
 
 struct sched_ctx {
-    int interrupted;
-    int wc;             /* wait count */
+    int interrupted;    // struct synchro_event->state 相当
+    int wc;             /* wait count : wait_list_head 代替 */
 };
 
 #define SCHED_CTX_INITIALIZER {0, 0}
 
+// CSynchronizationEvent コンストラクタ相当
 static inline int sched_ctx_init(struct sched_ctx *ctx)
 {
     ctx->interrupted = 0;
@@ -103,6 +104,9 @@ static inline int sched_ctx_destroy(struct sched_ctx *ctx)
     return 0;
 }
 
+// CSynchronizationEvent::Clear 相当がないが、常に Clear(); Wait()の形で使われており、
+// これは sched_sleep()で代用できそう
+// CSynchronizationEvent::Wait 相当
 static inline int sched_sleep(struct sched_ctx *ctx, mutex_t *mutex, const struct timespec *abstime)
 {
     (void)abstime;
@@ -121,12 +125,14 @@ static inline int sched_sleep(struct sched_ctx *ctx, mutex_t *mutex, const struc
     return 0;
 }
 
+// CSynchronizationEvent::Pulse 相当
 static inline int sched_wakeup(struct sched_ctx *ctx)
 {
     wakeup(ctx);
     return 0;
 }
 
+// CSynchronizationEvent::Set 相当
 static inline int sched_interrupt(struct sched_ctx *ctx)
 {
     ctx->interrupted = 1;

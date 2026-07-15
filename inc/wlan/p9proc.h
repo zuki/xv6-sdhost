@@ -9,7 +9,7 @@
 // マルチCPUの競争を防ぐためのロック
 typedef struct lock_t
 {
-    u32int _lock;
+    uint32_t _lock;
 } Lock;
 
 #if 0

@@ -27,14 +27,17 @@
 
 #define NET_DEVICE_ADDR_LEN         6
 #define MAC_ADDRESS_SIZE            6
+#define FRAME_BUFFER_SIZE           1600
 
 #define NET_DEVICE_IS_UP(x)     ((x)->flags & IFF_UP)
 #define NET_DEVICE_STATE(x)     (NET_DEVICE_IS_UP(x) ? "up" : "down")
 
 /* NOTE: use same value as the Ethernet types */
-#define NET_PROTOCOL_TYPE_IP    0x0800
-#define NET_PROTOCOL_TYPE_ARP   0x0806
-#define NTT_PROTOCOL_TYPE_IPV6  0x86dd
+#define NET_PROTOCOL_TYPE_IP        0x0800
+#define NET_PROTOCOL_TYPE_ARP       0x0806
+#define NET_PROTOCOL_TYPE_IPV6      0x86dd
+#define NET_PROTOCOL_TYPE_EAPOL     0x888e
+#define NET_PROTOCOL_TYPE_PRE_AUTH  0x88c7
 
 #define NET_IFACE_FAMILY_IP     1
 #define NET_IFACE_FAMILY_IPV6   2
@@ -42,7 +45,7 @@
 #define NET_IFACE(x) ((struct net_iface *)(x))
 
 typedef enum net_index {
-    NET_INDEX_LAN7800,
+    NET_INDEX_LAN7800 = 1,  // FIXME: 確認
     NET_INDEX_CDC,
     NET_INDEX_BCM4343,
     NET_INDEX_NUMS
@@ -67,6 +70,7 @@ struct net_device {
     void *priv;
 };
 
+// これはxv6-net由来
 struct net_device_ops {
     int (*open)(struct net_device *dev);
     int (*close)(struct net_device *dev);

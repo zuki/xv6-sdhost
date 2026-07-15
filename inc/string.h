@@ -4,8 +4,7 @@
 #include <types.h>
 #include <arm.h>
 
-static inline void *
-memset(void *str, int c, size_t n)
+static inline void *memset(void *str, int c, size_t n)
 {
     char *l = (char *)str, *r = l + n;
     for (; l != r; l ++)
@@ -13,8 +12,7 @@ memset(void *str, int c, size_t n)
     return str;
 }
 
-static inline void *
-memmove(void *dst, const void *src, size_t n)
+static inline void *memmove(void *dst, const void *src, size_t n)
 {
     const char *s = (const char *)src;
     char *d = (char *)dst;
@@ -28,14 +26,12 @@ memmove(void *dst, const void *src, size_t n)
     return dst;
 }
 
-static inline void *
-memcpy(void *dst, const void *src, ssize_t n)
+static inline void *memcpy(void *dst, const void *src, ssize_t n)
 {
     return memmove(dst, src, n);
 }
 
-static inline int
-memcmp(const void *v1, const void *v2, size_t n)
+static inline int memcmp(const void *v1, const void *v2, size_t n)
 {
     for (const uint8_t *s1 = (const uint8_t*)v1, *s2 = (const uint8_t*)v2;
          n-- > 0; s1++, s2++)
@@ -44,8 +40,7 @@ memcmp(const void *v1, const void *v2, size_t n)
     return 0;
 }
 
-static inline int
-strncmp(const char *p, const char *q, size_t n)
+static inline int strncmp(const char *p, const char *q, size_t n)
 {
     while (n > 0 && *p && *p == *q)
         n--, p++, q++;
@@ -54,8 +49,7 @@ strncmp(const char *p, const char *q, size_t n)
     return (uint8_t)*p - (uint8_t)*q;
 }
 
-static inline char *
-strncpy(char *dst, const char *src, size_t n)
+static inline char *strncpy(char *dst, const char *src, size_t n)
 {
     if (n != 0) {
         char *d = dst;
@@ -72,8 +66,7 @@ strncpy(char *dst, const char *src, size_t n)
 }
 
 // Like strncpy but guaranteed to NUL-terminate.
-static inline char *
-safestrcpy(char *s, const char *t, size_t n)
+static inline char *safestrcpy(char *s, const char *t, size_t n)
 {
     char *os = s;
     if (n <= 0)
@@ -84,8 +77,7 @@ safestrcpy(char *s, const char *t, size_t n)
     return os;
 }
 
-static inline size_t
-strlen(const char *s)
+static inline size_t strlen(const char *s)
 {
     size_t n;
     for (n = 0; s[n]; n++)
@@ -93,8 +85,7 @@ strlen(const char *s)
     return n;
 }
 
-static inline char *
-strchr(const char *s, char c)
+static inline char *strchr(const char *s, char c)
 {
     if (s == 0)
         return 0;
@@ -106,8 +97,7 @@ strchr(const char *s, char c)
     return *p == c ? p : 0;
 }
 
-static inline char *
-strrchr(const char *s, char c)
+static inline char *strrchr(const char *s, char c)
 {
     char *p = (char *)((uint64_t)s + strlen(s) - 1);
     for (; *p && p >= s; p--) {
@@ -117,8 +107,7 @@ strrchr(const char *s, char c)
     return 0;
 }
 
-static inline int
-strspn1(const char *s, char c)
+static inline int strspn1(const char *s, char c)
 {
     if (s == 0)
         return 0;
@@ -130,8 +119,7 @@ strspn1(const char *s, char c)
     return (int)(p - s);
 }
 
-static inline int
-strcspn1(const char *s, char c)
+static inline int strcspn1(const char *s, char c)
 {
     if (s == 0)
         return 0;
@@ -143,16 +131,14 @@ strcspn1(const char *s, char c)
     return (int)(p - s);
 }
 
-static inline int
-strcmp(const char *p, const char *q)
+static inline int strcmp(const char *p, const char *q)
 {
     while (*p && *p == *q)
         p++, q++;
     return (int) ((uint8_t)*p - (uint8_t)*q);
 }
 
-static inline void *
-memscan(void *addr, int c, size_t size)
+static inline void *memscan(void *addr, int c, size_t size)
 {
     unsigned char *a = addr;
 
@@ -201,6 +187,14 @@ static __inline int __isspace(int _c)
     return _c == ' ' || (unsigned)_c-'\t' < 5;
 }
 
+static inline int abs(int i) { return i < 0 ? -i : i; }
+static inline int isblank(int c) { return c == ' ' || c == '\t'; }
+
+static inline int sscanf(const char *str, const char *format, ...)
+{
+    return 0;
+}
+
 #define isascii(a) ((a >= 0x00) && (a <= 0x7f))
 #define isprint(a) ((a >= 0x20) && (a <= 0x7e))
 
@@ -209,7 +203,7 @@ static __inline int __isspace(int _c)
 #define islower(a) (((unsigned)(a)-'a') < 26)
 #define isupper(a) (((unsigned)(a)-'A') < 26)
 #define isgraph(a) (((unsigned)(a)-0x21) < 0x5e)
-#define issapce(a) __isspace(a)
+#define isspace(a) __isspace(a)
 
 char *strcpy(char *dst, const char *src);
 int atoi(const char *s);
@@ -225,4 +219,7 @@ char *strtok_r(char *str, const char *delim, char **save_ptr);
 int str_replace(char **source, const char *find, const char *replace);
 int strcasecmp(const char *s1, const char *s2);
 int strncasecmp(const char *s1, const char *s2, size_t n);
+char *strdup (const char *s);
+int vsnprintfmt(char *str, size_t size, const char *fmt, va_list ap);
+
 #endif

@@ -1,6 +1,7 @@
 /*
  * Broadcom bcm4330 wifi (sdio interface)
  */
+// https://9p.io/sources/contrib/miller/9/bcm/ether4330.c
 
 #include <wlan/p9compat.h>
 #include <spinlock.h>
@@ -14,11 +15,11 @@ extern int sdiocardintr(int);
 
 /*  各種定数の定義 */
 enum{
-    SDIODEBUG   = 0,        /* SDIOのデバッグ*/
-    SBDEBUG     = 0,        /* Silicon Backplaneのデバッグ */
-    EVENTDEBUG  = 0,        /* イベントのデバッグ*/
-    VARDEBUG    = 0,        /* 変数のデバッグ*/
-    FWDEBUG     = 0,        /* ファームウェアのデバッグ*/
+    SDIODEBUG   = 1,        /* SDIOのデバッグ*/
+    SBDEBUG     = 1,        /* Silicon Backplaneのデバッグ */
+    EVENTDEBUG  = 1,        /* イベントのデバッグ*/
+    VARDEBUG    = 1,        /* 変数のデバッグ*/
+    FWDEBUG     = 1,        /* ファームウェアのデバッグ*/
 
     Corescansz  = 512,      /* コアのスキャンサイズ*/
     Uploadsz    = 2048,     /* アップロードサイズ*/
@@ -30,7 +31,7 @@ enum{
     ARM7tdmi    = 0x825,
     ARMcr4      = 0x83E,
 
-    Fn0     = 0,            /* 機能 0 */
+    Fn0     = 0,            /* 機能 0 : SDIO制御に仕様 */
     Fn1     = 1,            /* 機能 1 : チップ内レジスタ、メモリとの読み書きに使用 */
     Fn2     = 2,            /* 機能 2 : WiFiパケットの読み書きに使用 */
     Fbr1    = 0x100,        /* FBR 1の基底アドレス  */
@@ -66,7 +67,7 @@ enum{
     V2_0    = 1<<8,     /* 2.0-2.1 volts */
     S18R    = 1<<24,    /* S18R: switch to 1.8V request */
 
-    /* Sonics Silicon Backplane (CYW43**上のコアへのアクセス) */
+    /* Sonic's Silicon Backplane (CYW43**上のコアへのアクセス) */
     /*   src/bus_protocols/whd_sdio.h */
     Sbwsize = 0x8000,
     Sb32bit = 0x8000,
@@ -180,7 +181,7 @@ struct Ctlr {
     int     armcore;                /* armcore種別 */
     char    *regufile;              /* 規制データファイル .clm_blob */
     union {
-        u32int  i;
+        uint32_t  i;
         uchar   c[4];
     } resetvec;                     /* リセットベクタ */
     ulong   chipcommon;             /* 共通ベースアドレス */
@@ -350,7 +351,7 @@ static void dump(char *s, void *a, int n)
 /*  コマンドcmdを実行して（sdiolockは呼び出し側でロックされている）応答を返す */
 static ulong sdiocmd_locked(int cmd, ulong arg)
 {
-    u32int resp[4];
+    uint32_t resp[4];
 
     sdio.cmd(cmd, arg, resp);
     return resp[0];
@@ -402,7 +403,7 @@ static int sdiord(int fn, int addr)
     return r & 0xFF;
 }
 
-/*  CMD52で8bitのデータdatを機能fnのアドレスaddrに書き出す */
+/*  CMD52で8bitのデータdataを機能fnのアドレスaddrに書き出す */
 /*   エラーが発生した場合は最大10回再試行する */
 static void sdiowr(int fn, int addr, int data)
 {
@@ -578,7 +579,7 @@ static ulong cfgreadl(int fn, ulong off)
 }
 
 /*  CMD53: 機能Fnのアドレスオフセットoffに４バイトのデータdataを書き込む */
-static void cfgwritel(int fn, ulong off, u32int data)
+static void cfgwritel(int fn, ulong off, uint32_t data)
 {
     uchar cbuf[2*CACHELINESZ];
     uchar *p;
@@ -1369,7 +1370,7 @@ static void txstart(Ether *edev)
     qunlock(&ctl->tlock);
 }
 
-/* カーネルプロセスに実行させるパケット受信処理関数 */
+/* カーネルスレッドに実行させるパケット受信処理関数 */
 static void rproc(void *a)
 {
     Ether *edev;
@@ -1387,15 +1388,15 @@ static void rproc(void *a)
         if (flowstart) {
             //print("F");
             flowstart = 0;
-            txstart(edev);
+            txstart(edev);      // wlanチップへの送信開始
         }
-        b = wlreadpkt(ctl);
+        b = wlreadpkt(ctl);     // wlanチップからのパケットread
         if (b == nil) {
             intwait(ctl, 1);
             continue;
         }
         p = (Sdpcm*)b->rp;
-        /* 転送開始するかをチェック */
+        /* creditのチェック: 転送開始するかをチェック */
         if (p->window != ctl->txwindow || p->fcmask != ctl->fcmask) {
             acquire(&ctl->txwinlock);
             if (p->window != ctl->txwindow) {
@@ -1415,18 +1416,18 @@ static void rproc(void *a)
             if (iodebug) dump("rsp", b->rp, BLEN(b));
             if (BLEN(b) < sizeof(Sdpcm) + sizeof(Cmd))
                 break;
-            q = (Cmd*)(b->rp + sizeof(*p));
-            if ((q->id[0] | q->id[1]<<8) != ctl->reqid)
+            q = (Cmd*)(b->rp + sizeof(*p));     // CDC
+            if ((q->id[0] | q->id[1]<<8) != ctl->reqid) // リクエストの応答でない
                 break;
-            ctl->rsp = b;
-            p9wakeup(&ctl->cmdr);
+            ctl->rsp = b;           // リクエストの応答（ヘッダーは削除していない）
+            p9wakeup(&ctl->cmdr);   // リクエストの応答を待ってsleepしているプロセスを起床
             continue;
         case 1:    /* event : イベント */
             if (iodebug) dump("event", b->rp, BLEN(b));
-            if (BLEN(b) > p->doffset + 4) {
-                bdc = 4 + (b->rp[p->doffset + 3] << 2);
+            if (BLEN(b) > p->doffset + 4) {     // sdpcmヘッダー + BDCヘッダー
+                bdc = 4 + (b->rp[p->doffset + 3] << 2); // BDCヘッダーの末尾からパケットデータまでのオフセットは4 uint8_tワード単位。
                 if (BLEN(b) > p->doffset + bdc) {
-                    b->rp += p->doffset + bdc;    /* skip BDC header */
+                    b->rp += p->doffset + bdc;    /* BDC ヘッダーをスキップ */
                     bcmevent(ctl, b->rp, BLEN(b));
                     break;
                 }
@@ -1439,8 +1440,8 @@ static void rproc(void *a)
             if (BLEN(b) > p->doffset + 4) {
                 bdc = 4 + (b->rp[p->doffset + 3] << 2);
                 if (BLEN(b) >= p->doffset + bdc + ETHERHDRSIZE) {
-                    b->rp += p->doffset + bdc;  /* skip BDC header */
-                    etheriq(edev, b, 1);        /* bcm434.cpp で定義 */
+                    b->rp += p->doffset + bdc;  /* BDCヘッダーをスキップ */
+                    etheriq(edev, b, 1);        /* bの先頭はEthernetヘッダー : bcm434.cpp で定義 */
                     continue;
                 }
             }
@@ -2546,7 +2547,7 @@ static int etherbcmpnp(Ether *edev)
     return 0;
 }
 
-/* WiFiデバイス(CYW43XX)を"4330"の名前で登録する*/
+/* WiFiデバイス(CYW43XX)を"4330"の名前で登録する */
 void ether4330link(void)
 {
     addethercard("4330", etherbcmpnp);

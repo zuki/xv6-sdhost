@@ -29,6 +29,7 @@
 typedef ether_event_handler_t bcm4343_event_hander;
 typedef boolean bcm4343_connect_provider(void);
 
+// BC4343x WLANデバイス用ドライバ構造体
 struct bcm4343 {
     struct net_device   *net_dev;   // ネットデバイスオブジェクト
     char *  firm_path;              // ファームウェアのパス
@@ -42,6 +43,7 @@ struct bcm4343 {
     boolean opennet;                // ネットワークはオープン済みか?
     boolean linkup;                 // ネットワークはLinkUp済みか?
     bcm4343_connect_provider *is_connected;    // 接続済みか確認する関数へのポインタ
+    //Ether               *ether_device;  // Ethernet操作関数
 };
 
 int bcm4343_init(const char *firm_path);        // e.g. "/d/firmware/"
@@ -54,12 +56,10 @@ static inline uint16_t bcm4343_gettype(void)
 
 uint8_t *bcm4343_get_macaddr(struct bcm4343 *self);
 
-boolean bcm4343_send_frame(struct bcm4343 *self, const void *buff, unsigned len);
+long bcm4343_send_frame(struct net_device *dev, const uint8_t *buff, uint64_t len);
 
 // pBuffer must have size FRAME_BUFFER_SIZE
-boolean bcm4343_recv_frame(struct bcm4343 *self, void *buff, unsigned *rlen);
-
-boolean bcm4343_is_linkup(struct bcm4343 *self);
+long bcm4343_recv_frame(struct net_device *dev, uint8_t *buff, uint64_t *rlen);
 
 boolean bcm4343_set_mcast_filter(struct bcm4343 *self, const uint8_t Groups[][MAC_ADDRESS_SIZE]);
 

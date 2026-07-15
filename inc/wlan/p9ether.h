@@ -1,19 +1,20 @@
 #ifndef H_INC_WLAN__P9ETHER_H
 #define H_INC_WLAN__P9ETHER_H
 
-#include "p9util.h"
-#include "p9proc.h"
-#include "etherevent.h"
+#include <p9util.h>
+#include <p9proc.h>
+#include <etherevent.h>
 
 #define Eaddrlen        6
+// Ethernetヘッダーサイズ
 #define ETHERHDRSIZE    (Eaddrlen+Eaddrlen+2)
 
 typedef struct Block {
     struct Block *next;
     uchar *buf;
-    uchar *lim;        // bufの最大終端アドレス
-    uchar *wp;
-    uchar *rp;
+    uchar *lim;         // bufの最大終端アドレス
+    uchar *wp;          // writing pointer
+    uchar *rp;          // reading pointer
     uchar data[0];
 #define BLEN(b)        ((b)->wp - (b)->rp)
 } Block;
@@ -32,6 +33,7 @@ unsigned qlen(Queue *q);
 Block *qget(Queue *q);
 void qpass(Queue *q, Block *b);
 
+// ethernetドライバ構造体
 typedef struct Ether {
     void *ctlr;
     void *arg;

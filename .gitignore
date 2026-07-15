@@ -17,4 +17,10 @@ tools/dump
 mkfs/mkfs
 
 memos/src/xv6/*.log
+memos/src/xv6/cmp_circle_xv6net_network.md
+
 rfc793.txt
+
+fat/*
+
+makefile.hostap.org

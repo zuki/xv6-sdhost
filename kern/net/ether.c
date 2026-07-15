@@ -9,12 +9,6 @@
 #include <string.h>
 #include <linux/errno.h>
 
-struct ether_hdr {
-    uint8_t dst[ETHER_ADDR_LEN];
-    uint8_t src[ETHER_ADDR_LEN];
-    uint16_t type;
-};
-
 const uint8_t ETHER_ADDR_ANY[ETHER_ADDR_LEN] = {"\x00\x00\x00\x00\x00\x00"};
 const uint8_t ETHER_ADDR_BROADCAST[ETHER_ADDR_LEN] = {"\xff\xff\xff\xff\xff\xff"};
 
@@ -96,6 +90,8 @@ int ether_transmit_helper(struct net_device *dev, uint16_t type,
     trace("ret: %d, flen: %d", ret, flen);
 }
 
+// TODO: これとnet.c#net_input_handler()に相当する関数をbcm4343.cに作成して
+//     送信元のMACアドレスを受信キューに追加する
 int ether_input_helper(struct net_device *dev, ether_input_func_t callback)
 {
     uint8_t *frame;
@@ -131,6 +127,7 @@ int ether_input_helper(struct net_device *dev, ether_input_func_t callback)
     type = ntoh16(hdr->type);
     trace("dev=%s, type=0x%04x, len=%d", dev->name, type, flen);
     ether_dump(frame, flen);
+    // ここでethernetヘッダーを削除
     return net_input_handler(type, (uint8_t *)(hdr+1), flen - sizeof(*hdr), dev);
 }
 

@@ -27,7 +27,7 @@
 unsigned current_execution_level(void)
 {
     uint32_t flags;
-    asm volatile ("mrs %0, daif" : "=r" (flags));
+    __asm__ __volatile__ ("mrs %0, daif" : "=r" (flags));
 
     if (flags & 0x40)
         return FIQ_LEVEL;
@@ -40,8 +40,8 @@ unsigned current_execution_level(void)
 
 #ifdef ARM_ALLOW_MULTI_CORE
 
-static volatile unsigned CRITICAL_LEBEL[CORES] = {0};
-static volatile uint32_t FLAGS[CORES][MAX_CRITICAL_LEVEL];
+static __volatile__ unsigned CRITICAL_LEBEL[CORES] = {0};
+static __volatile__ uint32_t FLAGS[CORES][MAX_CRITICAL_LEVEL];
 
 // 各CPU単位でMAX_CRITICAL_LEVEL(20)回までネスト可能
 void enter_critical(unsigned level)
@@ -51,12 +51,12 @@ void enter_critical(unsigned level)
     unsigned core = cpuid();
 
     uint32_t flags;
-    asm volatile ("mrs %0, daif" : "=r" (flags));
+    __asm__ __volatile__ ("mrs %0, daif" : "=r" (flags));
 
     // 現在、同じか上位レベルにしか移行できない
     assert (level == FIQ_LEVEL || !(flags & 0x40));
 
-    asm volatile("msr DAIFSet, #3");    // IRQとFIQを共に無効に
+    __asm__ __volatile__("msr DAIFSet, #3");    // IRQとFIQを共に無効に
 
     assert (CRITICAL_LEBEL[core] < MAX_CRITICAL_LEVEL);
     FLAGS[core][CRITICAL_LEBEL[core]++] = flags;
@@ -78,25 +78,25 @@ void leave_critical(void)
     assert (CRITICAL_LEBEL[core] > 0);
     uint32_t flags = FLAGS[core][--CRITICAL_LEBEL[core]];
 
-    asm volatile ("msr daif, %0" :: "r" (flags));
+    __asm__ __volatile__ ("msr daif, %0" :: "r" (flags));
 }
 
 #else
 
-static volatile unsigned CRITICAL_LEBEL = 0;
-static volatile uint32_t FLAGS[MAX_CRITICAL_LEVEL];
+static __volatile__ unsigned CRITICAL_LEBEL = 0;
+static __volatile__ uint32_t FLAGS[MAX_CRITICAL_LEVEL];
 
 void enter_critical(unsigned level)
 {
     assert (level == IRQ_LEVEL || level == FIQ_LEVEL);
 
     uint32_t flags;
-    asm volatile ("mrs %0, daif" : "=r" (flags));
+    __asm__ __volatile__ ("mrs %0, daif" : "=r" (flags));
 
     // if we are already on FIQ_LEVEL, we must not go back to IRQ_LEVEL here
     assert (level == FIQ_LEVEL || !(flags & 0x40));
 
-    asm volatile ("msr DAIFSet, #3");    // disable both IRQ and FIQ
+    __asm__ __volatile__ ("msr DAIFSet, #3");    // disable both IRQ and FIQ
 
     assert (CRITICAL_LEBEL < MAX_CRITICAL_LEVEL);
     FLAGS[CRITICAL_LEBEL++] = flags;
@@ -118,7 +118,7 @@ void leave_critical(void)
     assert (CRITICAL_LEBEL > 0);
     uint32_t flags = FLAGS[--CRITICAL_LEBEL];
 
-    asm volatile ("msr daif, %0" :: "r" (flags));
+    __asm__ __volatile__ ("msr daif, %0" :: "r" (flags));
 }
 
 #endif
@@ -157,7 +157,7 @@ void invalidate_data_cache(void)
                        | set << L1_SETWAY_SET_SHIFT
                        | 0 << SETWAY_LEVEL_SHIFT;
 
-            asm volatile ("dc isw, %0" : : "r" (waylevel) : "memory");
+            __asm__ __volatile__ ("dc isw, %0" : : "r" (waylevel) : "memory");
         }
     }
 
@@ -168,7 +168,7 @@ void invalidate_data_cache(void)
                        | set << L2_SETWAY_SET_SHIFT
                        | 1 << SETWAY_LEVEL_SHIFT;
 
-            asm volatile ("dc isw, %0" : : "r" (waylevel) : "memory");
+            __asm__ __volatile__ ("dc isw, %0" : : "r" (waylevel) : "memory");
         }
     }
 
@@ -184,7 +184,7 @@ void invalidate_data_cache_l1_only(void)
                        | set << L1_SETWAY_SET_SHIFT
                        | 0 << SETWAY_LEVEL_SHIFT;
 
-            asm volatile ("dc isw, %0" : : "r" (waylevel) : "memory");
+            __asm__ __volatile__ ("dc isw, %0" : : "r" (waylevel) : "memory");
         }
     }
 
@@ -200,7 +200,7 @@ void clean_data_cache (void)
                        | set << L1_SETWAY_SET_SHIFT
                        | 0 << SETWAY_LEVEL_SHIFT;
 
-            asm volatile ("dc csw, %0" : : "r" (waylevel) : "memory");
+            __asm__ __volatile__ ("dc csw, %0" : : "r" (waylevel) : "memory");
         }
     }
 
@@ -211,7 +211,7 @@ void clean_data_cache (void)
                        | set << L2_SETWAY_SET_SHIFT
                        | 1 << SETWAY_LEVEL_SHIFT;
 
-            asm volatile ("dc csw, %0" : : "r" (waylevel) : "memory");
+            __asm__ __volatile__ ("dc csw, %0" : : "r" (waylevel) : "memory");
         }
     }
 
@@ -221,7 +221,7 @@ void clean_data_cache (void)
 void invalidate_data_cache_range(uint64_t addr, uint64_t length)
 {
     while (1) {
-        asm volatile ("dc ivac, %0" : : "r" (addr) : "memory");
+        __asm__ __volatile__ ("dc ivac, %0" : : "r" (addr) : "memory");
 
         if (length <= DATA_CACHE_LINE_LENGTH_MIN) {
             break;
@@ -237,7 +237,7 @@ void invalidate_data_cache_range(uint64_t addr, uint64_t length)
 void clean_data_cache_range(uint64_t addr, uint64_t length)
 {
     while (1) {
-        asm volatile ("dc cvac, %0" : : "r" (addr) : "memory");
+        __asm__ __volatile__ ("dc cvac, %0" : : "r" (addr) : "memory");
 
         if (length <= DATA_CACHE_LINE_LENGTH_MIN) {
             break;
@@ -257,7 +257,7 @@ void clean_and_invalidate_data_cache_range(uint64_t addr, uint64_t length)
 {
     trace("1: addr=0x%016llx, length=0x%llx", addr, length);
     while (1) {
-        asm volatile ("dc civac, %0" : : "r" (addr) : "memory");
+        __asm__ __volatile__ ("dc civac, %0" : : "r" (addr) : "memory");
 
         if (length <= DATA_CACHE_LINE_LENGTH_MIN) {
             break;

@@ -106,6 +106,8 @@ int             get_kmem_ref(void *va);
 
 void *          kmalloc(size_t nbytes);
 void            kmfree(void *ap);
+void *          kmrealloc(void *ptr, size_t new_size, size_t old_size);
+void *          kmzalloc(size_t nbytes);
 
 void            mm_test(void);
 #endif

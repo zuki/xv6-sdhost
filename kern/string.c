@@ -32,7 +32,7 @@ static int sprintint(int64_t x, int base, int sign, int zero, int col, char **p)
     return ret;
 }
 
-static int vsnprintfmt(char *str, size_t size, const char *fmt, va_list ap)
+int vsnprintfmt(char *str, size_t size, const char *fmt, va_list ap)
 {
     int i, c, j;
     char *s;
@@ -145,7 +145,6 @@ int snprintf(char *buf, size_t n, const char *fmt, ...)
 
     return rc;
 }
-
 
 int sprintf(char *buf, const char *fmt, ...)
 {
@@ -496,4 +495,14 @@ int str_replace(char **source, const char *find, const char *replace) {
     *source = new_str;
 
     return count; // 置換した個数を返す
+}
+
+char *strdup (const char *s)
+{
+    size_t size = strlen(s) + 1;
+
+    char *p = (char *)kmalloc(size);
+    assert(p != 0);
+
+    return strncpy(p, s, size);
 }

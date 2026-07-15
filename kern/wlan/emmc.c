@@ -165,7 +165,7 @@ static int cmdinfo[64] = {
 
 typedef struct Ctlr Ctlr;
 
-// コントロール構造体
+// EMMCコントロール構造体
 struct Ctlr {
     Rendez      r;
     Rendez      cardr;

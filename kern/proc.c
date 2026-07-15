@@ -271,7 +271,9 @@ forkret(void)
         usb_init();
         net_init();
         net_run();
+#ifndef USING_WIFI
         kthread_create("ether", kthread_read_ether, NULL);
+#endif
         workqueue_init();
         kthread_create("recycle", recycle_proc, NULL);
 #endif

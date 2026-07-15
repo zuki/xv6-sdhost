@@ -13,7 +13,6 @@
 #include <console.h>
 #include <string.h>
 
-
 struct net_protocol {
     struct net_protocol *next;
     uint16_t type;                  // NET_PROTOCOL_TYPE_XXX: IP, ARP, IPv6
@@ -22,9 +21,9 @@ struct net_protocol {
 };
 
 struct net_protocol_queue_entry {
-    struct net_device *dev;
-    size_t len;
-    uint8_t data[];
+    struct net_device   *dev;
+    size_t              len;
+    uint8_t             data[];
 };
 
 struct net_timer {

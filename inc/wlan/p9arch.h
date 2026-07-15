@@ -4,8 +4,8 @@
 #include <types.h>
 #include <gpio.h>
 #include <irq.h>
-#include "p9util.h"
-#include "bcm4343.h"
+#include <p9util.h>
+#include <bcm4343.h>
 
 #ifdef __cplusplus
 extern "C" {

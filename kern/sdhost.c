@@ -820,7 +820,7 @@ sdhost_send_command(struct bcm2835_host *host, struct mmc_command *cmd)
         host->delay_after_this_stop = host->delay_after_stop;
 //         if ((cmd->data->flags & MMC_DATA_READ) && !host->use_sbc) {
 //             /* See if read crosses one of the hazardous sectors */
-//             u32 first_blk, last_blk;
+//             uint32_t first_blk, last_blk;
 //
 //             /* Intentionally include the following sector because
 //                without CMD23/SBC the read may run on. */

@@ -1,7 +1,7 @@
 #ifndef H_INC_WLAN_P9SD_H
 #define H_INC_WLAN_P9SD_H
 
-#include "p9util.h"
+#include <p9util.h>
 
 // SDIO操作関数構造体
 typedef struct sdio_t
@@ -10,7 +10,7 @@ typedef struct sdio_t
     int (*init) (void);
     void (*enable) (void);
     int (*inquiry) (char *buf, int len);
-    int (*cmd) (u32int cmd, u32int arg, u32int *resp);
+    int (*cmd) (uint32_t cmd, uint32_t arg, uint32_t *resp);
     void (*iosetup) (int write, void *buf, int blksize, int blkcount);
     void (*io)(int write, uchar *buf, int len);
 } SDio;

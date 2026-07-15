@@ -45,8 +45,8 @@ void leave_critical(void);
 #define DATA_CACHE_LINE_LENGTH_MIN      64    // CTR_EL0から
 #define DATA_CACHE_LINE_LENGTH_MAX      64
 
-#define invalidate_instruction_cache()    asm volatile("ic iallu" ::: "memory")
-#define flush_prefetch_buffer()           asm volatile("isb" ::: "memory")
+#define invalidate_instruction_cache()    __asm__ __volatile__("ic iallu" ::: "memory")
+#define flush_prefetch_buffer()           __asm__ __volatile__("isb" ::: "memory")
 
 // 注: データキャッシュの操作にはDataSyncBarrierを含む
 void invalidate_data_cache(void) MAXOPT;

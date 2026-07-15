@@ -37,8 +37,6 @@
 #define USE_NAK_USB_FIX
 #endif
 
-#define FRAME_BUFFER_SIZE   1600
-
 typedef enum usb_pid {
     usb_pid_setup,
     usb_pid_data0,

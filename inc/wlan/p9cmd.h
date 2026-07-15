@@ -1,7 +1,7 @@
 #ifndef H_INC_WLAN_P9CMD_H
 #define H_INC_WLAN_P9CMD_H
 
-#include "p9util.h"
+#include <p9util.h>
 
 #ifdef __cplusplus
 extern "C" {

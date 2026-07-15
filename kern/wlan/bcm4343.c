@@ -24,6 +24,7 @@
 #include <net/net.h>
 #include <net/util.h>
 #include <net/platform.h>
+#include <net/ether.h>
 
 extern void ether4330link(void);
 
@@ -43,6 +44,36 @@ static void bcm4343_scan_result_recv(struct bcm4343 *self, const void *buff, uns
 static void bcm4343_opennet_event_handler(ether_event_type_t type,
         const ether_event_params_t *param, void *context);
 
+static int bcm4343_open(struct net_device *dev) { return 0; }
+static int bcm4343_close(struct net_device *dev) { return 0; }
+
+static int bcm4343_linkup(struct net_device *dev)
+{
+    struct bcm4343 *self = (struct bcm4343 *)dev;
+    // LinkUpされていればtrue
+    if (self->opennet) {
+        return self->linkup;
+    }
+    // m_pIsConnected()を実行して接続済であるか確認する
+    if (self->is_connected != 0) {
+        return (*self->is_connected)();
+    }
+
+    return false;
+}
+
+static int bcm4343_transmit(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst)
+{
+    return ether_transmit_helper(dev, type, data, len, dst, bcm4343_send_frame);
+}
+
+static struct net_device_ops bcm4343_ops = {
+    .open = bcm4343_open,
+    .close = bcm4343_close,
+    .transmit = bcm4343_transmit,
+    .linkup = bcm4343_linkup,
+};
+
 // sample/hello_wlan/kernel.cpp
 //   firm_path : "SD:/firmware/" -> /d/firmware とする
 int bcm4343_init(const char *firm_path)
@@ -53,6 +84,7 @@ int bcm4343_init(const char *firm_path)
 
     bcm4343->net_dev = net_device_alloc();
     assert(bcm4343->net_dev);
+    bcm4343->net_dev->ops = &bcm4343_ops;
 
     bcm4343->firm_path = firm_path;
     queue_init(&bcm4343->rx_queue);
@@ -84,18 +116,18 @@ static int bcm4343_init_internal(struct bcm4343 *self)
 {
     // 1. p9アーキテクチャの初期化（DMAチャンネルのセットと周期timerハンドラの登録）
     p9arch_init();
-    // 2. ファームウェアが存在するパスを静的変数s_pPathにセット
+    // 2. ファームウェアが存在するパスをfirm_pathにセット
     p9chan_init(self->firm_path);
     // 3. 現在のタスクにerror_stackをuserDataとしてセット
     p9proc_init();
-    // 4. pnpハンドラのセット
+    // 4. ether4343をethernetカードとして登録
     ether4330link();
     assert(ether_pnp_handler != NULL);    // addethercard()で設定
-    // 5. pnpハンドラ (etherbcmpnp())を実行（ドライバの作成）
-    (*ether_pnp_handler)(&ether_device);
+    // 5. ether4343ドライバの作成）
+    ether_pnp_handler(&ether_device);
 
-    ether_device.oq = kmalloc(sizeof(Queue));
-    memset(ether_device.oq, 0, sizeof *ether_device.oq);
+    ether_device.oq = kmzalloc(sizeof(Queue));
+    //memset(ether_device.oq, 0, sizeof *ether_device.oq);
 
     if (waserror ()) {
         return -1;
@@ -103,13 +135,18 @@ static int bcm4343_init_internal(struct bcm4343 *self)
 
     /* ethernetデバイスをアタッチ */
     assert(ether_device.attach != 0);
-    (*ether_device.attach)(&ether_device);
+    ether_device.attach(&ether_device);
 
     /* MACアドレスをセット */
     memmove(self->macaddr, ether_device.ea, MAC_ADDRESS_SIZE);
 
+    /* 自分自身をnet_devのプライベートデータとして登録 */
+    self->net_dev->priv = self;
+
     /* netデバイスとして登録 */
-    net_device_register(self->net_dev);
+    if (net_device_register(self->net_dev) == -1) {
+        p9error("failed net_device_register");
+    }
 
     poperror();
 
@@ -122,8 +159,10 @@ uint8_t *bcm4343_get_macaddr(struct bcm4343 *self)
 }
 
 // バッファの内容を送信する
-boolean bcm4343_send_frame(struct bcm4343 *self, const void *buff, unsigned len)
+long bcm4343_send_frame(struct net_device *dev, const uint8_t *buff, uint64_t len)
 {
+    struct bcm4343 *self = (struct bcm4343 *)dev;
+
     //hexdump (buff, len, "wlantx");
 
     // lenのサイズのブロックを割り当てる
@@ -132,7 +171,7 @@ boolean bcm4343_send_frame(struct bcm4343 *self, const void *buff, unsigned len)
 
     assert(block->wp != 0);
     assert(buff != 0);
-    // ブロックのwpからpBuuferの内容をコピーする
+    // ブロックのwpからpBufferの内容をコピーする
     memcpy(block->wp, buff, len);
     block->wp += len;
 
@@ -141,50 +180,39 @@ boolean bcm4343_send_frame(struct bcm4343 *self, const void *buff, unsigned len)
     qpass(ether_device.oq, block);
 
     if (waserror ()) {
-        return false;
+        return -1;
     }
 
     assert(ether_device.transmit != 0);
     // 転送を行う
-    (*ether_device.transmit)(&ether_device);
+    ether_device.transmit(&ether_device);
 
     poperror ();
 
-    return true;
+    return 0;
 }
 
-// バッファにデータを読み込む
-boolean bcm4343_recv_frame(struct bcm4343 *self, void *buff, unsigned *rlen)
+// バッファにデータを読み込む(buffはetherヘッダー付きEthernetパケット)
+long bcm4343_recv_frame(struct net_device *dev, uint8_t *buff, uint64_t *rlen)
 {
+    struct bcm4343 *self = (struct bcm4343 *)dev;
+
     assert(buff != 0);
     struct bcm4343_queue_entry *entry;
 
     // 受信キューの先頭エントリをbuffに読み込む
     acquire(&self->lock);
+    //
     entry = (struct bcm4343_queue_entry *)queue_pop(&self->rx_queue);
     release(&self->lock);
     if (entry == NULL || entry->len == 0)
-        return false;
+        return -1;
     assert(rlen != 0);
     memmove(buff, entry->data, entry->len);
     *rlen = entry->len;
     //hexdump (buff, len, "wlanrx");
 
-    return true;
-}
-
-boolean bcm4343_is_linkup(struct bcm4343 *self)
-{
-    // LinkUpされていればtrue
-    if (self->opennet) {
-        return self->linkup;
-    }
-    // m_pIsConnected()を実行して接続済であるか確認する
-    if (self->is_connected != 0) {
-        return (*self->is_connected)();
-    }
-
-    return false;
+    return 0;
 }
 
 boolean bcm4343_set_mcast_filter(struct bcm4343 *self, const uint8_t Groups[][MAC_ADDRESS_SIZE])
@@ -398,9 +426,10 @@ static void bcm4343_opennet_event_handler(ether_event_type_t type,
     }
 }
 
-// Ethernetデータを受信する
+// Ethernetデータを受信する : b->rpはethernetヘッダーを指している
 void etheriq(Ether *ether, Block *block, unsigned flag)
 {
+    // FIXME: flag = 1 で何をするべきか?
     assert(block != 0);
     bcm4343_frame_received(bcm4343, block->rp, BLEN(block));
 

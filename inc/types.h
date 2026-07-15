@@ -19,6 +19,7 @@
 #define LLONG_MIN   (-LLONG_MAX-1)
 #define LLONG_MAX   0x7fffffffffffffffLL
 #define ULLONG_MAX  (2ULL*LLONG_MAX+1)
+#define SIZE_MAX    ULLONG_MAX
 
 typedef char            int8_t;
 typedef unsigned char   uint8_t;
@@ -73,6 +74,7 @@ typedef uint32_t            u32int;
 
 #define true            1
 #define false           0
+#define bool            _Bool
 
 /* Efficient min and max operations */
 #define MIN(_a, _b)                 \

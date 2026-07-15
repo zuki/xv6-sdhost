@@ -47,8 +47,8 @@ void timer_init()
 #endif
     trace("timerfreq = 0x%llx", timerfreq());
     //dt = timerfreq();     /* dt = 19_200_000 */
-    asm volatile ("msr cntp_ctl_el0, %[x]"::[x] "r"(1));    /* タイマーenable */
-    asm volatile ("msr cntp_tval_el0, %[x]"::[x] "r"(dt));
+    __asm__ __volatile__ ("msr cntp_ctl_el0, %[x]"::[x] "r"(1));    /* タイマーenable */
+    __asm__ __volatile__ ("msr cntp_tval_el0, %[x]"::[x] "r"(dt));
     put32(CORE_TIMER_CTRL(cpuid()), CORE_TIMER_ENABLE);
 
 #ifdef USE_GIC
@@ -64,7 +64,7 @@ void timer_init()
 
 static void timer_reset()
 {
-    asm volatile ("msr cntp_tval_el0, %[x]"::[x] "r"(dt));
+    __asm__ __volatile__ ("msr cntp_tval_el0, %[x]"::[x] "r"(dt));
 }
 
 /*

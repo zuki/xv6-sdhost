@@ -22,10 +22,10 @@ debug_reg()
     disb();
     /* PSTATE and Saved Program Status Register */
     int64_t spsel, el, spsr, daif;
-    asm volatile("mrs %[x], currentel": [x]"=r"(el));
-    asm volatile("mrs %[x], daif": [x]"=r"(daif));
-    asm volatile("mrs %[x], spsel": [x]"=r"(spsel));
-    asm volatile("mrs %[x], spsr_el1": [x]"=r"(spsr));
+    __asm__ __volatile__("mrs %[x], currentel": [x]"=r"(el));
+    __asm__ __volatile__("mrs %[x], daif": [x]"=r"(daif));
+    __asm__ __volatile__("mrs %[x], spsel": [x]"=r"(spsel));
+    __asm__ __volatile__("mrs %[x], spsr_el1": [x]"=r"(spsr));
     cprintf("CurrentEL: 0x%llx\n", el >> 2);
     cprintf("DAIF: Debug(%lld) SError(%lld) IRQ(%lld) FIQ(%lld)\n",
             (daif >> 9) & 1, (daif >> 8) & 1, (daif >> 7) & 1, (daif >> 6) & 1);
@@ -34,16 +34,16 @@ debug_reg()
 
     /* Frame pointer and stack pointer */
     uint64_t sp, sp0;
-    asm volatile("mov %[x], sp": [x]"=r"(sp));
-    asm volatile("mrs %[x], sp_el0": [x]"=r"(sp0));
+    __asm__ __volatile__("mov %[x], sp": [x]"=r"(sp));
+    __asm__ __volatile__("mrs %[x], sp_el0": [x]"=r"(sp0));
     cprintf("SP: 0x%llx\n", sp);
     cprintf("SP_EL0: 0x%llx\n", sp0);
 
     /* Exception link, exception syndrome and fault address */
     int64_t elr, esr, far;
-    asm volatile("mrs %[x], elr_el1": [x]"=r"(elr));
-    asm volatile("mrs %[x], esr_el1": [x]"=r"(esr));
-    asm volatile("mrs %[x], far_el1": [x]"=r"(far));
+    __asm__ __volatile__("mrs %[x], elr_el1": [x]"=r"(elr));
+    __asm__ __volatile__("mrs %[x], esr_el1": [x]"=r"(esr));
+    __asm__ __volatile__("mrs %[x], far_el1": [x]"=r"(far));
     cprintf("ELR_EL1: 0x%llx, EC: 0x%llx, ISS: 0x%llx. \n", elr, esr >> 26, esr & 0x1FFFFFF);
     cprintf("FAR_EL1: 0x%llx\n", far);
 }

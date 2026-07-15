@@ -2,14 +2,28 @@
 
 MUSL_INC = /Users/zuki/musl/include
 
-CFLAGS := -Wall -g -O2 \
+CFLAGS := -Wall -g -O2 -std=gnu11 \
           -fno-pie -fno-pic -fno-stack-protector \
           -fno-zero-initialized-in-bss \
           -static -fno-builtin -nostdlib -nostdinc -ffreestanding -nostartfiles \
-          -mgeneral-regs-only \
-          -MMD -MP -Iinc
+          -MMD -MP -Iinc -Iinc/wlan -Iinc/wlan/hostap/wpa_supplicant \
+	  -Iinc/wlan/hostap/src
+#          -mgeneral-regs-only \
+#	kern/wlan/hostap/wpa_supplicant/events.c:2168:5: error:
+#	'-mgeneral-regs-only' is incompatible with the use of floating-point types
 
-CFLAGS += -DLOG_DEBUG -DRASPI=$(RASPI)
+
+CFLAGS += -DLOG_DEBUG -DRASPI=$(RASPI) \
+           -DCONFIG_DRIVER_XV6 \
+           -DCONFIG_CRYPTO_INTERNAL \
+           -DCONFIG_BACKEND_FILE \
+           -DCONFIG_NO_CONFIG_WRITE \
+           -DCONFIG_NO_RANDOM_POOL \
+           -DCONFIG_NO_ROBUST_AV \
+           -DCONFIG_NO_WMM_AC \
+           -DOS_NO_C_LIB_DEFINES \
+           -DIEEE8021X_EAPOL \
+	   -DCONFIG_FAT
 
 ifeq (${CONFIG_FAT}, 1)
 CFLAGS += -DCONFIG_FAT

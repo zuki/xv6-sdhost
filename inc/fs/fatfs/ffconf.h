@@ -76,8 +76,8 @@
 /* This option switches f_forward() function. (0:Disable or 1:Enable) */
 
 
-#define FF_USE_STRFUNC	0
-#define FF_PRINT_LLI	0
+#define FF_USE_STRFUNC	2
+#define FF_PRINT_LLI	1
 #define FF_PRINT_FLOAT	0
 #define FF_STRF_ENCODE	0
 /* FF_USE_STRFUNC は、文字列関数 f_gets()、f_putc()、f_puts()、f_printf() を切り替えます。

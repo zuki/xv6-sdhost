@@ -38,7 +38,7 @@ static void CleanAndInvalidateDataCacheRange (uint64_t nAddress, uint64_t nLengt
     debug("addrss: 0x%lx, len: %lu", nAddress, nLength);
     while (1)
     {
-        asm volatile ("dc civac, %0" : : "r" (nAddress) : "memory");
+        __asm__ __volatile__ ("dc civac, %0" : : "r" (nAddress) : "memory");
 
         if (nLength <= DATA_CACHE_LINE_LENGTH_MIN) {
             break;
@@ -48,7 +48,7 @@ static void CleanAndInvalidateDataCacheRange (uint64_t nAddress, uint64_t nLengt
         nLength  -= DATA_CACHE_LINE_LENGTH_MIN;
     }
 
-    asm volatile ("dsb sy" ::: "memory");
+    __asm__ __volatile__ ("dsb sy" ::: "memory");
 }
 
 

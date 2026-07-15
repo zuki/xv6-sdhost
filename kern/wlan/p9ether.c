@@ -70,7 +70,7 @@ Block *qget(Queue *q)
     return b;
 }
 
-// キューqにブロックbを追加する
+// キューqの末尾にブロックbを追加する
 void qpass(Queue *q, Block *b)
 {
     assert (b != 0);

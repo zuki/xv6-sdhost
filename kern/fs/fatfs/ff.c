@@ -20,6 +20,7 @@
 
 
 // #include <string.h>
+#include <types.h>
 #include <fs/fatfs/ff.h>			/* Declarations of FatFs API */
 #include <fs/fatfs/diskio-ff.h>		/* Declarations of device I/O functions */
 #include <string.h>
@@ -6479,7 +6480,7 @@ TCHAR* f_gets (
 
 
 #if !FF_FS_READONLY
-#include <stdarg.h>
+//#include <stdarg.h>
 #define SZ_PUTC_BUF	64
 #define SZ_NUM_BUF	32
 
