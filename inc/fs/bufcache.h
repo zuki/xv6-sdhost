@@ -14,13 +14,14 @@
 // バッファキャッシュ構造体 (64バイト)
 struct buf {
     struct queue_node node;     // bufcacheにつながる 16
-    int refcount;               // 参照カウント         4
-    int flags;                  // フラグ               4
-    device_t dev;               // デバイス番号         4
-    uint32_t blockno;           // 先頭セクタ番号       4
-    uint8_t *block;             // データバッファ       8
-    boolean  issec;             // blockはセクタか      4
-    //struct list_head dlink;     // 未使用
+    int refcount;               // 参照カウント        4
+    int flags;                  // フラグ             4
+    device_t dev;               // デバイス番号        4
+    uint32_t blockno;           // 先頭セクタ番号      4
+    uint8_t *block;             // データバッファ      8
+    boolean  issec;             // blockはセクタか    4
+    int     _pad;               // paddng           4
+    struct list_head dlink;     // 未使用           16
 };
 
 void init_bufcache(void);

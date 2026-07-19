@@ -78,32 +78,28 @@ int canqlock (QLock *qlock)
 }
 
 // スリープする（スリープハンドラを実行する）
-void p9sleep(Rendez *rendez, struct spinlock *lk, sleephandler_t *handler, void *param)
+void p9sleep(Rendez *rendez, sleephandler_t *handler, void *param)
 {
-    acquire(lk);
-    while ((*handler) (param) == 0) {
-        sleep(rendez, lk);
-    }
-    release(lk);
+    do {
+        yield();
+    } while ((*handler)(param) == 0);
 }
 
 // タイムアウト付きのスリープ
-void p9tsleep(Rendez *rendez, struct spinlock *lk, sleephandler_t *handler, void *param, unsigned msecs)
+void p9tsleep(Rendez *rendez, sleephandler_t *handler, void *param, unsigned msecs)
 {
     unsigned start = get_ticks();
-    acquire(lk);
-    while ((*handler) (param) == 0) {
-        sleep(rendez, lk);
-        if (get_ticks() - start > msecs * HZ / 1000)
+    do {
+        if (get_ticks() - start > (msecs * HZ / 1000))
             break;
-    }
-    release(lk);
+        yield();
+    } while ((*handler)(param) == 0);
 }
 
 // 起床する
-void p9wakeup (Rendez *rendez)
+void p9wakeup(Rendez *rendez)
 {
-    wakeup(rendez);
+    // noop
 }
 
 // 0を返す
@@ -121,7 +117,6 @@ struct up_t *up = &upstruct;
 void p9proc_init (void)
 {
     up->errstr = "";
-    initlock(&up->lock, "uplock");
     up->errstack.stackptr = ERROR_STACK_SIZE;
     struct proc *p = thisproc();
     p->userdata = &up->errstack;

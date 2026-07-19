@@ -5,21 +5,26 @@
 #include <dma.h>
 #include <gpio.h>
 #include <irq.h>
+#include <console.h>
 
 static struct CDMAChannel *dma_chan;            // DMAチャンネル
 
 // pinの機能をmodeにセットする
 void gpiosel(unsigned pin, enum gpio_mode_t mode)
 {
-    uintptr_t nSelReg = GPFSEL0 + (pin / 10) * 4;
-    unsigned nShift = (pin % 10) * 3;
+    uint32_t value, oval;
+
+    unsigned offset = (pin / 10) * 4;
+    unsigned shift = (pin % 10) * 3;
+    uintptr_t selreg = GPFSEL0 + offset;
 
     //PeripheralEntry ();
 
-    uint32_t nValue = get32(nSelReg);
-    nValue &= ~(7 << nShift);
-    nValue |= mode << nShift;
-    put32(nSelReg, nValue);
+    value = oval = get32(selreg);
+    value &= ~(7 << shift);
+    value |= mode << shift;
+    trace("pin[%d] reg: 0x%02x oval: 0x%x, nval: 0x%x", pin, offset, oval, value);
+    put32(selreg, value);
 
     //PeripheralExit ();
 }

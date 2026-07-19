@@ -440,11 +440,7 @@ void net_init(void)
     if (netinit() == -1) {
         panic("net_init() failure");
     }
-    struct net_device *dev = NULL;
-    for (int i = 0; i < NET_INDEX_NUMS; i++) {
-        dev = net_device_by_index(i);
-        if (dev) break;
-    }
+    struct net_device *dev = net_device_by_index(NET_DRV);
     set_ip_config(dev);
     info("net_init ok");
 }

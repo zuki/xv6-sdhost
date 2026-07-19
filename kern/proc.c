@@ -21,6 +21,8 @@
 #include <linux/wait.h>
 #include <linux/errno.h>
 #include <linux/ppoll.h>
+#include <wlan/bcm4343.h>
+#include <wpasupplicant.h>
 
 extern int sd_postinit(void);
 
@@ -264,14 +266,18 @@ forkret(void)
         err = vfs_mount(NULL, "/d/", DEVFAT2, &fat_mount_ops, 0, 0);
         if (err) {
             error("mount /d/ is failed: %d", err);
+        } else {
+            debug("mount fatfs to /d/ ok");
         }
 #endif
 
 #if 1
         usb_init();
+        bcm4343_init("/d/firmware");    // 末尾に/は付けない
+        wpasupplicant_init("/d/wpa_supplicant.conf");
         net_init();
         net_run();
-#ifndef USING_WIFI
+#if NET_DRV != NET_INDEX_BCM4343
         kthread_create("ether", kthread_read_ether, NULL);
 #endif
         workqueue_init();

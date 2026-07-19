@@ -35,7 +35,7 @@ void* malloc_dma30(unsigned size) {
 
 static void CleanAndInvalidateDataCacheRange (uint64_t nAddress, uint64_t nLength)
 {
-    debug("addrss: 0x%lx, len: %lu", nAddress, nLength);
+    trace("addrss: 0x%lx, len: %lu", nAddress, nLength);
     while (1)
     {
         __asm__ __volatile__ ("dc civac, %0" : : "r" (nAddress) : "memory");

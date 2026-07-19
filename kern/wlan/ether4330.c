@@ -8,6 +8,9 @@
 #include <mm.h>
 #include <string.h>
 #include <proc.h>
+#include <string.h>
+#include <firm_config.h>
+#include <clm_blob.h>
 
 extern int sdiocardintr(int);
 
@@ -18,7 +21,7 @@ enum{
     SDIODEBUG   = 1,        /* SDIOのデバッグ*/
     SBDEBUG     = 1,        /* Silicon Backplaneのデバッグ */
     EVENTDEBUG  = 1,        /* イベントのデバッグ*/
-    VARDEBUG    = 1,        /* 変数のデバッグ*/
+    VARDEBUG    = 0,        /* 変数のデバッグ*/
     FWDEBUG     = 1,        /* ファームウェアのデバッグ*/
 
     Corescansz  = 512,      /* コアのスキャンサイズ*/
@@ -162,7 +165,6 @@ struct Ctlr {
     QLock   pktlock;                /* パケットロック */
     QLock   tlock;                  /* FIXME: timeoutロック */
     QLock   alock;
-    struct spinlock splock;
     struct spinlock txwinlock;      /* 送信ウィンドウロック */
     Rendez  cmdr;                   /* sleep時の待機オブジェクト */
     Rendez  joinr;                  /* sleep時の待機オブジェクト */
@@ -306,7 +308,7 @@ static struct {
 };
 
 static QLock sdiolock;
-static int iodebug;
+static int iodebug = 0;
 
 static void bcmevent(Ctlr*, uchar*, int);
 static void wlscanresult(Ether*, uchar*, int);
@@ -397,7 +399,7 @@ static int sdiord(int fn, int addr)
     /*  r[15:8]: レスポンスフラグ, r[7:0]: R/W データ */
     /*  レスポンスフラグでエラーのチェック */
     if (r & 0xCF00) {
-        print("ether4330: sdiord(%x, %x) fail: %2.2x %2.2x\n", fn, addr, (r>>8)&0xFF, r&0xFF);
+        print("ether4330: sdiord(%x, %x) fail: %02x %02x\n", fn, addr, (r>>8)&0xFF, r&0xFF);
         p9error(Eio);
     }
     return r & 0xFF;
@@ -418,7 +420,7 @@ static void sdiowr(int fn, int addr, int data)
             return;
     }
     /*  10回試行してもエラー */
-    print("ether4330: sdiowr(%x, %x, %x) fail: %2.2x %2.2x\n", fn, addr, data, (r>>8)&0xFF, r&0xFF);
+    print("ether4330: sdiowr(%x, %x, %x) fail: %02x %02x\n", fn, addr, data, (r>>8)&0xFF, r&0xFF);
     p9error(Eio);
 }
 
@@ -514,7 +516,7 @@ static void sdioinit(void)
             p9error(Eio);
         }
         ocr = trysdiocmd(IO_SEND_OP_COND, V3_3);    /* CMD5: WV=3.2-3.4v*/
-        p9tsleep(&up->sleep, &up->lock, return0, nil, 100);
+        p9tsleep(&up->sleep, return0, nil, 100);
     }
     rca = sdiocmd(SEND_RELATIVE_ADDR, 0) >> Rcashift;   /* CMD3: RCAを取得 */
     sdiocmd(SELECT_CARD, rca << Rcashift);              /* CMD7: RCAで選択 */
@@ -531,7 +533,7 @@ static void sdioinit(void)
             print("ether4330: can't enable SDIO function\n");
             p9error(Eio);
         }
-        p9tsleep(&up->sleep, &up->lock, return0, nil, 100);
+        p9tsleep(&up->sleep, return0, nil, 100);
     }
 }
 
@@ -574,7 +576,7 @@ static ulong cfgreadl(int fn, ulong off)
     p = (uchar*)ROUND((uintptr_t)cbuf, CACHELINESZ);
     memset(p, 0, 4);
     sdiorwext(fn, 0, p, 4, off|Sb32bit, 1);
-    if (SDIODEBUG) print("cfgreadl %lx: %2.2x %2.2x %2.2x %2.2x\n", off, p[0], p[1], p[2], p[3]);
+    if (SDIODEBUG) print("cfgreadl %lx: %02x %02x %02x %02x\n", off, p[0], p[1], p[2], p[3]);
     return p[0] | p[1]<<8 | p[2]<<16 | p[3]<<24;
 }
 
@@ -587,7 +589,7 @@ static void cfgwritel(int fn, ulong off, uint32_t data)
 
     p = (uchar*)ROUND((uintptr_t)cbuf, CACHELINESZ);
     put4(p, data);
-    if (SDIODEBUG) print("cfgwritel %lx: %2.2x %2.2x %2.2x %2.2x\n", off, p[0], p[1], p[2], p[3]);
+    if (SDIODEBUG) print("cfgwritel %lx: %02x %02x %02x %02x\n", off, p[0], p[1], p[2], p[3]);
     retry = 0;
     /*  機能fnをabort */
     while (waserror()) {
@@ -668,10 +670,12 @@ static void sbmem(int write, uchar *buf, int len, ulong off)
     n = ROUNDUP(off, Sbwsize) - off;
     if (n == 0)
         n = Sbwsize;
+    if(0)print("sbmen buf:: 0x%p, len: 0x%x, off: 0x%x, n: %d\n", buf, len, off, n);
     while (len > 0) {
         if (n > len)
             n = len;
         sbwindow(off);
+        if(0)print("n 0x%x off 0x%x buf 0x%p len 0x%x\n", n, off, buf, len);
         sbrw(Fn1, write, buf, n, off & (Sbwsize-1));
         off += n;
         buf += n;
@@ -731,7 +735,7 @@ static void sbreset(ulong regs, int pre, int ioctl)
 {
     sbdisable(regs, pre, ioctl);
     sbwindow(regs);
-    if (SBDEBUG) print("sbreset %#p %#lx %#lx ->", regs,
+    if (SBDEBUG) print("sbreset 0x%x 0x%lx 0x%lx ->", regs,
         cfgreadl(Fn1, regs+Ioctrl), cfgreadl(Fn1, regs+Resetctrl));
     while ((cfgreadl(Fn1, regs + Resetctrl) & 1) != 0) {
         cfgwritel(Fn1, regs + Resetctrl, 0);
@@ -739,7 +743,7 @@ static void sbreset(ulong regs, int pre, int ioctl)
     }
     cfgwritel(Fn1, regs + Ioctrl, 1|ioctl);
     cfgreadl(Fn1, regs + Ioctrl);
-    if (SBDEBUG) print("%#lx %#lx\n",
+    if (SBDEBUG) print("0x%lx 0x%lx\n",
         cfgreadl(Fn1, regs+Ioctrl), cfgreadl(Fn1, regs+Resetctrl));
 }
 
@@ -771,7 +775,7 @@ static void corescan(Ctlr *ctl, ulong r)
         case 0x05:    /* アドレス : メモリ, 0x005LLMMHH, chip制御 0xc5LLMMHH */
             addr = buf[i+1]<<8 | buf[i+2]<<16 | buf[i+3]<<24;
             addr &= ~0xFFF;
-            if (SBDEBUG) print("core %x %s %#p\n", coreid, buf[i]&0xC0? "ctl" : "mem", addr);
+            if (SBDEBUG) print("core %x %s 0x%p\n", coreid, buf[i]&0xC0? "ctl" : "mem", addr);
             switch(coreid) {
             case 0x800:    /* cpu */
                 if ((buf[i] & 0xC0) == 0)
@@ -871,7 +875,7 @@ sbinit(Ctlr *ctl)
     sbwindow(Enumbase);
     r = cfgreadl(Fn1, Enumbase);
     chipid = r & 0xFFFF;
-    sprint(buf, chipid > 43000 ? "%d" : "%#x", chipid);
+    sprint(buf, chipid > 43000 ? "%d" : "0x%x", chipid);
     /* ether4330: chip 0x4345 rev 6 type 1 */
     print("ether4330: chip %s rev %ld type %ld\n", buf, (r>>16)&0xF, (r>>28)&0xF);
     switch(chipid) {
@@ -883,7 +887,7 @@ sbinit(Ctlr *ctl)
             ctl->chiprev = (r>>16)&0xF;
             break;
         default:
-            print("ether4330: chipid %#x (%d) not supported\n", chipid, chipid);
+            print("ether4330: chipid 0x%x (%d) not supported\n", chipid, chipid);
             p9error(Eio);
     }
     r = cfgreadl(Fn1, Enumbase + 63*4);
@@ -898,7 +902,7 @@ sbinit(Ctlr *ctl)
     sbreset(ctl->d11ctl, 8|4, 4);
     ramscan(ctl);
     /* ARM 0x18102000 D11 0x18101000 SOCRAM 0x0,0x0 819200 bytes @ 0x198000 */
-    if (SBDEBUG) print("ARM %#p D11 %#p SOCRAM %#p,%#p %ld bytes @ %#p\n",
+    if (SBDEBUG) print("ARM 0x%p D11 0x%p SOCRAM 0x%p,0x%p %ld bytes @ 0x%p\n",
         ctl->armctl, ctl->d11ctl, ctl->socramctl, ctl->socramregs, ctl->socramsize, ctl->rambase);
     cfgw(Clkcsr, 0);
     microdelay(10);
@@ -952,7 +956,7 @@ static void sbenable(Ctlr *ctl)
             print("ether4330: can't enable HT clock: csr %x\n", cfgr(Clkcsr));
             p9error(Eio);
         }
-        p9tsleep(&up->sleep, &up->lock, return0, nil, 100);
+        p9tsleep(&up->sleep, return0, nil, 100);
     }
     cfgw(Clkcsr, cfgr(Clkcsr) | ForceHT);
     delay(10);
@@ -967,7 +971,7 @@ static void sbenable(Ctlr *ctl)
             print("ether4330: can't enable SDIO function 2 - ioready %x\n", sdiord(Fn0, Ioready));
             p9error(Eio);
         }
-        p9tsleep(&up->sleep, &up->lock, return0, nil, 100);
+        p9tsleep(&up->sleep, return0, nil, 100);
     }
     sdiowr(Fn0, Intenable, (1<<Fn1) | (1<<Fn2) | 1);    /* Fn0, Fn1, Fn2の割り込みを有効に */
 }
@@ -1041,6 +1045,7 @@ static Chan *findfirmware(char *file)
     return c;
 }
 
+#if 0
 /* ファイル（ファームウェア、config）をアップロードする */
 static int upload(Ctlr *ctl, char *file, int isconfig)
 {
@@ -1054,7 +1059,8 @@ static int upload(Ctlr *ctl, char *file, int isconfig)
     if (waserror()) {
         cclose(c);
         sdfree(buf);
-        sdfree(cbuf);
+        if (Firmwarecmp && cbuf != 0)
+            sdfree(cbuf);
         nexterror();
     }
     buf = sdmalloc(Uploadsz);       /* 2KB */
@@ -1074,10 +1080,10 @@ static int upload(Ctlr *ctl, char *file, int isconfig)
         if (isconfig) {
             n = condense(buf, n);
             off = ctl->socramsize - n - 4;
-        }else if (off == 0)
+        } else if (off == 0) {
             memmove(ctl->resetvec.c, buf, sizeof(ctl->resetvec.c));
-        while (n&3)
-            buf[n++] = 0;
+        }
+        while (n&3) buf[n++] = 0;
         // chipのRAMに書き込む
         sbmem(1, buf, n, ctl->rambase + off);
         /* configファイルは2048バイト以内 */
@@ -1086,36 +1092,125 @@ static int upload(Ctlr *ctl, char *file, int isconfig)
         off += n;
     }
     if (Firmwarecmp) {
-        if (FWDEBUG) print("compare...");
+        if (FWDEBUG) print(" compare... ");
         if (!isconfig)
             off = 0;
         for (;;) {
             /* ファームウェアファイルの場合はsdカードからbufに再度読み込む */
             /* configファイルはcondenseしたファイルがbufに残っている */
             if (!isconfig) {
+                if(off==0)print("off: 0x%x ", off);
                 n = devtab[c->type]->read(c, buf, Uploadsz, off);
+                if(off==0)print("n: %d ", n);
                 if (n <= 0)
                     break;
-            while (n&3)
-                buf[n++] = 0;
+                while (n&3) buf[n++] = 0;
             }
             // ファイルをchipのRAMからcbufに読み込む
+            if(0)print("sbmem n: 0x%x, off: 0x%x\n", n, ctl->rambase + off);
             sbmem(0, cbuf, n, ctl->rambase + off);
             // 2つのファイルを比べる
             if (memcmp(buf, cbuf, n) != 0) {
                 print("ether4330: firmware load failed offset %d\n", off);
                 p9error(Eio);
             }
+            if(off==0)print(" cmp ok\n");
             if (isconfig)
                 break;
             off += n;
         }
     }
-    if (FWDEBUG) print("ok\n");
     poperror();
     cclose(c);
     sdfree(buf);
-    sdfree(cbuf);
+    if (Firmwarecmp)
+        sdfree(cbuf);
+    if (FWDEBUG) print("ok\n");
+    return n;
+}
+#endif
+
+/* ファームウェアをアップロードする */
+static int loadfirm(Ctlr *ctl)
+{
+    extern char _binary_firmware_bin_start[], _binary_firmware_bin_end[];
+
+    uint8_t *buf = (uint8_t *)_binary_firmware_bin_start;
+    uint64_t bsize = (uint64_t)(_binary_firmware_bin_end - _binary_firmware_bin_start);
+    uint8_t *cbuf = 0;
+    int off, n;
+
+    if (waserror()) {
+        if (Firmwarecmp && cbuf != 0)
+            sdfree(cbuf);
+        nexterror();
+    }
+
+    if (Firmwarecmp) {              /* ロード後にチェックする場合 */
+        cbuf = sdmalloc(Uploadsz);  /* 2KB */
+        if (cbuf == nil)
+            p9error(Enomem);
+    }
+
+    off = 0;
+    for (;;) {
+        if (off == 0) {
+            memmove(ctl->resetvec.c, buf, sizeof(ctl->resetvec.c));
+        }
+        n = MIN(Uploadsz, bsize);
+        while (n&3) buf[n++] = 0;
+        // chipのRAMに書き込む
+        sbmem(1, buf+off, n, ctl->rambase + off);
+        off += n;
+        bsize -= n;
+        if (bsize <= 0)
+            break;
+    }
+    if (Firmwarecmp) {
+        if (FWDEBUG) print(" compare... ");
+        off = 0;
+        bsize = (uint64_t)(_binary_firmware_bin_end - _binary_firmware_bin_start);
+        for (;;) {
+            n = MIN(Uploadsz, bsize);
+            // ファイルをchipのRAMからcbufに読み込む
+            if(0)print("sbmem n: 0x%x, off: 0x%x\n", n, ctl->rambase + off);
+            sbmem(0, cbuf, n, ctl->rambase + off);
+            // 2つのファイルを比べる
+            if (memcmp(buf+off, cbuf, n) != 0) {
+                print("ether4330: firmware load failed offset %d\n", off);
+                p9error(Eio);
+            }
+            off += n;
+            bsize -= n;
+            if (bsize <= 0)
+                break;
+        }
+    }
+    poperror();
+    if (Firmwarecmp)
+        sdfree(cbuf);
+    if (FWDEBUG) print("ok\n");
+    return n;
+}
+
+/* configをアップロードする */
+static int loadconfig(Ctlr *ctl)
+{
+    uint8_t *buf = brcmfmac43455_sdio_txt;
+    int off, n = brcmfmac43455_sdio_txt_len;
+
+    if (waserror()) {
+        nexterror();
+    }
+
+    n = condense(buf, n);
+    off = ctl->socramsize - n - 4;
+    while (n&3) buf[n++] = 0;
+    // chipのRAMに書き込む
+    sbmem(1, buf, n, ctl->rambase + off);
+    /* configファイルは2048バイト以内 */
+    poperror();
+    if (FWDEBUG) print("ok\n");
     return n;
 }
 
@@ -1124,6 +1219,50 @@ static int upload(Ctlr *ctl, char *file, int isconfig)
  * パケットフォーマットは次の通り
  *    [2]flag [2]type [4]len [4]crc [len]data
  */
+static void reguload2(Ctlr *ctl)
+{
+    uint8_t *buf = brcmfmac43455_sdio_clm_blob;
+    int off, flag, n;
+    uint64_t bsize = brcmfmac43455_sdio_clm_blob_len;
+
+    enum {
+        Reguhdr = 2+2+4+4,
+        Regusz  = 1400,
+        Regutyp = 2,
+        Flagclm = 1<<12,
+        Firstpkt= 1<<1,
+        Lastpkt = 1<<2,
+    };
+
+    if (waserror()) {
+        nexterror();
+    }
+    put2(buf+2, Regutyp);       /* type */
+    put2(buf+8, 0);             /* CRC  */
+    off = 0;
+    flag = Flagclm | Firstpkt;  /* flag */
+    while ((flag & Lastpkt) == 0) {
+        n = MIN(Regusz+1, bsize);
+        if (n == Regusz+1) {
+            --n;
+        } else {
+            /* 8バイトアライン */
+            while (n & 7)
+                buf[Reguhdr+n++] = 0;
+            flag |= Lastpkt;
+        }
+        put2(buf+0, flag);      /* flag */
+        put4(buf+4, n);         /* len */
+        wlsetvar(ctl, "clmload", buf+off, Reguhdr + n);
+        off += n;
+        flag &= ~Firstpkt;
+        bsize -= n;
+        if (bsize <= 0)
+            break;
+    }
+    poperror();
+}
+#if 1
 static void reguload(Ctlr *ctl, char *file)
 {
     Chan *c;
@@ -1174,6 +1313,7 @@ static void reguload(Ctlr *ctl, char *file)
     cclose(c);
     kmfree(buf);
 }
+#endif
 
 /* ファームウェアファイルをアップロード */
 static void fwload(Ctlr *ctl)
@@ -1198,11 +1338,13 @@ static void fwload(Ctlr *ctl)
     memset(buf, 0, 4);
     sbmem(1, buf, 4, ctl->rambase + ctl->socramsize - 4);
     /* ファームウェアファイルをロード */
-    if (FWDEBUG) print("firmware load...");
-    upload(ctl, firmware[i].fwfile, 0);         // brcmfmac43455-sdio.bin
+    if (FWDEBUG) print("firmware %s load... ", firmware[i].fwfile);
+    //upload(ctl, firmware[i].fwfile, 0);         // brcmfmac43455-sdio.bin
+    loadfirm(ctl);
     /* 構成ファイルをロード*/
-    if (FWDEBUG) print("config load...");
-    n = upload(ctl, firmware[i].cfgfile, 1);    // brcmfmac43455-sdio.txt
+    if (FWDEBUG) print("config %s load... ", firmware[i].cfgfile);
+    //n = upload(ctl, firmware[i].cfgfile, 1);    // brcmfmac43455-sdio.txt
+    n = loadconfig(ctl);
     n /= 4;
     n = (n & 0xFFFF) | (~n << 16);              // n + nの補数をsocramszeの最後の4バイトにセット
     put4(buf, n);
@@ -1238,7 +1380,7 @@ static void intwait(Ctlr *ctlr, int wait)
         sbwindow(ctlr->sdregs);
         i = sdiord(Fn0, Intpend);
         if (i == 0) {
-            /* p9tsleep(&up->sleep, &up->lock, return0, 0, 10); */
+            /* p9tsleep(&up->sleep, return0, 0, 10); */
             continue;
         }
         /* SDIOからの割り込みを取得してクリア */
@@ -1596,7 +1738,7 @@ static void bcmevent(Ctlr *ctl, uchar *p, int len)
     status = nhgetl(p + 8);
     reason = nhgetl(p + 12);
     if (EVENTDEBUG)
-        print("ether4330: [%s] status %ld flags %#x reason %ld\n",
+        print("ether4330: [%s] status %ld flags 0x%x reason %ld\n",
             evstring(event), status, flags, reason);
     switch(event) {
     case 19:    /* E_ROAM */
@@ -1639,7 +1781,7 @@ static void bcmevent(Ctlr *ctl, uchar *p, int len)
             if (!EVENTDEBUG)
                 print("ether4330: [%s] error status %ld flags %#x reason %ld\n",
                     evstring(event), status, flags, reason);
-            dump("event", p, len);
+            //dump("event", p, len);
         }
     }
 }
@@ -1655,7 +1797,7 @@ static int waitjoin(Ctlr *ctl)
 {
     int n;
 
-    p9sleep(&ctl->joinr, &ctl->splock, joindone, ctl);
+    p9sleep(&ctl->joinr, joindone, ctl);
     n = ctl->joinstatus;
     ctl->joinstatus = 0;
     return n - 1;
@@ -1721,7 +1863,7 @@ static void wlcmd(Ctlr *ctl, int write, int op, void *data, int dlen, void *res,
     USED(b);
 
     /* 書き込みが終わるのを待機してsleep */
-    p9sleep(&ctl->cmdr, &ctl->splock, cmddone, ctl);
+    p9sleep(&ctl->cmdr, cmddone, ctl);
     /* 応答をブロックにセット */
     b = ctl->rsp;
     ctl->rsp = nil;
@@ -1994,7 +2136,7 @@ static void lproc(void *a)
     ctlr = edev->ctlr;
     secs = 0;
     for (;;) {
-        p9tsleep(&up->sleep, &up->lock, return0, 0, 1000);
+        p9tsleep(&up->sleep, return0, 0, 1000);
         if (ctlr->scansecs) {
             if (secs == 0) {
                 if (waserror())
@@ -2024,7 +2166,7 @@ static void wlinit(Ether *edev, Ctlr *ctlr)
     wlgetvar(ctlr, "cur_etheraddr", ea, Eaddrlen);
     memmove(edev->ea, ea, Eaddrlen);
     memmove(edev->addr, ea, Eaddrlen);
-    print("ether4330: addr %02X:%02X:%02X:%02X:%02X:%02X\n",
+    print("ether4330: addr %02x:%02x:%02x:%02x:%02x:%02x\n",
           ea[0], ea[1], ea[2], ea[3], ea[4], ea[5]);
     wlsetint(ctlr, "assoc_listen", 10);
     if (ctlr->chipid == 43430 || ctlr->chipid == 0x4345)
@@ -2487,6 +2629,7 @@ static void etherbcmattach(Ether *edev)
         /* 6. 規制ファイルが存在する場合はロードする */
         if (ctlr->regufile)
             reguload(ctlr, ctlr->regufile);     // brcmfmac43455-sdio.clm_blob
+            //reguload2(ctlr);
         /* 7. wlanを初期化する */
         wlinit(edev, ctlr);
         /* 8. edevをセットする */
@@ -2527,11 +2670,10 @@ static int etherbcmpnp(Ether *edev)
 {
     Ctlr *ctlr;
 
-    ctlr = kmalloc(sizeof(Ctlr));
-    memset(ctlr, 0, sizeof(Ctlr));
+    ctlr = kmzalloc(sizeof(Ctlr));
+    //memset(ctlr, 0, sizeof(Ctlr));
     ctlr->chanid = Wifichan;
     initlock(&ctlr->txwinlock, "txwin");
-    initlock(&ctlr->splock, "sleep");
     edev->ctlr = ctlr;
     edev->attach = etherbcmattach;
     edev->transmit = etherbcmtransmit;

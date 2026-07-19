@@ -11,8 +11,9 @@
 extern "C" {
 #endif
 
+#define ARM_IO_BASE		        0x3F000000
 #define MEM_IOMEM_AXI_START     0x1000000000UL        // AXI peripherals
-#define VIRTIO                  MEM_IOMEM_AXI_START
+#define VIRTIO                  ARM_IO_BASE
 
 enum gpio_mode_t {
     Alt0 = 4,

@@ -85,6 +85,8 @@ int bcm4343_init(const char *firm_path)
     bcm4343->net_dev = net_device_alloc();
     assert(bcm4343->net_dev);
     bcm4343->net_dev->ops = &bcm4343_ops;
+    bcm4343->net_dev->index = NET_INDEX_BCM4343;
+    snprintf(bcm4343->net_dev->name, sizeof(bcm4343->net_dev->name), "net%d", bcm4343->net_dev->index);
 
     bcm4343->firm_path = firm_path;
     queue_init(&bcm4343->rx_queue);
@@ -93,7 +95,7 @@ int bcm4343_init(const char *firm_path)
     bcm4343->opennet = false;
     bcm4343->linkup = false;
     bcm4343->is_connected = NULL;
-
+    trace("bcm4343_init ok");
     return bcm4343_init_internal(bcm4343);
 }
 
@@ -107,7 +109,7 @@ int bcm4343_deinit(struct bcm4343 *self)
 
     self = NULL;
 
-    debug("deinit bcm4343");
+    trace("deinit bcm4343");
 
     return 0;
 }
@@ -125,21 +127,17 @@ static int bcm4343_init_internal(struct bcm4343 *self)
     assert(ether_pnp_handler != NULL);    // addethercard()で設定
     // 5. ether4343ドライバの作成）
     ether_pnp_handler(&ether_device);
-
     ether_device.oq = kmzalloc(sizeof(Queue));
     //memset(ether_device.oq, 0, sizeof *ether_device.oq);
 
     if (waserror ()) {
         return -1;
     }
-
     /* ethernetデバイスをアタッチ */
     assert(ether_device.attach != 0);
     ether_device.attach(&ether_device);
-
     /* MACアドレスをセット */
     memmove(self->macaddr, ether_device.ea, MAC_ADDRESS_SIZE);
-
     /* 自分自身をnet_devのプライベートデータとして登録 */
     self->net_dev->priv = self;
 
@@ -147,9 +145,8 @@ static int bcm4343_init_internal(struct bcm4343 *self)
     if (net_device_register(self->net_dev) == -1) {
         p9error("failed net_device_register");
     }
-
     poperror();
-
+    debug("bcm4343_init_internal ok");
     return 0;
 }
 

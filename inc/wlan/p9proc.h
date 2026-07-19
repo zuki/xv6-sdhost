@@ -35,8 +35,8 @@ typedef struct Rendez
 } Rendez;
 
 typedef int sleephandler_t(void *param);
-void p9sleep(Rendez *rendez, struct spinlock *lk, sleephandler_t *handler, void *param);
-void p9tsleep(Rendez *rendez, struct spinlock *lk, sleephandler_t *handler, void *param, unsigned msecs);
+void p9sleep(Rendez *rendez, sleephandler_t *handler, void *param);
+void p9tsleep(Rendez *rendez, sleephandler_t *handler, void *param, unsigned msecs);
 void p9wakeup(Rendez *rendez);
 int return0(void *param);
 
@@ -47,7 +47,6 @@ int return0(void *param);
 extern struct up_t
 {
     Rendez sleep;
-    struct spinlock lock;
     const char *errstr;
     char genbuf[1000];
     struct error_stack_t errstack;

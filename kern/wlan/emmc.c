@@ -21,7 +21,7 @@
 extern long get_ticks(void);
 
 // EMMCの基底アドレス (raspi3b+: 0x3F30_0000)
-#define EMMCREGS    (VIRTIO+0x300000)
+#define EMMCREGS    ((MMIO_BASE)+0x300000)
 
 
 enum {
@@ -54,8 +54,8 @@ enum {
     Resp3           = 0x1c>>2,
     Data            = 0x20>>2,
     Status          = 0x24>>2,
-    Control0        = 0x28>>2,
-    Control1        = 0x2c>>2,
+    Control0        = 0x28>>2,      // 10 : CONTROL0
+    Control1        = 0x2c>>2,      // 11 : CONTROL1
     Interrupt       = 0x30>>2,      // 12 : INTERRUPT
     Irptmask        = 0x34>>2,      // 13 : IRPT_MASK
     Irpten          = 0x38>>2,      // 14 : IRPT_EN
@@ -172,7 +172,6 @@ struct Ctlr {
     int         fastclock;
     uint64_t    extclk;
     int         appcmd;
-    struct spinlock lock;
     uint8_t *   dmabuf;
 #define DMABUFSZ        (4096)
 #define CACHELINESZ     (64)
@@ -187,7 +186,7 @@ static void WR(int reg, uint32_t val)
 {
     volatile uint32_t *r = (uint32_t*)EMMCREGS;
 
-    if (0)debug("WR %2.2x %x\n", reg<<2, val);
+    if(0)debug("WR 0x%x 0x%x", reg<<2, val);
     microdelay(emmc.fastclock ? 2 : 20);
     coherence();    // データバリア
     r[reg] = val;
@@ -254,12 +253,9 @@ static int emmcinit(void)
 {
     volatile uint32_t *r;
     uint64_t clk;
-
     // DMAバッファを確保
-    emmc.dmabuf = kmalloc(DMABUFSZ);
+    emmc.dmabuf = kalloc(DMABUFSZ);
     assert(emmc.dmabuf);
-
-    initlock(&emmc.lock, "emmc");
 
     // EMMCのクロックレートをmbox経由 (tag: 0x00030002) で取得
     clk = getclkrate(ClkEmmc);
@@ -269,8 +265,7 @@ static int emmcinit(void)
     }
     emmc.extclk = clk;
     r = (uint32_t*)EMMCREGS;
-    if (0)debug("emmc control %8.8x %8.8x %8.8x\n",
-        r[Control0], r[Control1], r[Control2]);
+    print("emmc control 0x%x 0x%x 0x%x\n", r[Control0], r[Control1], r[Control2]);
     // ホスト回路を完全にリセット
     WR(Control1, Srsthc);
     delay(10);
@@ -295,7 +290,7 @@ static int emmcinquiry(char *inquiry, int inqlen)
     // ver[31:24]: ベンダーバージョン, [23:16]: ホストコントローラ仕様バージョン
     ver = r[Slotisrver] >> 16;
     return snprintf(inquiry, inqlen,
-        "Arasan eMMC SD Host Controller %2.2x Version %2.2x",
+        "Arasan eMMC SD Host Controller %02x Version %02x",
         ver&0xFF, ver>>8);
 }
 
@@ -321,7 +316,7 @@ int sdiocardintr(int wait)
         if (!wait)
             return 0;
         WR(Irpten, r[Irpten] | Cardintr);        // カード割り込みを有効にする
-        p9sleep(&emmc.cardr, &emmc.lock, cardintready, 0);    // カード割り込みを待ってsleep
+        p9sleep(&emmc.cardr, cardintready, 0);    // カード割り込みを待ってsleep
     }
     WR(Interrupt, Cardintr);    // カード割り込みフラグをクリア
     return i;
@@ -440,7 +435,7 @@ static int emmccmd(uint32_t cmd, uint32_t arg, uint32_t *resp)
         // エラービットとデータ転送完了フラグをクリア
         WR(Irpten, r[Irpten]|Datadone|Err);
         // データ転送が完了するまでsleep
-        p9tsleep(&emmc.r, &emmc.lock, datadone, 0, 3000);
+        p9tsleep(&emmc.r, datadone, 0, 3000);
         i = r[Interrupt];
         if ((i & Datadone) == 0)
             print("emmcio: no Datadone after CMD%d\n", cmd);
@@ -557,7 +552,7 @@ emmcio(int write, uchar *buf, int len)
     // EMMC IRPT_EN: 割り込みを有効化
     WR(Irpten, r[Irpten]|Datadone|Err);
     // 割り込みがかかるまでsleep
-    p9tsleep(&emmc.r, &emmc.lock, datadone, 0, 3000);
+    p9tsleep(&emmc.r, datadone, 0, 3000);
     // Cardからの割り込み以外の割り込みを取得
     i = r[Interrupt]&~Cardintr;
     // 転送が終了していない(timeout)

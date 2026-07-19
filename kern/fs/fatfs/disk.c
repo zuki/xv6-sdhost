@@ -24,7 +24,7 @@ DSTATUS disk_status(BYTE drv)
 /* Read Sector(s) */
 DRESULT disk_read(BYTE drv, BYTE *buff, DWORD sector, UINT count)
 {
-    trace("drv: %u, buff: %p, sector: %d, count: %d", drv, buff, sector, count);
+    trace("drv: %u, buff: %p, sector: 0x%x, count: %d", drv, buff, sector, count);
     struct buf *bp;
     device_t dev = GET_DEV(drv);
     for (unsigned int i = 0; i < count; i++) {

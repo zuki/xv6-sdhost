@@ -24,3 +24,6 @@ rfc793.txt
 fat/*
 
 makefile.hostap.org
+firmware.bin
+firmware.o
+log.txt
