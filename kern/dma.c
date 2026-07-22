@@ -26,7 +26,7 @@
 // rpi3 (1GB of mem) should be fine
 void* malloc_dma30(unsigned size) {
     void *p = kmalloc(size);
-    debug("malloc_dma30 returns %lx", (unsigned long)p);
+    trace("malloc_dma30 returns %lx", (unsigned long)p);
     return p;
 }
 
@@ -68,7 +68,7 @@ struct CDMAChannel *dma_init(unsigned nChannel)
 
     assert(chan->m_nChannel != DMA_CHANNEL_NONE);
     assert(chan->m_nChannel < DMA_CHANNELS);
-    debug("dma chan: %d", chan->m_nChannel);
+    trace("dma chan: %d", chan->m_nChannel);
     for (unsigned i = 0; i < MaxCyclicBuffers; i++) {
         chan->m_pControlBlockBuffer[i] = malloc_dma30(sizeof(struct TDMAControlBlock) + 31);
         assert(chan->m_pControlBlockBuffer[i] != 0);
@@ -110,7 +110,7 @@ void dma_deinit(struct CDMAChannel *chan)
 
     for (int i = 0; i < MaxCyclicBuffers; i++)
     {
-        debug("free cb %d", i);
+        trace("free cb %d", i);
         chan->m_pControlBlock[i] = 0;
         kmfree(chan->m_pControlBlockBuffer[i]);
         chan->m_pControlBlockBuffer[i] = 0;
@@ -224,9 +224,9 @@ void CDMAChannelSetupIOWrite(struct CDMAChannel *chan, uintptr_t ulIOAddress,
 void CDMAChannelSetupCyclicIOWrite (struct CDMAChannel *chan, uintptr_t ulIOAddress,
     const void *ppSources[], unsigned nBuffers, size_t ulLength, TDREQ DREQ)
 {
-    debug("chan: %p, ioaddr: 0x%lx, source[0]: %p, source[1]: %p",
+    trace("chan: %p, ioaddr: 0x%lx, source[0]: %p, source[1]: %p",
         chan, ulIOAddress, ppSources[0], ppSources[1]);
-    debug("  nb: %d, len: %lu", nBuffers, ulLength);
+    trace("  nb: %d, len: %lu", nBuffers, ulLength);
     assert (ppSources != 0);
     assert (ulLength > 0);
     assert (ulLength <= TXFR_LEN_MAX);
@@ -236,7 +236,7 @@ void CDMAChannelSetupCyclicIOWrite (struct CDMAChannel *chan, uintptr_t ulIOAddr
     ulIOAddress &= 0xFFFFFF;
     assert (ulIOAddress != 0);
     ulIOAddress += GPU_IO_BASE;
-    debug("nBuffers: %d, ppSources[0]: %p, [1]: %p", nBuffers, ppSources[0], ppSources[1]);
+    trace("nBuffers: %d, ppSources[0]: %p, [1]: %p", nBuffers, ppSources[0], ppSources[1]);
     for (unsigned i = 0; i < nBuffers; i++)
     {
         if (!ppSources[i]) {

@@ -304,6 +304,7 @@ mmc_request_done(struct mmc_host *mmc, struct mmc_request *req)
 {
     assert(req != 0);
     req->done = 1;
+    trace("request done");
     disb();
 }
 
@@ -535,7 +536,7 @@ sdhost_read_block_pio(struct bcm2835_host *host)
                     (fsm_state != SDEDM_FSM_READWAIT) &&
                     (fsm_state != SDEDM_FSM_READCRC)) {
                     hsts = read(SDHSTS);
-                    debug("fsm 0x%x, hsts 0x%x", fsm_state, hsts);
+                    error("fsm 0x%x, hsts 0x%x", fsm_state, hsts);
                     if (hsts & SDHSTS_ERROR_MASK)
                         break;
                 }
@@ -611,7 +612,7 @@ sdhost_write_block_pio(struct bcm2835_host *host)
                     (fsm_state != SDEDM_FSM_WRITESTART1) &&
                     (fsm_state != SDEDM_FSM_WRITESTART2)) {
                     hsts = read(SDHSTS);
-                    debug("fsm 0x%x, hsts 0x%x", fsm_state, hsts);
+                    error("fsm 0x%x, hsts 0x%x", fsm_state, hsts);
                     if (hsts & SDHSTS_ERROR_MASK)
                         break;
                 }
@@ -739,13 +740,13 @@ sdhost_send_command(struct bcm2835_host *host, struct mmc_command *cmd)
 //     WARN_ON(host->cmd);
 
     if (cmd->data) {
-        trace("send_command %d 0x%x "
+        trace("send_command 0x%x arg 0x%x "
               "(flags 0x%x) - %s %d*%d",
               cmd->opcode, cmd->arg, cmd->flags,
               (cmd->data->flags & MMC_DATA_READ) ?
               "read" : "write", cmd->data->blocks, cmd->data->blksz);
     } else {
-        trace("send_command %d 0x%x (flags 0x%x)",
+        trace("send_command 0x%x arg 0x%x (flags 0x%x)",
               cmd->opcode, cmd->arg, cmd->flags);
     }
 
@@ -867,11 +868,10 @@ sdhost_finish_data(struct bcm2835_host *host)
 
     if (host->cmd) {
         /*
-         * Data managed to finish before the
-         * command completed. Make sure we do
-         * things in the proper order.
+         * コマンドが完了する前にデータの処理が終わった。
+         * 適切な順序で処理を行うようにする。
          */
-        debug("finished early - HSTS 0x%x", read(SDHSTS));
+        trace("finished early - HSTS 0x%x", read(SDHSTS));
     } else {
         sdhost_transfer_complete(host);
     }
@@ -914,23 +914,23 @@ sdhost_transfer_complete(struct bcm2835_host *host)
 
 
 /*
- * If irq_flags is valid, the caller is in a thread context and is allowed
- * to sleep.
+ * irq_flags が有効な場合、呼び出し元はスレッドコンテキストにあり、
+ * スリープすることが許される。
  */
 static void
 sdhost_finish_command(struct bcm2835_host *host)
 {
     uint32_t sdcmd;
 
-    trace("finish_command(0x%x)", read(SDCMD));
+    trace("finish_command (0x%x)", read(SDCMD));
 
     assert(!(!host->cmd || !host->mrq));
 
-    /* Poll quickly at first. */
+    /* はじめに素早くPollする */
 
     uint32_t retries = host->cmd_quick_poll_retries;
     if (!retries) {
-        /* Work out how many polls take 1us by timing 10us */
+        /* 10usを計測して、1usかかるポーリングがいくつあるかを算出する */
         int us_diff;
 
         retries = 1;
@@ -983,6 +983,7 @@ sdhost_finish_command(struct bcm2835_host *host)
         host->cmd->error = -EILSEQ;
         // tasklet_schedule(&host->finish_tasklet);
         sdhost_tasklet_finish(host);
+        trace("return SDCMD_NEW_FLAG");
         return;
     } else if (sdcmd & SDCMD_FAIL_FLAG) {
         uint32_t sdhsts = read(SDHSTS);
@@ -990,7 +991,7 @@ sdhost_finish_command(struct bcm2835_host *host)
         /* Clear the errors */
         write(SDHSTS_ERROR_MASK, SDHSTS);
 
-        info("error detected: CMD 0x%x, HSTS 0x%x, EDM 0x%x",
+        error("error detected: CMD 0x%x, HSTS 0x%x, EDM 0x%x",
              sdcmd, sdhsts, read(SDEDM));
 
         if ((sdhsts & SDHSTS_CRC7_ERROR) && (host->cmd->opcode == 1)) {
@@ -1012,6 +1013,7 @@ sdhost_finish_command(struct bcm2835_host *host)
                 write(edm | SDEDM_FORCE_DATA_MODE, SDEDM);
             // tasklet_schedule(&host->finish_tasklet);
             sdhost_tasklet_finish(host);
+            trace("return SDCMD_FAIL_FLAG");
             return;
         }
     }
@@ -1021,13 +1023,13 @@ sdhost_finish_command(struct bcm2835_host *host)
             int i;
             for (i = 0; i < 4; i++)
                 host->cmd->resp[3 - i] = read(SDRSP0 + i * 4);
-            trace("finish_command 0x%x 0x%x 0x%x 0x%x",
+            trace("finish_command resp[0-3] 0x%x 0x%x 0x%x 0x%x",
                   host->cmd->resp[0],
                   host->cmd->resp[1],
                   host->cmd->resp[2], host->cmd->resp[3]);
         } else {
             host->cmd->resp[0] = read(SDRSP0);
-            trace("finish_command 0x%x", host->cmd->resp[0]);
+            trace("finish_command resp[0] 0x%x", host->cmd->resp[0]);
         }
     }
 
@@ -1037,8 +1039,9 @@ sdhost_finish_command(struct bcm2835_host *host)
         if (sdhost_send_command(host, host->mrq->cmd)) {
             /* PIO starts after irq */
 
-            if (!host->use_busy)
+            if (!host->use_busy) {
                 sdhost_finish_command(host);
+            }
         }
     } else if (host->cmd == host->mrq->stop) {
         /* Finished CMD12 */
@@ -1054,6 +1057,7 @@ sdhost_finish_command(struct bcm2835_host *host)
             sdhost_transfer_complete(host);
         }
     }
+    trace("finish");
 }
 
 static void
@@ -1262,7 +1266,7 @@ sdhost_set_clock_inner(struct bcm2835_host *host, uint32_t clock)
         host->cdiv = div;
         write(host->cdiv, SDCDIV);
 
-        trace("clock=%d -> max_clk=%d, cdiv=0x%x (actual clock %d)",
+        debug("clock=%d -> max_clk=%d, cdiv=0x%x (actual clock %d)",
               input_clock, host->max_clk, host->cdiv, clock);
     }
 
@@ -1327,6 +1331,21 @@ sdhost_request(struct bcm2835_host *host, struct mmc_host *mmc,
     if (host->reset_clock)
         sdhost_set_clock_inner(host, host->clock);
 
+#if 0
+    if (host->mrq != 0) {
+        //hexdump(host->mrq, sizeof(struct mmc_request), "host->mrq");
+        if(1)error("pre-command: 0x%x, host->mrq: %p, done: 0x%x, "
+              "sbc %p opcode: 0x%x, "
+              "cmd %p opcode: 0x%x\n"
+              "data %p flag: 0x%x, ",
+              "stop %p opcode: 0x%x", read(SDCMD), host->mrq, host->mrq->done,
+            host->mrq->sbc, host->mrq->sbc ? host->mrq->sbc->opcode : -1,
+            host->mrq->cmd, host->mrq->cmd ? host->mrq->cmd->opcode : -1,
+            host->mrq->data, host->mrq->data ? host->mrq->data->flags : -1,
+            host->mrq->stop, host->mrq->stop ? host->mrq->stop->opcode : -1);
+        //host->mrq = 0;
+    }
+#endif
     assert(host->mrq == 0);
     host->mrq = mrq;
 
@@ -1364,7 +1383,7 @@ sdhost_request(struct bcm2835_host *host, struct mmc_host *mmc,
 static void
 sdhost_set_ios(struct bcm2835_host *host, struct mmc_ios *ios)
 {
-    debug
+    trace
         ("ios clock %d, pwr %d, bus_width %d, timing %d, vdd %d, drv_type %d",
          ios->clock, ios->power_mode, ios->bus_width, ios->timing,
          ios->signal_voltage, ios->drv_type);
@@ -1391,8 +1410,9 @@ static void
 sdhost_tasklet_finish(struct bcm2835_host *host)
 {
     /*
-     * If this tasklet gets rescheduled while running, it will
-     * be run again afterwards but without any active request.
+     * このタスクレットが実行中に再スケジュールされた場合、
+     * その後再度実行されるが、その時点ではアクティブな
+     * リクエストは存在しない。
      */
     if (!host->mrq) {
         return;
@@ -1402,9 +1422,9 @@ sdhost_tasklet_finish(struct bcm2835_host *host)
 
     struct mmc_request *mrq = host->mrq;
 
-    /* Drop the overclock after any data corruption, or after any
-     * error while overclocked. Ignore errors for status commands,
-     * as they are likely when a card is ejected. */
+    /* データの破損が発生した場合、またはオーバークロック中にエラーが発生した場合は
+     * 直ちにオーバークロックを中止する。ステータスコマンドに関するエラーは、カードを
+     * 取り外した際に発生しやすいものであるため、無視する。 */
     if (host->overclock) {
         if ((mrq->cmd && mrq->cmd->error &&
              (mrq->cmd->opcode != MMC_SEND_STATUS)) ||
@@ -1418,23 +1438,23 @@ sdhost_tasklet_finish(struct bcm2835_host *host)
             mrq->cmd->retries = 1;
         }
     }
-
+    trace("delete host->mrq, cmd, data");
     host->mrq = 0;
     host->cmd = 0;
     host->data = 0;
 
     dsb();
 
-    /* The SDHOST block doesn't report any errors for a disconnected
-       interface. All cards and SDIO devices should report some supported
-       voltage range, so a zero response to SEND_OP_COND, IO_SEND_OP_COND
-       or APP_SEND_OP_COND can be treated as an error. */
+    /* SDHOSTブロックは、接続が切断されたインターフェースについてはエラーを報告しない。
+     * すべてのカードおよびSDIOデバイスは、何らかのサポートされている電圧範囲を報告する
+     * はずであるため、SEND_OP_COND、IO_SEND_OP_COND、またはAPP_SEND_OP_CONDに
+     * 対する応答がゼロの場合は、エラーとして扱う。 */
     if (((mrq->cmd->opcode == MMC_SEND_OP_COND) ||
          (mrq->cmd->opcode == SD_IO_SEND_OP_COND) ||
          (mrq->cmd->opcode == SD_APP_OP_COND)) &&
         (mrq->cmd->error == 0) && (mrq->cmd->resp[0] == 0)) {
         mrq->cmd->error = -ETIMEDOUT;
-        debug("faking timeout due to zero OCR");
+        error("faking timeout due to zero OCR");
     }
 
     mmc_request_done(&host->mmc, mrq);
@@ -1530,7 +1550,7 @@ sdhost_probe(struct bcm2835_host *host)
 
     host->firmware_sets_cdiv = (msg[1] != ~0U);
     if (host->firmware_sets_cdiv)
-        debug("firmware sets clock divider");
+        trace("firmware sets clock divider");
 
     if ((ret = sdhost_add_host(host)))
         goto err;
@@ -1538,6 +1558,6 @@ sdhost_probe(struct bcm2835_host *host)
     return 0;
 
   err:
-    debug("err %d", ret);
+    error("err %d", ret);
     return ret;
 }
