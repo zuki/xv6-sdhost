@@ -4,6 +4,9 @@ bin/
 .gdb_history
 .vscode/
 
+*.o
+*.d
+
 boot/*
 
 memos/book/*

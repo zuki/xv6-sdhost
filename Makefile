@@ -110,5 +110,7 @@ clean:
 	$(MAKE) -C usr clean
 	rm -rf $(BUILD_DIR) firmware.*
 	rm -f mkfs/mkfs
+	rm -f kern/wlan/hostap/wpa_supplicant/*.o
+	rm -f kern/wlan/hostap/wpa_supplicant/*.d
 
 .PHONY: init all lint clean qemu qemu-gdb gdb
