@@ -86,6 +86,7 @@ int bcm4343_init(const char *firm_path)
     assert(bcm4343->net_dev);
     bcm4343->net_dev->ops = &bcm4343_ops;
     bcm4343->net_dev->index = NET_INDEX_BCM4343;
+    bcm4343->net_dev->type = NET_DEVICE_TYPE_WLAN;
     snprintf(bcm4343->net_dev->name, sizeof(bcm4343->net_dev->name), "net%d", bcm4343->net_dev->index);
 
     bcm4343->firm_path = firm_path;
@@ -260,14 +261,14 @@ boolean bcm4343_control(struct bcm4343 *self, const char *format, ...)
 
     char command[256];
     va_list ap;
-
-    snprintf(command, 256, format, ap);
+    va_start(ap, format);
+    vsnprintfmt(command, 256, format, ap);
     va_end(ap);
 
     if (waserror ()) {
         return false;
     }
-
+    trace("command: '%s'", command);
     assert(ether_device.ctl != 0);
     // etherbcmctl()を実行
     (*ether_device.ctl)(&ether_device, (const char *)command, 0);

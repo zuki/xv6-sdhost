@@ -11,7 +11,7 @@ char *seprint(char *str, char *end, const char *fmt, ...)
     size_t len = end - str - 1;
 
     va_start (ap, fmt);
-    rc = snprintf(str, len, fmt, ap);
+    rc = vsnprintfmt(str, len, fmt, ap);
     va_end(ap);
 
     return str + (strlen(str) < len ? strlen(str) : len);
