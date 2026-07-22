@@ -98,7 +98,7 @@ struct page *   page_find_by_address(void *address);
 struct page *   page_find_head(const struct page *page);
 void            page_cleanup(struct page **page);
 
-void *          kalloc();
+void *          kalloc(size_t num);
 void            kfree(void *va);
 void            inc_kmem_ref(void *va);
 void            dec_kmem_ref(void *va);

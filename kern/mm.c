@@ -155,11 +155,12 @@ void kfree(void *va)
  * @ingroup mm
  * @brief ページを割り当てる.
  *
+ * @param num 割り当てるページ数
  * @return 割り当てられたページの仮想アドレス
  */
-void *kalloc(void)
+void *kalloc(size_t num)
 {
-    struct page *page = buddy_alloc(PGSIZE);
+    struct page *page = buddy_alloc(num * PGSIZE);
     page->ref = 1;
     // return page_address(page);
     void *addr = page_address(page);
@@ -310,7 +311,7 @@ void mm_test(void)
 #ifdef DEBUG
     static void *p[0x100000000 / PGSIZE];
     int i;
-    for (i = 0; (p[i] = kalloc()); i++) {
+    for (i = 0; (p[i] = kalloc(1)); i++) {
         memset(p[i], 0xFF, PGSIZE);
         if (i % 10000 == 0)
             debug("0x%p", p[i]);
