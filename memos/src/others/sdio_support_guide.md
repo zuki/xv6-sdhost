@@ -394,12 +394,12 @@ index bbf1505..e4ac0a6 100644
 --- a/drivers/mmc/core/core.c
 +++ b/drivers/mmc/core/core.c
 @@ -1997,6 +1997,94 @@ int mmc_set_signal_voltage(struct mmc_host *host,
-int signal_voltage, u32 ocr)
+int signal_voltage, uint32_t ocr)
 return err;
 }
-+int mmc_host_set_uhs_voltage(struct mmc_host *host, u32 ocr)
++int mmc_host_set_uhs_voltage(struct mmc_host *host, uint32_t ocr)
 +{
-+   u32 clock;
++   uint32_t clock;
 +
 +   /*
 +   * During a signal voltage level switch, the clock must be gated
@@ -420,7 +420,7 @@ return err;
 +   return 0;
 +}
 +
-+int mmc_set_uhs_voltage(struct mmc_host *host, u32 ocr)
++int mmc_set_uhs_voltage(struct mmc_host *host, uint32_t ocr)
 +{
 +   struct mmc_command cmd = {};
 +   int err = 0;
@@ -495,13 +495,13 @@ index c8f5172..b3fe27d 100644
 @@ -104,5 +104,6 @@ static inline void mmc_register_pm_notifier(struct mmc_host *host) { }
 static inline void mmc_unregister_pm_notifier(struct mmc_host *host) { }
 #endif
-+int mmc_set_uhs_voltage(struct mmc_host *host, u32 ocr);
++int mmc_set_uhs_voltage(struct mmc_host *host, uint32_t ocr);
 #endif
 diff --git a/drivers/mmc/core/sdio.c b/drivers/mmc/core/sdio.c
 index a2be7a3..333d519 100644
 --- a/drivers/mmc/core/sdio.c
 +++ b/drivers/mmc/core/sdio.c
-@@ -636,9 +636,15 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
+@@ -636,9 +636,15 @@ static int mmc_sdio_init_card(struct mmc_host *host, uint32_t ocr,
 * systems that claim 1.8v signalling in fact do not support
 * it.
 */

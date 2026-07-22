@@ -182,7 +182,7 @@ void CTransportLayer::Process (void) {
             // 6.1 未完了であれば処理を継続
             if (!((CNetConnection *) m_pConnection[i])->IsTerminated ())
                 ((CNetConnection *) m_pConnection[i])->Process ();
-            // 6.2 kん量であれば接続を切る
+            // 6.2 完了であれば接続を切る
             else {
                 delete (CNetConnection *) m_pConnection[i];
                 m_pConnection[i] = 0;
@@ -285,7 +285,7 @@ void CTCPConnection::Process (void) {
     }
 }
 
-boolean CTCPConnection::SendSegment (unsigned nFlags, u32 nSequenceNumber, u32 nAcknowledgmentNumber,
+boolean CTCPConnection::SendSegment (unsigned nFlags, uint32_t nSequenceNumber, uint32_t nAcknowledgmentNumber,
                      const void *pData, unsigned nDataLength) {
     return m_pNetworkLayer->Send (m_ForeignIP, TxBuffer, nPacketLength, IPPROTO_TCP);
 }
@@ -300,7 +300,7 @@ boolean CNetworkLayer::Send (const CIPAddress &rReceiver, const void *pPacket, u
     TIPHeader *pHeader = (TIPHeader *) PacketBuffer;
     pHeader->nVersionIHL          = IP_VERSION << 4 | nHeaderLength / 4;
     pHeader->nTypeOfService       = IP_TOS_ROUTINE;
-    pHeader->nTotalLength         = le2be16 ((u16) nPacketLength);
+    pHeader->nTotalLength         = le2be16 ((uint16_t) nPacketLength);
     pHeader->nIdentification      = BE (IP_IDENTIFICATION_DEFAULT);
     pHeader->nFlagsFragmentOffset = IP_FLAGS_DF | BE (IP_FRAGMENT_OFFSET_FIRST);
     pHeader->nTTL                 = rReceiver.IsMulticast () ? IP_TTL_MULTICAST : IP_TTL_DEFAULT;
@@ -347,7 +347,7 @@ void CNetDeviceLayer::Process (void) {
 boolean CLAN7800Device::SendFrame (const void *pBuffer, unsigned nLength) {
     DMA_BUFFER (u8, TxBuffer, FRAME_BUFFER_SIZE+TX_HEADER_SIZE);
     memcpy (TxBuffer+TX_HEADER_SIZE, pBuffer, nLength);
-    u32 *pTxHeader = (u32 *) TxBuffer;
+    uint32_t *pTxHeader = (uint32_t *) TxBuffer;
     pTxHeader[0] = (nLength & TX_CMD_A_LEN_MASK) | TX_CMD_A_FCS;
     pTxHeader[1] = 0;
     return GetHost ()->Transfer (m_pEndpointBulkOut, TxBuffer, nLength+TX_HEADER_SIZE) >= 0;

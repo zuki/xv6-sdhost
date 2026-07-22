@@ -3,7 +3,7 @@
 ## dw2ドライバ (`drivers/usb/dwc2`)
 
 ```c
-static inline u32 dwc2_read_core_intr(struct dwc2_hsotg *hsotg)
+static inline uint32_t dwc2_read_core_intr(struct dwc2_hsotg *hsotg)
 {
     return dwc2_readl(hsotg, GINTSTS) & dwc2_readl(hsotg, GINTMSK);
 }
@@ -15,7 +15,7 @@ static inline u32 dwc2_read_core_intr(struct dwc2_hsotg *hsotg)
 /* This function handles interrupts for the HCD */
 irqreturn_t dwc2_handle_hcd_intr(struct dwc2_hsotg *hsotg)
 {
-    u32 gintsts, dbg_gintsts;
+    uint32_t gintsts, dbg_gintsts;
     irqreturn_t retval = IRQ_NONE;
 
     spin_lock(&hsotg->lock);
@@ -46,7 +46,7 @@ irqreturn_t dwc2_handle_hcd_intr(struct dwc2_hsotg *hsotg)
  */
 static void dwc2_rx_fifo_level_intr(struct dwc2_hsotg *hsotg)
 {
-    u32 grxsts, chnum, bcnt, dpid, pktsts;
+    uint32_t grxsts, chnum, bcnt, dpid, pktsts;
     struct dwc2_host_chan *chan;
 
     grxsts = dwc2_readl(hsotg, GRXSTSP);    // RxFIFOの先頭を返す
@@ -88,9 +88,9 @@ static void dwc2_rx_fifo_level_intr(struct dwc2_hsotg *hsotg)
 - hcd.c
 
 ```c
-void dwc2_read_packet(struct dwc2_hsotg *hsotg, u8 *dest, u16 bytes)
+void dwc2_read_packet(struct dwc2_hsotg *hsotg, u8 *dest, uint16_t bytes)
 {
-    u32 *data_buf = (u32 *)dest;
+    uint32_t *data_buf = (uint32_t *)dest;
     int word_count = (bytes + 3) / 4;
     int i;
 

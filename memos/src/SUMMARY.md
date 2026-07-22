@@ -30,6 +30,7 @@
         - [FatFs: 汎用FATファイルシステム・モジュール](xv6/fatfs_module.md)
     - [Silicon Macで実行](xv6/m3.md)
     - [kthreadの実装を修正](xv6/kthread.md)
+    - [wifiの実装](xv6/wifi.md)
 
 - [その他のメモ](others/README.md)
     - [デフォルトで使用されるリンカスクリプト](others/lds.md)
