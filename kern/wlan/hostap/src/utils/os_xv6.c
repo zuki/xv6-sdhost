@@ -19,12 +19,14 @@
 #include <proc.h>
 #include <console.h>
 
+static char vbuf[1024];
+
 int vprintf(const char *fmt, va_list ap)
 {
-    char buf[1000];
+    //char vbuf[1024];
     int rc;
-    rc = vsnprintfmt(buf, 1000, fmt, ap);
-    cprintf(buf);
+    rc = vsnprintfmt(vbuf, 1024, fmt, ap);
+    cprintf(vbuf);
     return rc;
 }
 
