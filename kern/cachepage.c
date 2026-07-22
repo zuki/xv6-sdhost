@@ -24,7 +24,7 @@ void cachepage_init(void)
 
     acquire(&cachepages.lock);
     for (int i = 0; i < NPAGECACHE; i++) {
-        cachepages.pages[i].page = kalloc();
+        cachepages.pages[i].page = kalloc(1);
         if (!cachepages.pages[i].page) {
             for (int j = 0; j < i; j++)
                 kfree(cachepages.pages[j].page);

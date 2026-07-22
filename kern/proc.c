@@ -101,7 +101,7 @@ proc_alloc(void)
         }
     }
 
-    if (!found || !(p->kstack = kalloc())) {
+    if (!found || !(p->kstack = kalloc(1))) {
         release(&ptable.lock);
         return 0;
     }
@@ -137,7 +137,7 @@ static struct proc *
 proc_initx(char *name, char *code, size_t len)
 {
     struct proc *p = proc_alloc();
-    void *va = kalloc();
+    void *va = kalloc(1);
     assert(p && va);
 
     p->pgdir = vm_init();

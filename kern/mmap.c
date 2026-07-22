@@ -181,7 +181,7 @@ static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t
     trace("called: addr: 0x%llx, length: 0x%x, perm: 0x%x, f_ino: %d, f_size: 0x%x, offset: 0x%x", addr, length, perm, f->vnode->ino, f->vnode->size, offset);
     // サイズが0のファイルに書き込むために1ページ分uvm_map()する
     if (f->vnode->size == 0) {
-        char *mem = kalloc();
+        char *mem = kalloc(1);
         if (!mem) {
             error("no memory");
             return -ENOMEM;
@@ -222,7 +222,7 @@ static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t
         trace("size: 0x%x, offset: 0x%x, len: 0x%x, cur: 0x%x", f->vnode->size, f->offset, len, cur);
         //trace("addr=%p, length=0x%x, offset=0x%x", addr, length, offset);
 
-        char *mem = kalloc();
+        char *mem = kalloc(1);
         if (!mem) {
             error("no memory");
             ret = -ENOMEM;
@@ -265,7 +265,7 @@ static long map_anon_pages(struct proc *p, void *addr, uint64_t length, uint64_t
     uint64_t cur;
 
     for (cur = 0; cur < length; cur += PGSIZE) {
-        char *page = kalloc();
+        char *page = kalloc(1);
         if (!page) {
             error("map_anon_page: memory exhausted");
             ret = -ENOMEM;
@@ -469,7 +469,7 @@ long copy_vma_pages(void *addr, size_t length, uint64_t perm)
         pte = pgdir_walk(thisproc()->pgdir, start, 0);
         if (pte == 0) { warn("copy_mmap_pages: pte = 0\n"); return -EINVAL; }
         uint64_t pa = PTE_ADDR(*pte);
-        char *page = kalloc();
+        char *page = kalloc(1);
         if (!page) { warn("copy_mmap_pages: no page available\n"); return -ENOMEM; }
         memmove(page, P2V(pa), PGSIZE);
         *pte = V2P(page) | perm;
@@ -500,7 +500,7 @@ int alloc_cow_page(uint64_t *pgdir, uint64_t va)
 
     // 複数のプロセスがこのページを参照しているのでコピーが必要
     if (page_refcnt_get((void *) pa) > 1) {
-        if ((mem = kalloc()) == 0) {
+        if ((mem = kalloc(1)) == 0) {
             error("no memory");
             return -1;
         }

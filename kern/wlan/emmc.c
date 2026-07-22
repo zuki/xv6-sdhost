@@ -254,7 +254,8 @@ static int emmcinit(void)
     volatile uint32_t *r;
     uint64_t clk;
     // DMAバッファを確保
-    emmc.dmabuf = kalloc(DMABUFSZ);
+    //emmc.dmabuf = kalloc(DMABUFSZ);
+    emmc.dmabuf = kalloc(1);
     assert(emmc.dmabuf);
 
     // EMMCのクロックレートをmbox経由 (tag: 0x00030002) で取得

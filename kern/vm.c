@@ -17,7 +17,7 @@ extern uint64_t kpgdir[512];
 uint64_t *
 vm_init()
 {
-    uint64_t *pgdir = kalloc();
+    uint64_t *pgdir = kalloc(1);
     if (pgdir)
         memset(pgdir, 0, PGSIZE);
     else
@@ -39,7 +39,7 @@ pgdir_walk(uint64_t * pgdir, void *vap, int alloc)
         if (!(pgt[idx] & PTE_VALID)) {
             void *p;
             /* FIXME Free allocated pages and restore modified pgt */
-            if (alloc && (p = kalloc())) {
+            if (alloc && (p = kalloc(1))) {
                 memset(p, 0, PGSIZE);
                 pgt[idx] = V2P(p) | PTE_TABLE;
             } else {
@@ -105,7 +105,7 @@ uvm_copy(uint64_t * pgdir)
                                         np = P2V(pa);
                                         inc_kmem_ref(np);
                                     } else {
-                                        np = kalloc();
+                                        np = kalloc(1);
                                         if (np == 0) {
                                             vm_free(newpgdir);
                                             warn("kalloc failed");
@@ -218,7 +218,7 @@ uvm_alloc(uint64_t * pgdir, size_t base, size_t stksz, size_t oldsz,
     }
 
     for (size_t a = ROUNDUP(oldsz, PGSIZE); a < newsz; a += PGSIZE) {
-        void *p = kalloc();
+        void *p = kalloc(1);
         if (p == 0) {
             warn("kalloc failed");
             uvm_dealloc(pgdir, base, newsz, oldsz);
@@ -324,7 +324,7 @@ copyout(uint64_t * pgdir, void *va, void *p, size_t len)
         if (*pte & PTE_VALID) {
             page = P2V(PTE_ADDR(*pte));
         } else {
-            if ((page = kalloc()) == 0)
+            if ((page = kalloc(1)) == 0)
                 return -1;
             *pte = V2P(page) | PTE_UDATA;
         }
@@ -406,7 +406,7 @@ vm_test()
 {
 #ifdef DEBUG
     void *pgdir = vm_init();
-    void *p = kalloc(), *p2 = kalloc(), *va = (void *)0x1000;
+    void *p = kalloc(1), *p2 = kalloc(1), *va = (void *)0x1000;
     memset(p, 0xAB, PGSIZE);
     memset(p2, 0xAC, PGSIZE);
     uvm_map(pgdir, va, PGSIZE, V2P((uint64_t) p));

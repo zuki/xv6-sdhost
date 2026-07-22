@@ -121,7 +121,7 @@ static struct buf *_load_block(device_t dev, uint32_t blockno, boolean issec)
         memset(entry->block, 0, SECTOR_SIZE);
     } else {
         if (entry->block == NULL) {
-            entry->block = (uint8_t *)kalloc();
+            entry->block = (uint8_t *)kalloc(1);
         }
         memset(entry->block, 0, BC_BLOCK_SIZE);
     }

@@ -40,7 +40,7 @@ void lan7800(lan7800_t *self, usb_function_t *func)
     self->bulk_out = 0;
     //self->tx_buffer = (uint8_t *)kalloc(FRAME_BUFFER_SIZE+TX_HEADER_SIZE);
     // 4096アラインのためkmallocではなくkallocを使う(4096バイトでOK)
-    self->tx_buffer = (uint8_t *)kalloc();
+    self->tx_buffer = (uint8_t *)kalloc(1);
 
 }
 
