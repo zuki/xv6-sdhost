@@ -249,6 +249,7 @@ forkret(void)
     extern struct mount_ops procfs_mount_ops;
     extern struct mount_ops fat_mount_ops;
     int err;
+    struct proc *p;
 
     static int first = 1;
     if (first && thisproc() != thiscpu()->idle) {
@@ -271,18 +272,19 @@ forkret(void)
         }
 #endif
 
-#if 1
         usb_init();
         bcm4343_init("/d/firmware");    // 末尾に/は付けない
-        wpasupplicant_init("/d/wpa_supplicant.conf");
         net_init();
         net_run();
-#if NET_DRV != NET_INDEX_BCM4343
-        kthread_create("ether", kthread_read_ether, NULL);
-#endif
+        wpasupplicant_init("/d/wpa_supplicant.conf");
+//#if NET_DRV != NET_INDEX_BCM4343
+        p = kthread_create("ether", kthread_read_ether, NULL);
+        trace("kthread ether created: pid=%d", p->pid);
         workqueue_init();
-        kthread_create("recycle", recycle_proc, NULL);
-#endif
+        p = kthread_create("recycle", recycle_proc, NULL);
+        trace("kthread recycle created: pid=%d", p->pid);
+
+//#endif
     } else {
         release(&ptable.lock);
     }
@@ -749,7 +751,7 @@ void workqueue_init(void)
 
     wq.worker = kthread_create("workqueue", wq_worker, &wq);
     release(&wq.lock);
-    info("workqueue_init ok, worker pid - %d", wq.worker->pid);
+    trace("workqueue_init ok, worker pid - %d", wq.worker->pid);
 }
 
 int queue_work(struct workqueue *wq, void (*func)(void *), void *arg)
