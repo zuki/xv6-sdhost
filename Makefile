@@ -25,10 +25,6 @@ CFLAGS += -DLOG_DEBUG -DRASPI=$(RASPI) \
            -DIEEE8021X_EAPOL \
 	   -DCONFIG_FAT
 
-ifeq (${CONFIG_FAT}, 1)
-CFLAGS += -DCONFIG_FAT
-endif
-
 CFLAGS += -mlittle-endian -mcmodel=small -mno-outline-atomics
 
 ifeq ($(strip $(RASPI)), 3)
