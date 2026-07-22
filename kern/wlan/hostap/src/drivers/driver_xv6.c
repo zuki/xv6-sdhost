@@ -589,8 +589,8 @@ static int wpa_driver_xv6_set_country(void *priv, const char *alpha2)
 
 const struct wpa_driver_ops wpa_driver_xv6_ops =
 {
-    .name = "circle",
-    .desc = "Circle WLAN driver",
+    .name = "xv6",
+    .desc = "xv6 WLAN driver",
     .get_bssid = wpa_driver_xv6_get_bssid,
     .get_ssid = wpa_driver_xv6_get_ssid,
     .set_key = wpa_driver_xv6_set_key,
