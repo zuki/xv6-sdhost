@@ -213,13 +213,14 @@ unsigned long long strtoull(const char *s, char **endptr, int base);
 int sprintf(char *buf, const char *fmt, ...);
 int snprintf(char *buf, size_t n, const char *fmt, ...);
 char *strtok_r1(char *s, char delim, char **save_ptr);
-size_t strspn(const char *str, const char *accept);
-size_t strcspn(const char *str, const char *reject);
+size_t strspn(const char *s, const char *c);
+size_t strcspn(const char *s, const char *c);
 char *strtok_r(char *str, const char *delim, char **save_ptr);
 int str_replace(char **source, const char *find, const char *replace);
 int strcasecmp(const char *s1, const char *s2);
 int strncasecmp(const char *s1, const char *s2, size_t n);
 char *strdup (const char *s);
 int vsnprintfmt(char *str, size_t size, const char *fmt, va_list ap);
+char *strchrnul(const char *s, int c);
 
 #endif

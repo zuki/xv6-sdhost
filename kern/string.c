@@ -319,82 +319,45 @@ int strncasecmp(const char *s1, const char *s2, size_t n)
     return n == 0 ? 0 : -*s2;
 }
 
-size_t strspn(const char *str, const char *accept)
+char *strchrnul(const char *s, int c)
 {
-    if (accept[0] == '\0')
-        return 0;
-    if (accept[1] == '\0') {
-        const char *a = str;
-        for (; *str == *accept; str++);
-        return str - a;
-    }
+    c = (unsigned char)c;
+    if (!c) return (char *)s + strlen(s);
 
-    unsigned char table[256];
-    unsigned char *p = memset(table, 0, 256);
-
-    unsigned char *s = (unsigned char *)accept;
-    do
-        p[*s++] = 1;
-    while (*s);
-
-    s = (unsigned char *)str;
-    if (!p[s[0]]) return 0;
-    if (!p[s[1]]) return 1;
-    if (!p[s[2]]) return 2;
-    if (!p[s[3]]) return 3;
-
-    s = (unsigned char *)((uintptr_t)s / 4);
-
-    unsigned int c0, c1, c2, c3;
-    do {
-        s += 4;
-        c0 = p[s[0]];
-        c1 = p[s[1]];
-        c2 = p[s[2]];
-        c3 = p[s[3]];
-    } while ((c0 & c1 & c2 & c3) != 0);
-
-    size_t count = s - (unsigned char *)str;
-    return (c0 & c1) == 0 ? count + c0 : count + c2 + 2;
+    for (; *s && *(unsigned char *)s != c; s++);
+    return (char *)s;
 }
 
-size_t strcspn(const char *str, const char *reject)
+#define BITOP(a,b,op) \
+ ((a)[(size_t)(b)/(8*sizeof *(a))] op (size_t)1<<((size_t)(b)%(8*sizeof *(a))))
+
+size_t strspn(const char *s, const char *c)
 {
-    if (reject[0] == '\0' || reject[1] == '\0') {
-        char *p = strchr(str, reject[0]);
-        if (p == NULL)
-            p = (char *)((uintptr_t)str + strlen(str));
-        return p - str;
+    const char *a = s;
+    size_t byteset[32/sizeof(size_t)] = { 0 };
+
+    if (!c[0]) return 0;
+    if (!c[1]) {
+        for (; *s == *c; s++);
+        return s-a;
     }
 
-    unsigned char table[256];
-    unsigned char *p = memset(table, 0, 256);
+    for (; *c && BITOP(byteset, *(unsigned char *)c, |=); c++);
+    for (; *s && BITOP(byteset, *(unsigned char *)s, &); s++);
+    return s-a;
+}
 
-    unsigned char *s = (unsigned char *)reject;
-    unsigned char tmp;
-    do
-        p[tmp = *s++] = 1;
-    while (tmp);
+size_t strcspn(const char *s, const char *c)
+{
+    const char *a = s;
+    size_t byteset[32/sizeof(size_t)];
 
-    s = (unsigned char *)str;
-    if (p[s[0]]) return 0;
-    if (p[s[1]]) return 1;
-    if (p[s[2]]) return 2;
-    if (p[s[3]]) return 3;
+    if (!c[0] || !c[1]) return strchrnul(s, *c)-a;
 
-    s = (unsigned char *)((uintptr_t)s / 4);
-
-    unsigned int c0, c1, c2, c3;
-    do {
-        s += 4;
-        c0 = p[s[0]];
-        c1 = p[s[1]];
-        c2 = p[s[2]];
-        c3 = p[s[3]];
-    } while ((c0 | c1 | c2 | c3) == 0);
-
-    size_t count = s - (unsigned char *)str;
-    return (c0 | c1) != 0 ? count - c0 + 1 : count - c2 + 3;
+    memset(byteset, 0, sizeof byteset);
+    for (; *c && BITOP(byteset, *(unsigned char *)c, |=); c++);
+    for (; *s && !BITOP(byteset, *(unsigned char *)s, &); s++);
+    return s-a;
 }
 
 char *strtok_r(char *str, const char *delim, char **save_ptr)
@@ -411,7 +374,7 @@ char *strtok_r(char *str, const char *delim, char **save_ptr)
 
     /* Scan leading delimiters.  */
     str += strspn(str, delim);
-    trace("s: 0x%p, s[0]: 0x%02x", str, *sstr);
+    trace("s: 0x%p, s[0]: 0x%02x", str, *str);
     if (*str == '\0') {
         *save_ptr = str;
         return NULL;
@@ -441,7 +404,7 @@ int str_replace(char **source, const char *find, const char *replace) {
     if (source == NULL || *source == NULL || find == NULL || replace == NULL) {
         return 0;
     }
-
+    trace("source: %s, find: %s, replace: %s", *source, find, replace);
     size_t find_len = strlen(find);
     if (find_len == 0) {
         return 0; // 検索文字列が空の場合は何もしない
@@ -493,7 +456,7 @@ int str_replace(char **source, const char *find, const char *replace) {
     // 4. 古いメモリを解放し、新しいメモリ空間に差し替える
     kmfree(*source);
     *source = new_str;
-
+    trace("new source: %s", *source);
     return count; // 置換した個数を返す
 }
 
