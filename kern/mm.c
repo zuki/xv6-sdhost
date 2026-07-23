@@ -168,7 +168,8 @@ void *kalloc(size_t num)
     return addr;
 }
 
-typedef __uint128_t Align;
+//typedef __uint128_t Align;
+typedef uint64_t Align;
 
 union header {
     struct {
@@ -183,6 +184,7 @@ typedef union header Header;
 static Header base;
 static Header *freep = NULL;
 
+#define NALLOC  1024    // 要求する最小単位　: 1024 ユニット (4ページ)
 
 /**
  * @ingroup mm
@@ -215,17 +217,20 @@ void kmfree(void *ap)
 //to kernel data structures.
 //kalloc always returns PGSIZE memory on success
 //size parameter of the Header takes Header sized chunks
-static Header* morecore()
+static Header* morecore(unsigned nu)
 {
-    char *p;
+    char *cp;
     Header *hp;
 
-    p = page_address(buddy_alloc(PGSIZE));
-    if (p == NULL)
+    if (nu < NALLOC)
+        nu = NALLOC;
+
+    cp = page_address(buddy_alloc(nu * sizeof(Header)));
+    if (cp == NULL)
         return NULL;
-    memset(p, 0, PGSIZE);
-    hp = (Header*)p;
-    hp->s.size = PGSIZE / sizeof(Header);
+    memset(cp, 0, nu * sizeof(Header));
+    hp = (Header*)cp;
+    hp->s.size = nu;
     kmfree((void*)(hp + 1));
     return freep;
 }
@@ -234,29 +239,27 @@ static Header* morecore()
  * @ingroup mm
  * @brief カーネルメモリを割り当てる.
  *
- * @param nbytes 割り当てるメモリのバイト数（最大4080）
+ * @param nbytes 割り当てるメモリのバイト数
  * @return 割り当てられたメモリへのポインタ
  */
+// K&Rのkmalloc()を使用
+// 参考: https://github.com/dk0893/experiment/blob/main/c/malloc/k_and_r_org.c
 void *kmalloc(size_t nbytes)
 {
     Header *p, *prevp;
     uint64_t nunits;
 
-    // panic if we try to allocate more than 4080
-    if (nbytes > (PGSIZE - sizeof(Header)))
-        panic("kmalloc: Cannot allocate the requested size of memory %d ( > 4080 )\n", nbytes);
     nunits = (nbytes + sizeof(Header) - 1)/sizeof(Header) + 1;
-
+    trace("nbytes: 0x%x, nunits: 0x%x ", nbytes, nunits);
     if((prevp = freep) == 0){
         base.s.ptr = freep = prevp = &base;
         base.s.size = 0;
     }
-
     for (p = prevp->s.ptr; ; prevp = p, p = p->s.ptr){
         if (p->s.size >= nunits){
-            if (p->s.size == nunits)
+            if (p->s.size == nunits) {
                 prevp->s.ptr = p->s.ptr;
-            else {
+            } else {
                 p->s.size -= nunits;
                 p += p->s.size;
                 p->s.size = nunits;
@@ -264,9 +267,11 @@ void *kmalloc(size_t nbytes)
             freep = prevp;
             return (void*)(p + 1);
         }
-        if (p == freep)
-            if ((p = morecore()) == 0)
+        if (p == freep) {
+            if ((p = morecore(nunits)) == 0) {
                 return NULL;
+            }
+        }
     }
 }
 
