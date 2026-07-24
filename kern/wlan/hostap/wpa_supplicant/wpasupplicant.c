@@ -41,7 +41,7 @@ static boolean is_connected(void)
 
 static boolean initialize(struct wpasupplicant *self)
 {
-    struct net_device *dev = net_device_by_index(NET_DEVICE_TYPE_WLAN);
+    struct net_device *dev = net_device_by_index(NET_INDEX_BCM4343);
     assert(dev != 0);
     struct bcm4343 *bcm4343_dev = (struct bcm4343 *)dev;
     bcm4343_dev->is_connected = is_connected;

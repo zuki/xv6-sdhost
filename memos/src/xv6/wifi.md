@@ -882,3 +882,119 @@ add_iface 012345[0]wpa_supplicant_init_iface: Initializing interface 'wlan0' con
 [0]sm_KEY_RX_NO_KEY_RECEIVE_Enter: EAPOL: KEY_RX entering state NO_KEY_RECEIVE
 [0]sm_SUPP_BE_INITIALIZE_Enter: EAPOL: SUPP_BE entering state INITIALIZE
 ```
+
+## f_open, f_readをfat_open, vfs_readで書き換える
+
+- バイナリファイルやincludeファイルから読み込んでいたのをファイルから読み込む方式に戻す
+- しかし、fatfsのファイルが2度読むとエラーは元通りだった。
+- 結局、malloc()のバグであった事が判明した
+
+```bash
+open brcmfmac43455-sdio.bin with fd 0, file: 0x443cc0
+readchan: offset=0x0
+[2]_load_block: recycle entry: 0xffff000000443890
+[2]_load_block: entry->block: 0xffff0000073ccde0
+[2]_load_block: recycle entry: 0xffff0000004438d0
+[2]_load_block: entry->block: 0xffff0000073ccbd0
+[1]_load_block: recycle entry: 0xffff000000443910
+[1]_load_block: entry->block: 0xffff0000073cc9c0
+[1]_load_block: recycle entry: 0xffff000000443950
+[1]_load_block: entry->block: 0xffff0000073cc7b0
+[3]_load_block: recycle entry: 0xffff000000443990
+[3]_load_block: entry->block: 0xffff0000073cc5a0
+rreadchan: rbyte: 2048, new_offset: 0x800
+readchan: offset=0x800
+kmalloc 124.568 ok
+[3]_load_block: recycle entry: 0xffff0000004439d0
+kmalloc 124.9.57                                   // kmalloc()でストール
+```
+
+- 2度読みができるようなったがcclose() (vfs_close())でストール
+- f_open, f_closeで問題ないと思われるのでこちらも戻すことにする
+
+```bash
+firmware brcmfmac43455-sdio.bin load...  compare... [0]upload: break
+cclose 0
+```
+
+## f_open, f_closeを戻す
+
+```bash
+emmc control 0x0 0x0 0x0
+ether4330: chip 0x4345 rev 6 type 1
+core 800 mem 0x0x18000000
+core 800 mem 0x0x1c000000
+core 800 ctl 0x0x18100000
+core 812 mem 0x0x18001000
+core 812 ctl 0x0x18101000
+core 83e mem 0x0x18002000
+core 83e mem 0x0x18005000
+core 83e mem 0x0x0
+core 83e mem 0x0x180000
+core 83e mem 0x0x200000
+core 83e ctl 0x0x18102000
+core 83e ctl 0x0x18105000
+core 83c mem 0x0x18003000
+core 83c mem 0x0x8000000
+core 83c ctl 0x0x18103000
+core 83c ctl 0x0x18106000
+core 829 mem 0x0x18004000
+core 829 ctl 0x0x18104000
+core 135 ctl 0x0x18000000
+core 135 ctl 0x0x18001000
+core 135 ctl 0x0x18002000
+core 135 ctl 0x0x18003000
+core 135 ctl 0x0x18004000
+core 135 ctl 0x0x18005000
+core 135 ctl 0x0x18107000
+core 240 ctl 0x0x19000000
+core 240 ctl 0x0x18108000
+core 367 mem 0x0x18109000
+core 366 mem 0x0x1810a000
+core 301 mem 0x0x18200000
+core fff mem 0x0xa0000
+core fff mem 0x0x240000
+core fff mem 0x0x10000000
+core fff mem 0x0x18008000
+core fff mem 0x0x1810e000
+core fff mem 0x0x18300000
+core fff mem 0x0x1a000000
+core fff mem 0x0x1d000000
+sbreset 0x18102000 0x23 0x1 ->0x21 0x0
+sbreset 0x18101000 0x7 0x1 ->0x5 0x0
+cr4 banks b44
+bank 0 reg 108c0f size 131072
+bank 1 reg 108c0f size 131072
+bank 2 reg 108c0f size 131072
+bank 3 reg 108c03 size 32768
+bank 4 reg 108c0f size 131072
+bank 5 reg 108c07 size 65536
+bank 6 reg 108c0f size 131072
+bank 7 reg 108c07 size 65536
+ARM 0x0x18102000 D11 0x0x18101000 SOCRAM 0x0x0,0x0x0 819200 bytes @ 0x0x198000
+chipclk: 40
+chipclk: 61
+firmware brcmfmac43455-sdio.bin load...  compare... ok
+config brcmfmac43455-sdio.txt load...  compare... ok
+b83ef198
+sbreset 0x18102000 0x3 0x1 ->0x1 0x0
+enabling HT clock...chipclk: d2
+ether4330: firmware ready
+ether4330: addr b8:27:eb:fe:bd:1d
+[2]net_device_register: dev=net3, type=3 (WLAN)
+[2]bcm4343_init_internal: bcm4343_init_internal ok
+[2]net_protocol_register: type=0x0800 (IP)
+[2]net_protocol_register: type=0x0806 (ARP)
+[2]ip_protocol_register: type=1 (ICMP)
+[2]ip_protocol_register: type=17 (UDP)
+[2]ip_protocol_register: type=6 (TCP)
+[2]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.104 dev=net3
+[2]ip_iface_register: registered: dev=net3, unicast=192.168.10.104, netmask=255.255.255.0, broadcast=192.168.10.255
+[2]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.104 dev=net3
+[2]net_init: net_init ok
+[2]net_device_open: dev=net3, state=up
+[2]net_device_open: dev=net1, state=up
+[3]netrun: running...
+kern/sdhost.c:1349: assertion failed.
+kern/drivers/console.c:264: kernel panic at cpu 3.
+```

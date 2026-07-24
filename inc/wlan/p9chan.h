@@ -4,15 +4,11 @@
 #include <fs/fatfs/ff.h>
 #include <p9util.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // チャンネル構造体
 typedef struct {
     unsigned type;      // ファイル種別
     int open;           // 1: open済み
-    FIL file;           //
+    FIL file;           // ファイル
     ulong offset;       // ファイルオフセット
 } Chan;
 
@@ -32,9 +28,5 @@ struct device_t
 extern struct device_t *devtab[];
 
 void p9chan_init (const char *path);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

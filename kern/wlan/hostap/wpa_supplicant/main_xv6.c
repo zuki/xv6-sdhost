@@ -45,7 +45,7 @@ int wpa_supplicant_main(const char *confname)
         return -1;
 
     memset(&iface, 0, sizeof(iface));
-    iface.driver = "circle";
+    iface.driver = "xv6";
     iface.ifname = "wlan0";
     iface.confname = confname;
 

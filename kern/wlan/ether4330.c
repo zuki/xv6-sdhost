@@ -9,8 +9,6 @@
 #include <string.h>
 #include <proc.h>
 #include <string.h>
-#include <firm_config.h>
-#include <clm_blob.h>
 
 extern int sdiocardintr(int);
 
@@ -18,9 +16,9 @@ extern int sdiocardintr(int);
 
 /*  各種定数の定義 */
 enum{
-    SDIODEBUG   = 1,        /* SDIOのデバッグ*/
+    SDIODEBUG   = 0,        /* SDIOのデバッグ*/
     SBDEBUG     = 1,        /* Silicon Backplaneのデバッグ */
-    EVENTDEBUG  = 1,        /* イベントのデバッグ*/
+    EVENTDEBUG  = 0,        /* イベントのデバッグ*/
     VARDEBUG    = 0,        /* 変数のデバッグ*/
     FWDEBUG     = 1,        /* ファームウェアのデバッグ*/
 
@@ -1045,7 +1043,7 @@ static Chan *findfirmware(char *file)
     return c;
 }
 
-#if 0
+#if 1
 /* ファイル（ファームウェア、config）をアップロードする */
 static int upload(Ctlr *ctl, char *file, int isconfig)
 {
@@ -1085,7 +1083,9 @@ static int upload(Ctlr *ctl, char *file, int isconfig)
         }
         while (n&3) buf[n++] = 0;
         // chipのRAMに書き込む
+        if(0)print("write %d bytes to offset %d", n, off);
         sbmem(1, buf, n, ctl->rambase + off);
+        if(0)print(" ok\n");
         /* configファイルは2048バイト以内 */
         if (isconfig)
             break;
@@ -1099,22 +1099,19 @@ static int upload(Ctlr *ctl, char *file, int isconfig)
             /* ファームウェアファイルの場合はsdカードからbufに再度読み込む */
             /* configファイルはcondenseしたファイルがbufに残っている */
             if (!isconfig) {
-                if(off==0)print("off: 0x%x ", off);
                 n = devtab[c->type]->read(c, buf, Uploadsz, off);
-                if(off==0)print("n: %d ", n);
-                if (n <= 0)
+                if (n <= 0) {
                     break;
+                }
                 while (n&3) buf[n++] = 0;
             }
             // ファイルをchipのRAMからcbufに読み込む
-            if(0)print("sbmem n: 0x%x, off: 0x%x\n", n, ctl->rambase + off);
             sbmem(0, cbuf, n, ctl->rambase + off);
             // 2つのファイルを比べる
             if (memcmp(buf, cbuf, n) != 0) {
                 print("ether4330: firmware load failed offset %d\n", off);
                 p9error(Eio);
             }
-            if(off==0)print(" cmp ok\n");
             if (isconfig)
                 break;
             off += n;
@@ -1194,6 +1191,7 @@ static int loadfirm(Ctlr *ctl)
 }
 
 /* configをアップロードする */
+#if 0
 static int loadconfig(Ctlr *ctl)
 {
     uint8_t *buf = brcmfmac43455_sdio_txt;
@@ -1213,12 +1211,14 @@ static int loadconfig(Ctlr *ctl)
     if (FWDEBUG) print("ok\n");
     return n;
 }
+#endif
 
 /*
  * 規制ファイル (.clm) をファームウェアにアップロードする.
  * パケットフォーマットは次の通り
  *    [2]flag [2]type [4]len [4]crc [len]data
  */
+#if 0
 static void reguload2(Ctlr *ctl)
 {
     uint8_t *buf = brcmfmac43455_sdio_clm_blob;
@@ -1262,7 +1262,8 @@ static void reguload2(Ctlr *ctl)
     }
     poperror();
 }
-#if 1
+#endif
+
 static void reguload(Ctlr *ctl, char *file)
 {
     Chan *c;
@@ -1313,7 +1314,6 @@ static void reguload(Ctlr *ctl, char *file)
     cclose(c);
     kmfree(buf);
 }
-#endif
 
 /* ファームウェアファイルをアップロード */
 static void fwload(Ctlr *ctl)
@@ -1339,12 +1339,12 @@ static void fwload(Ctlr *ctl)
     sbmem(1, buf, 4, ctl->rambase + ctl->socramsize - 4);
     /* ファームウェアファイルをロード */
     if (FWDEBUG) print("firmware %s load... ", firmware[i].fwfile);
-    //upload(ctl, firmware[i].fwfile, 0);         // brcmfmac43455-sdio.bin
-    loadfirm(ctl);
+    upload(ctl, firmware[i].fwfile, 0);         // brcmfmac43455-sdio.bin
+    //loadfirm(ctl);
     /* 構成ファイルをロード*/
     if (FWDEBUG) print("config %s load... ", firmware[i].cfgfile);
-    //n = upload(ctl, firmware[i].cfgfile, 1);    // brcmfmac43455-sdio.txt
-    n = loadconfig(ctl);
+    n = upload(ctl, firmware[i].cfgfile, 1);    // brcmfmac43455-sdio.txt
+    //n = loadconfig(ctl);
     n /= 4;
     n = (n & 0xFFFF) | (~n << 16);              // n + nの補数をsocramszeの最後の4バイトにセット
     put4(buf, n);

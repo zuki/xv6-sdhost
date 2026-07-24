@@ -8,7 +8,9 @@
 #include <queue.h>
 #include <mm.h>
 #include <spinlock.h>
+#include <arm.h>
 
+#define BC_SECTOR_SIZE      512
 #define BC_BLOCK_SIZE       4096
 #define BLOCKCACHE_MAX      30
 #define DMA_MINALIGN        64
@@ -91,6 +93,7 @@ int release_block(struct buf *buf, int dirty)
         buf->refcount = 0;
         error("possible double free for block %d:%d", buf->dev, buf->blockno);
     }
+    disb();
     return 0;
 }
 
@@ -104,6 +107,7 @@ void mark_block_dirty(struct buf *buf)
  */
 static struct buf *_load_block(device_t dev, uint32_t blockno, boolean issec)
 {
+    disb();
     struct buf *entry;
 
     /* bufcacheからリサイクルする */
@@ -115,16 +119,14 @@ static struct buf *_load_block(device_t dev, uint32_t blockno, boolean issec)
     entry->issec = issec;
     entry->blockno = blockno;
     if (issec) {
-        if (entry->block == NULL) {
-            entry->block = (uint8_t *)kmalloc(SECTOR_SIZE);
-        }
-        memset(entry->block, 0, SECTOR_SIZE);
+        entry->block = (uint8_t *)kmalloc(BC_SECTOR_SIZE);
+        memset(entry->block, 0, BC_SECTOR_SIZE);
     } else {
-        if (entry->block == NULL) {
-            entry->block = (uint8_t *)kalloc(1);
-        }
+        entry->block = (uint8_t *)kalloc(1);
         memset(entry->block, 0, BC_BLOCK_SIZE);
     }
+    trace("entry->block: %p", entry->block);
+    disb();
     _read_entry(entry);
 
     return entry;
@@ -156,7 +158,7 @@ static inline struct buf *_find_free_entry(void)
     /* リサイクルするエントリを先頭に移動する */
     _queue_remove(&bufcache, &last->node);
     _queue_insert(&bufcache, &last->node);
-    release(&bufcache.lock);
+    //release(&bufcache.lock);
     if (last->block) {
         // ここでlastがdirtyだったら書き戻す
         _write_entry(last);
@@ -166,14 +168,16 @@ static inline struct buf *_find_free_entry(void)
             kfree(last->block);
         }
         last->block = NULL;
+        disb();
     }
+    release(&bufcache.lock);
     return last;
 }
 
 static inline int _read_entry(struct buf *entry)
 {
     assert(entry->flags & BCF_BUSY);
-    int size = entry->issec ? SECTOR_SIZE : BC_BLOCK_SIZE;
+    int size = entry->issec ? BC_SECTOR_SIZE : BC_BLOCK_SIZE;
     int bytes;
 
     trace("read: dev: 0x%x, buffer: 0x%x, bno: 0x%x, size: 0x%x", entry->dev, entry->block, entry->blockno, size);
@@ -184,13 +188,14 @@ static inline int _read_entry(struct buf *entry)
         panic("read_entry\n");
         return -1;
     }
+    disb();
     return 0;
 }
 
 static inline int _write_entry(struct buf *entry)
 {
     assert(entry->flags & BCF_BUSY);
-    int size = entry->issec ? SECTOR_SIZE : BC_BLOCK_SIZE;
+    int size = entry->issec ? BC_SECTOR_SIZE : BC_BLOCK_SIZE;
     int bytes;
 
     /* 変更されていなければ何もしない */

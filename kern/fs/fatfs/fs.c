@@ -593,6 +593,9 @@ long fat_open(char *path, int flags, mode_t mode)
         error("count not get file");
         return -EMFILE;
     }
+
+    file->vnode->data = ip;
+
     set_fd(p->fd_table, fd, file);
     if (flags & O_CLOEXEC)
         bit_add(p->fdflag, fd);

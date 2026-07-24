@@ -42,8 +42,8 @@ KERN_ELF := $(BUILD_DIR)/kernel8.elf
 KERN_IMG := $(BUILD_DIR)/kernel8.img
 SD_IMG := $(BUILD_DIR)/sd.img
 
-FIRMFILE := firmware.bin
-FIRMWARE := firmware.o
+#FIRMFILE := firmware.bin
+#FIRMWARE := firmware.o
 
 all:
 	rm -f $(SD_IMG)
@@ -65,13 +65,13 @@ $(BUILD_DIR)/%.S.o: %.S
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(FIRMFILE): fat/firmware/brcmfmac43455-sdio.bin
-	cp $< $@
-$(FIRMWARE): $(FIRMFILE)
-	$(OBJCOPY) -I binary -O elf64-littleaarch64 $< $@
+#$(FIRMFILE): fat/firmware/brcmfmac43455-sdio.bin
+#	cp $< $@
+#$(FIRMWARE): $(FIRMFILE)
+#	$(OBJCOPY) -I binary -O elf64-littleaarch64 $< $@
 
-$(KERN_ELF): kern/linker.ld $(OBJS) $(FIRMWARE)
-	$(LD) -o $@ -T $< $(OBJS) $(FIRMWARE)
+$(KERN_ELF): kern/linker.ld $(OBJS)
+	$(LD) -o $@ -T $< $(OBJS)
 	$(OBJDUMP) -S -d $@ > $(basename $@).asm
 	$(OBJDUMP) -x $@ > $(basename $@).hdr
 
@@ -108,9 +108,7 @@ lint:
 
 clean:
 	$(MAKE) -C usr clean
-	rm -rf $(BUILD_DIR) firmware.*
+	rm -rf $(BUILD_DIR)
 	rm -f mkfs/mkfs
-	rm -f kern/wlan/hostap/wpa_supplicant/*.o
-	rm -f kern/wlan/hostap/wpa_supplicant/*.d
 
 .PHONY: init all lint clean qemu qemu-gdb gdb

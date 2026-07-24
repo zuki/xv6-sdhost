@@ -273,10 +273,10 @@ forkret(void)
 #endif
 
         usb_init();
-        bcm4343_init("/d/firmware");    // 末尾に/は付けない
+        bcm4343_init("4:/firmware");    // 末尾に/は付けない
         net_init();
         net_run();
-        wpasupplicant_init("/d/wpa_supplicant.conf");
+        wpasupplicant_init("4:/wpa_supplicant.conf");
 //#if NET_DRV != NET_INDEX_BCM4343
         p = kthread_create("ether", kthread_read_ether, NULL);
         trace("kthread ether created: pid=%d", p->pid);
