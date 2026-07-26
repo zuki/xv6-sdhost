@@ -158,9 +158,15 @@ int sprintf(char *buf, const char *fmt, ...)
     return rc;
 }
 
-char *strcpy(char *dst, const char *src)
+char *safestrcpy(char *s, const char *t, size_t n)
 {
-    return safestrcpy(dst, src, strlen(src)+1);
+    char *os = s;
+    if (n <= 0)
+        return os;
+    while (--n > 0 && (*s++ = *t++) != 0)
+        ;
+    *s = 0;
+    return os;
 }
 
 long strtol(const char *s, char **endptr, int base)
@@ -236,6 +242,7 @@ int atoi(const char *s)
     return neg ? n : -n;
 }
 
+#if 0
 char *strtok_r1(char *s, char delim, char **save_ptr)
 {
     char *end;
@@ -268,6 +275,41 @@ char *strtok_r1(char *s, char delim, char **save_ptr)
     *save_ptr = end + 1;
     trace("*save_ptr: 0x%p, s: %s", *save_ptr, s);
     return s;
+}
+
+
+char *strtok_r(char *str, const char *delim, char **save_ptr)
+{
+    char *end;
+
+    if (str == NULL)
+        str = *save_ptr;
+
+    if (*str == '\0') {
+        *save_ptr = str;
+        return NULL;
+    }
+
+    /* Scan leading delimiters.  */
+    str += strspn(str, delim);
+    trace("s: 0x%p, s[0]: 0x%02x", str, *str);
+    if (*str == '\0') {
+        *save_ptr = str;
+        return NULL;
+    }
+    /* Find the end of the token.  */
+    end = str + strcspn(str, delim);
+    trace("end: 0x%p, end[0]: 0x%02x", end, *end);
+    if (*end == '\0')
+    {
+        *save_ptr = end;
+        return str;
+    }
+    /* Terminate the token and make *SAVE_PTR point past it.  */
+    *end = '\0';
+    *save_ptr = end + 1;
+    trace("*save_ptr: 0x%p, s: %s", *save_ptr, str);
+    return str;
 }
 
 /* from plan9 : sys/src/ape/lib/bsd/strcasecmp.c */
@@ -318,8 +360,94 @@ int strncasecmp(const char *s1, const char *s2, size_t n)
     }
     return n == 0 ? 0 : -*s2;
 }
+#endif
 
-char *strchrnul(const char *s, int c)
+// 以下、mustのコードを借用
+
+void *memchr(const void *src, int c, size_t n)
+{
+    const unsigned char *s = src;
+    c = (unsigned char)c;
+    for (; n && *s != c; s++, n--);
+    return n ? (void *)s : 0;
+}
+
+void *memmove(void *dest, const void *src, size_t n)
+{
+    char *d = dest;
+    const char *s = src;
+
+    if (d==s) return d;
+    if ((uintptr_t)s-(uintptr_t)d-n <= -2*n) return memcpy(d, s, n);
+
+    if (d<s) {
+        for (; n; n--) *d++ = *s++;
+    } else {
+        while (n) n--, d[n] = s[n];
+    }
+
+    return dest;
+}
+
+int memcmp(const void *vl, const void *vr, size_t n)
+{
+    const unsigned char *l=vl, *r=vr;
+    for (; n && *l == *r; n--, l++, r++);
+    return n ? *l-*r : 0;
+}
+
+int strncmp(const char *_l, const char *_r, size_t n)
+{
+    const unsigned char *l=(void *)_l, *r=(void *)_r;
+    if (!n--) return 0;
+    for (; *l && *r && n && *l == *r ; l++, r++, n--);
+    return *l - *r;
+}
+
+static char *__stpcpy(char *restrict d, const char *restrict s)
+{
+    for (; (*d=*s); s++, d++);
+
+    return d;
+}
+
+static char *__stpncpy(char *restrict d, const char *restrict s, size_t n)
+{
+    for (; n && (*d=*s); n--, s++, d++);
+    memset(d, 0, n);
+    return d;
+}
+
+char *strcpy(char *restrict dest, const char *restrict src)
+{
+    __stpcpy(dest, src);
+    return dest;
+}
+
+
+
+char *strncpy(char *restrict d, const char *restrict s, size_t n)
+{
+    __stpncpy(d, s, n);
+    return d;
+}
+
+size_t strlen(const char *s)
+{
+    const char *a = s;
+    for (; *s; s++);
+    return s-a;
+}
+
+
+
+int strcmp(const char *l, const char *r)
+{
+    for (; *l==*r && *l; l++, r++);
+    return *(unsigned char *)l - *(unsigned char *)r;
+}
+
+static char *__strchrnul(const char *s, int c)
 {
     c = (unsigned char)c;
     if (!c) return (char *)s + strlen(s);
@@ -352,7 +480,7 @@ size_t strcspn(const char *s, const char *c)
     const char *a = s;
     size_t byteset[32/sizeof(size_t)];
 
-    if (!c[0] || !c[1]) return strchrnul(s, *c)-a;
+    if (!c[0] || !c[1]) return __strchrnul(s, *c)-a;
 
     memset(byteset, 0, sizeof byteset);
     for (; *c && BITOP(byteset, *(unsigned char *)c, |=); c++);
@@ -360,39 +488,60 @@ size_t strcspn(const char *s, const char *c)
     return s-a;
 }
 
-char *strtok_r(char *str, const char *delim, char **save_ptr)
+char *strchr(const char *s, int c)
 {
-    char *end;
-
-    if (str == NULL)
-        str = *save_ptr;
-
-    if (*str == '\0') {
-        *save_ptr = str;
-        return NULL;
-    }
-
-    /* Scan leading delimiters.  */
-    str += strspn(str, delim);
-    trace("s: 0x%p, s[0]: 0x%02x", str, *str);
-    if (*str == '\0') {
-        *save_ptr = str;
-        return NULL;
-    }
-    /* Find the end of the token.  */
-    end = str + strcspn(str, delim);
-    trace("end: 0x%p, end[0]: 0x%02x", end, *end);
-    if (*end == '\0')
-    {
-        *save_ptr = end;
-        return str;
-    }
-    /* Terminate the token and make *SAVE_PTR point past it.  */
-    *end = '\0';
-    *save_ptr = end + 1;
-    trace("*save_ptr: 0x%p, s: %s", *save_ptr, str);
-    return str;
+    char *r = __strchrnul(s, c);
+    return *(unsigned char *)r == (unsigned char)c ? r : 0;
 }
+
+static void *__memrchr(const void *m, int c, size_t n)
+{
+    const unsigned char *s = m;
+    c = (unsigned char)c;
+    while (n--) if (s[n]==c) return (void *)(s+n);
+    return 0;
+}
+
+char *strrchr(const char *s, int c)
+{
+    return __memrchr(s, c, strlen(s) + 1);
+}
+
+char *strtok_r(char *s, const char *sep, char **p)
+{
+    if (!s && !(s = *p)) return NULL;
+    s += strspn(s, sep);
+    if (!*s) return *p = 0;
+    *p = s + strcspn(s, sep);
+    if (**p) *(*p)++ = 0;
+    else *p = 0;
+    return s;
+}
+
+int strcasecmp(const char *_l, const char *_r)
+{
+    const unsigned char *l=(void *)_l, *r=(void *)_r;
+    for (; *l && *r && (*l == *r || tolower(*l) == tolower(*r)); l++, r++);
+    return tolower(*l) - tolower(*r);
+}
+
+int strncasecmp(const char *_l, const char *_r, size_t n)
+{
+    const unsigned char *l=(void *)_l, *r=(void *)_r;
+    if (!n--) return 0;
+    for (; *l && *r && n && (*l == *r || tolower(*l) == tolower(*r)); l++, r++, n--);
+    return tolower(*l) - tolower(*r);
+}
+
+char *strdup(const char *s)
+{
+    size_t l = strlen(s);
+    char *d = kmalloc(l+1);
+    if (!d) return NULL;
+    return memcpy(d, s, l+1);
+}
+
+// 以上、muslのコード借用終わり
 
 // CString::Replaceの挙動を模倣する関数
 // 引数:
@@ -458,14 +607,4 @@ int str_replace(char **source, const char *find, const char *replace) {
     *source = new_str;
     trace("new source: %s", *source);
     return count; // 置換した個数を返す
-}
-
-char *strdup (const char *s)
-{
-    size_t size = strlen(s) + 1;
-
-    char *p = (char *)kmalloc(size);
-    assert(p != 0);
-
-    return strncpy(p, s, size);
 }

@@ -4,6 +4,8 @@
 #include <types.h>
 #include <arm.h>
 
+// 以下は rpi-os オリジナルコード
+#if 0
 static inline void *memset(void *str, int c, size_t n)
 {
     char *l = (char *)str, *r = l + n;
@@ -84,7 +86,11 @@ static inline size_t strlen(const char *s)
         ;
     return n;
 }
+#endif
+// ここまで rpi-osによる
 
+// 以下はその他から借用したコード
+#if 0
 static inline char *strchr(const char *s, char c)
 {
     if (s == 0)
@@ -106,6 +112,7 @@ static inline char *strrchr(const char *s, char c)
     }
     return 0;
 }
+
 
 static inline int strspn1(const char *s, char c)
 {
@@ -131,12 +138,14 @@ static inline int strcspn1(const char *s, char c)
     return (int)(p - s);
 }
 
+
 static inline int strcmp(const char *p, const char *q)
 {
     while (*p && *p == *q)
         p++, q++;
     return (int) ((uint8_t)*p - (uint8_t)*q);
 }
+
 
 static inline void *memscan(void *addr, int c, size_t size)
 {
@@ -173,6 +182,7 @@ static inline char *strstr(const char *s1, const char *s2)
     }
     return 0;
 }
+#endif
 
 static inline void format(uint8_t c, char *sc) {
     const char digit[] = "0123456789abcdef";
@@ -187,6 +197,7 @@ static __inline int __isspace(int _c)
     return _c == ' ' || (unsigned)_c-'\t' < 5;
 }
 
+// 以下は <ctype.h>の関数
 static inline int abs(int i) { return i < 0 ? -i : i; }
 static inline int isblank(int c) { return c == ' ' || c == '\t'; }
 
@@ -205,22 +216,53 @@ static inline int sscanf(const char *str, const char *format, ...)
 #define isgraph(a) (((unsigned)(a)-0x21) < 0x5e)
 #define isspace(a) __isspace(a)
 
-char *strcpy(char *dst, const char *src);
+static inline int tolower(int c) {
+    if (isupper(c)) return c | 32;
+    return c;
+}
+
+static inline int toupper(int c) {
+	if (islower(c)) return c & 0x5f;
+	return c;
+}
+
 int atoi(const char *s);
 long strtol(const char *s, char **endptr, int base);
 long long strtoll(const char *s, char **endptr, int base);
 unsigned long long strtoull(const char *s, char **endptr, int base);
+
+// <string.h>関数
+
+void *memchr(const void *src, int c, size_t n);
+int memcmp(const void *vl, const void *vr, size_t n);
+void *memcpy(void *restrict dest, const void *restrict src, size_t n);
+
+void *memset(void *dest, int c, size_t n);
+void *memmove(void *dest, const void *src, size_t n);
+
+char *strcpy(char *restrict dest, const char *restrict src);
+char *strncpy(char *restrict d, const char *restrict s, size_t n);
+char *safestrcpy(char *s, const char *t, size_t n);
+size_t strlen(const char *s);
+
 int sprintf(char *buf, const char *fmt, ...);
 int snprintf(char *buf, size_t n, const char *fmt, ...);
-char *strtok_r1(char *s, char delim, char **save_ptr);
+char *strncpy(char *restrict d, const char *restrict s, size_t n);
+
+int strcmp(const char *l, const char *r);
+int strncmp(const char *_l, const char *_r, size_t n);
 size_t strspn(const char *s, const char *c);
 size_t strcspn(const char *s, const char *c);
-char *strtok_r(char *str, const char *delim, char **save_ptr);
+char *strtok_r(char *s, const char *sep, char **p);
 int str_replace(char **source, const char *find, const char *replace);
-int strcasecmp(const char *s1, const char *s2);
-int strncasecmp(const char *s1, const char *s2, size_t n);
+int strcasecmp(const char *_l, const char *_r);
+int strncasecmp(const char *_l, const char *_r, size_t n);
 char *strdup (const char *s);
 int vsnprintfmt(char *str, size_t size, const char *fmt, va_list ap);
-char *strchrnul(const char *s, int c);
+//char *strchrnul(const char *s, int c);
+char *strchr(const char *s, int c);
+char *strrchr(const char *s, int c);
+char *strstr(const char *h, const char *n);
+
 
 #endif
