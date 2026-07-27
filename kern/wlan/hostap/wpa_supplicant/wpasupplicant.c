@@ -45,12 +45,11 @@ static boolean initialize(struct wpasupplicant *self)
     assert(dev != 0);
     struct bcm4343 *bcm4343_dev = (struct bcm4343 *)dev;
     bcm4343_dev->is_connected = is_connected;
-    kthread_create("wpa_supplicant", proc_entry, self);
+    kthread_create("wpa_supplicant", proc_entry, self, 32);
 
     return true;
 }
 
-// FIXME: この関数をどこかで呼び出す
 void wpasupplicant_init(const char *config_file)
 {
     wapsupplicant.config_file = config_file;
@@ -61,5 +60,8 @@ void wpasupplicant_init(const char *config_file)
 void wpasupplicant_deinit(struct wpasupplicant *self)
 {
     eloop_terminate();
-    sched_ctx_destroy(&self->ctx);
+    if (sched_ctx_destroy(&self->ctx) == -1) {
+        sched_wakeup(&self->ctx);
+        return;
+    }
 }

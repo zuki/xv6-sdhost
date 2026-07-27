@@ -85,7 +85,7 @@ static struct wpa_ssid * wpa_config_read_network(FILE *f, int *line, int id)
     int errors = 0, end = 0;
     char buf[2000], *pos, *pos2;
 
-    wpa_printf(MSG_MSGDUMP, "Line: %d - start of a new network block",
+    wpa_printf(MSG_MSGDUMP, "Line: %d - start of a new network block\n",
            *line);
     ssid = os_zalloc(sizeof(*ssid));
     if (ssid == NULL)
@@ -93,14 +93,16 @@ static struct wpa_ssid * wpa_config_read_network(FILE *f, int *line, int id)
     dl_list_init(&ssid->psk_list);
     ssid->id = id;
 
+    // ssidのデフォルト値を設定
     wpa_config_set_network_defaults(ssid);
-
+    // 各行: 変数 = 値 を取り出す、
     while (wpa_config_get_line(buf, sizeof(buf), f, line, &pos)) {
+        // 行頭が'}'なら終了
         if (os_strcmp(pos, "}") == 0) {
             end = 1;
             break;
         }
-
+        // 変数と値を分離
         pos2 = os_strchr(pos, '=');
         if (pos2 == NULL) {
             wpa_printf(MSG_ERROR, "Line %d: Invalid SSID line "
@@ -118,7 +120,7 @@ static struct wpa_ssid * wpa_config_read_network(FILE *f, int *line, int id)
                 continue;
             }
         }
-
+        // pos:変数、pos2: 値 -> ssidにセット
         if (wpa_config_set(ssid, pos, pos2, *line) < 0) {
 #ifndef CONFIG_WEP
             if (os_strcmp(pos, "wep_key0") == 0 ||
@@ -143,6 +145,7 @@ static struct wpa_ssid * wpa_config_read_network(FILE *f, int *line, int id)
         errors++;
     }
 
+    // 構成データの妥当性チェック
     errors += wpa_config_validate_network(ssid, *line);
 
     if (errors) {
@@ -220,7 +223,7 @@ static struct wpa_config_blob * wpa_config_read_blob(FILE *f, int *line,
     int end = 0;
     size_t encoded_len = 0, len;
 
-    wpa_printf(MSG_MSGDUMP, "Line: %d - start of a new named blob '%s'",
+    wpa_printf(MSG_MSGDUMP, "Line: %d - start of a new named blob '%s'\n",
            *line, name);
 
     while (wpa_config_get_line(buf, sizeof(buf), f, line, &pos)) {
@@ -296,7 +299,7 @@ static int wpa_config_process_blob(struct wpa_config *config, FILE *f,
 struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
                     bool ro)
 {
-    FILE file, *f = &file;
+    FIL file, *f = &file;
     FRESULT res;
 
     char buf[512], *pos;
@@ -325,9 +328,9 @@ struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
     while (cred_tail && cred_tail->next)
         cred_tail = cred_tail->next;
 
-    wpa_printf(MSG_DEBUG, "Reading configuration file '%s'", name);
+    //wpa_printf(MSG_DEBUG, "name '%s'\n", name);
 
-    res = f_open (f, name, FA_READ);
+    res = f_open(f, name, FA_READ);
     if (res != FR_OK) {
         wpa_printf(MSG_ERROR, "Failed to open config file '%s', "
                "error: %u", name, res);
@@ -338,6 +341,7 @@ struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
 
     while (wpa_config_get_line(buf, sizeof(buf), f, &line, &pos)) {
         if (os_strcmp(pos, "network={") == 0) {
+            // ネットワーク構成データをファイルからセット
             ssid = wpa_config_read_network(f, &line, id++);
             if (ssid == NULL) {
                 wpa_printf(MSG_ERROR, "Line %d: failed to "
@@ -352,6 +356,7 @@ struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
                 tail->next = ssid;
                 tail = ssid;
             }
+            // 優先度リストに追加する
             if (wpa_config_add_prio_network(config, ssid)) {
                 wpa_printf(MSG_ERROR, "Line %d: failed to add "
                        "network block to priority list.",
@@ -383,6 +388,7 @@ struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
                 continue;
             }
 #endif /* CONFIG_NO_CONFIG_BLOBS */
+        //
         } else if (wpa_config_process_global(config, pos, line) < 0) {
             wpa_printf(MSG_ERROR, "Line %d: Invalid configuration "
                    "line '%s'.", line, pos);

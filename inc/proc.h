@@ -187,8 +187,9 @@ void exit(int err);
 int  wait4(pid_t pid, int *status, int options, struct rusage *ru);
 int  fork(void);
 void procdump();
-void kthread_read_ether(void *);
-struct proc *kthread_create(const char *name, void(*func)(void *), void *param);
+void ether_reader(void *);
+struct proc *kthread_create(const char *name, void(*func)(void *),
+    void *param, int npages);
 int queue_work(struct workqueue *wq, void (*func)(void *), void *arg);
 void workqueue_init(void);
 

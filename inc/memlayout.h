@@ -2,8 +2,8 @@
 #define INC_MEMLAYOUT_H
 
 /* Stack must always be 16 bytes aligned. */
-#define KSTACKSIZE 4096
-#define USTACKSIZE 4096
+#define KSTACKSIZE 16384
+#define USTACKSIZE 16384
 
 // Deprecated: use mbox_get_arm_memory() instead
 // #define PHYSTOP 0x3E000000            /* Top physical memory */

@@ -31,6 +31,7 @@
 #include <arm.h>
 #include <string.h>
 #include <console.h>
+#include <irq.h>
 
 /* SDHOST Controller (SD Card) */
 #define ARM_SDHOST_BASE            (MMIO_BASE + 0x202000)
@@ -1331,19 +1332,31 @@ sdhost_request(struct bcm2835_host *host, struct mmc_host *mmc,
     if (host->reset_clock)
         sdhost_set_clock_inner(host, host->clock);
 
-#if 0
+#if 1
     if (host->mrq != 0) {
         //hexdump(host->mrq, sizeof(struct mmc_request), "host->mrq");
-        if(1)error("pre-command: 0x%x, host->mrq: %p, done: 0x%x, "
-              "sbc %p opcode: 0x%x, "
-              "cmd %p opcode: 0x%x\n"
-              "data %p flag: 0x%x, ",
-              "stop %p opcode: 0x%x", read(SDCMD), host->mrq, host->mrq->done,
-            host->mrq->sbc, host->mrq->sbc ? host->mrq->sbc->opcode : -1,
-            host->mrq->cmd, host->mrq->cmd ? host->mrq->cmd->opcode : -1,
-            host->mrq->data, host->mrq->data ? host->mrq->data->flags : -1,
-            host->mrq->stop, host->mrq->stop ? host->mrq->stop->opcode : -1);
-        //host->mrq = 0;
+        if(1)error("\n"
+              "\thost->mrq: %p, done: 0x%x\n"
+              "\thost->mrq->sbc %p opcode: 0x%x\n"
+              "\thost->mrq->cmd %p opcode: 0x%x\n"
+              "\thost->mrq->data %p flag: 0x%x\n",
+              "\thost->mrq->stop %p opcode: 0x%x\n",
+            host->mrq, host->mrq->done,
+            host->mrq->sbc, (host->mrq->sbc ? host->mrq->sbc->opcode : -1),
+            host->mrq->cmd, (host->mrq->cmd ? host->mrq->cmd->opcode : -1),
+            host->mrq->data, (host->mrq->data ? host->mrq->data->flags : -1),
+            host->mrq->stop, (host->mrq->stop ? host->mrq->stop->opcode : -1));
+        if(1)error("mrq: %p\n"
+              "\tmrq->sbc %p opcode: 0x%x\n"
+              "\tmrq->cmd %p opcode: 0x%x\n"
+              "\tmrq->data %p flag: 0x%x\n",
+              "\tmrq->stop %p opcode: 0x%x\n",
+            mrq,
+            mrq->sbc, (mrq->sbc ? mrq->sbc->opcode : -1),
+            mrq->cmd, (mrq->cmd ? mrq->cmd->opcode : -1),
+            mrq->data, (mrq->data ? mrq->data->flags : -1),
+            mrq->stop, (mrq->stop ? mrq->stop->opcode : -1));
+        mmc_request_done(mmc, mrq);
     }
 #endif
     assert(host->mrq == 0);
@@ -1480,7 +1493,7 @@ sdhost_add_host(struct bcm2835_host *host)
         ((ALLOW_CMD23_READ | ALLOW_CMD23_WRITE) * MMC_CAP_CMD23);
 
     mmc->max_segs = 128;
-    mmc->max_req_size = 524288;
+    mmc->max_req_size = 524288;     // 0x80000 = 512KB
     mmc->max_seg_size = mmc->max_req_size;
     mmc->max_blk_size = 512;
     mmc->max_blk_count = 65535;
@@ -1533,8 +1546,8 @@ sdhost_probe(struct bcm2835_host *host)
     // COREのクロックを取得
     host->max_clk = mbox_get_clock_rate(MBOX_CLOCK_CORE);
 
-    // FIXME:
-    // host->irq = ARM_IRQ_SDIO;
+    // FIXME: 登録は sd.c でされている
+    host->irq = IRQ_SDIO;
 
     host->mmc.caps |= MMC_CAP_4_BIT_DATA;
 

@@ -17,10 +17,10 @@ extern int sdiocardintr(int);
 /*  各種定数の定義 */
 enum{
     SDIODEBUG   = 0,        /* SDIOのデバッグ*/
-    SBDEBUG     = 1,        /* Silicon Backplaneのデバッグ */
+    SBDEBUG     = 0,        /* Silicon Backplaneのデバッグ */
     EVENTDEBUG  = 0,        /* イベントのデバッグ*/
     VARDEBUG    = 0,        /* 変数のデバッグ*/
-    FWDEBUG     = 1,        /* ファームウェアのデバッグ*/
+    FWDEBUG     = 0,        /* ファームウェアのデバッグ*/
 
     Corescansz  = 512,      /* コアのスキャンサイズ*/
     Uploadsz    = 2048,     /* アップロードサイズ*/
@@ -2118,8 +2118,8 @@ static void wlsetcountry(Ctlr *ctlr, const char *ccode)
         p9error("Invalid country code");
     }
 
-    strcpy(params.country_ie, ccode);
-    strcpy(params.country_code, ccode);
+    safestrcpy(params.country_ie, ccode, strlen(ccode));
+    safestrcpy(params.country_code, ccode, strlen(ccode));
     params.revision = (uint) -1;
 
     wlsetvar(ctlr, "country", &params, sizeof params);
@@ -2623,9 +2623,9 @@ static void etherbcmattach(Ether *edev)
         /* 3. sbを有効にする */
         sbenable(ctlr);
         /* 4. 受信処理を行うrproc()を実行するカーネルプロセスを作成する */
-        kthread_create("wifireader", rproc, edev);
+        kthread_create("wifireader", rproc, edev, 4);
         /* 5. スキャン処理を行うlproc()を実行するカーネルプロセスを作成する */
-        kthread_create("wifitimer", lproc, edev);
+        kthread_create("wifitimer", lproc, edev, 4);
         /* 6. 規制ファイルが存在する場合はロードする */
         if (ctlr->regufile)
             reguload(ctlr, ctlr->regufile);     // brcmfmac43455-sdio.clm_blob

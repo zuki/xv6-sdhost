@@ -119,6 +119,7 @@ static inline int sched_sleep(struct sched_ctx *ctx, mutex_t *mutex, const struc
     if (ctx->interrupted) {
         if (!ctx->wc) {
             ctx->interrupted = 0;
+            dsb();
         }
         return -EINTR;
     }
@@ -128,6 +129,8 @@ static inline int sched_sleep(struct sched_ctx *ctx, mutex_t *mutex, const struc
 // CSynchronizationEvent::Pulse 相当
 static inline int sched_wakeup(struct sched_ctx *ctx)
 {
+    ctx->interrupted = 0;
+    dsb();
     wakeup(ctx);
     return 0;
 }
@@ -136,6 +139,7 @@ static inline int sched_wakeup(struct sched_ctx *ctx)
 static inline int sched_interrupt(struct sched_ctx *ctx)
 {
     ctx->interrupted = 1;
+    dsb();
     wakeup(ctx);
     return 0;
 }

@@ -53,61 +53,60 @@ struct ctrl_iface_global_priv;
 struct wpas_dbus_priv;
 struct wpas_binder_priv;
 
-/**
- * struct wpa_interface - Parameters for wpa_supplicant_add_iface()
+/**wpa_supplicant_add_iface() 用のパラメタ
  */
 struct wpa_interface {
     /**
-     * confname - Configuration name (file or profile) name
+     * confname - 構成（フアイルまたはプロファイル）名
      *
-     * This can also be %NULL when a configuration file is not used. In
-     * that case, ctrl_interface must be set to allow the interface to be
-     * configured.
+     * 構成ファイルを使用しない場合、%NULL にすることができる。
+     * その場合、インタフェースを構成できるように ctrl_interface を
+     * 設定する必要がある。
      */
     const char *confname;
 
     /**
-     * confanother - Additional configuration name (file or profile) name
+     * confanother - 追加の構成（フアイルまたはプロファイル）名
      *
-     * This can also be %NULL when the additional configuration file is not
-     * used.
+     * 追加の構成ファイルを使用しない場合、%NULL にすることができる。
      */
     const char *confanother;
 
     /**
-     * ctrl_interface - Control interface parameter
+     * ctrl_interface - コントロールインタフェースパラメタ
      *
-     * If a configuration file is not used, this variable can be used to
-     * set the ctrl_interface parameter that would have otherwise been read
-     * from the configuration file. If both confname and ctrl_interface are
-     * set, ctrl_interface is used to override the value from configuration
-     * file.
+     * 構成ファイルを使用しない場合、この変数を使用して、本来なら
+     * 構成ファイルから読み込まれるはずだった ctrl_interface
+     * パラメータを設定することができる。confname と ctrl_interface の
+     * 双方が設定されている場合、ctrl_interface の値が優先され、
+     * 構成ファイルの値は上書きされる。
      */
     const char *ctrl_interface;
 
     /**
-     * driver - Driver interface name, or %NULL to use the default driver
+     * driver - ドライバインタフェース名、デフォルトドライバを使用する場合は
+     * %NULL
      */
     const char *driver;
 
     /**
-     * driver_param - Driver interface parameters
+     * driver_param - ドライバインタフェースパラメタ
      *
-     * If a configuration file is not used, this variable can be used to
-     * set the driver_param parameters that would have otherwise been read
-     * from the configuration file. If both confname and driver_param are
-     * set, driver_param is used to override the value from configuration
-     * file.
+     * 構成ファイルを使用しない場合、この変数を使用して、本来なら
+     * 構成ファイルから読み込まれるはずだった driver_param
+     * パラメータを設定することができる。confname と driver_param の
+     * 双方が設定されている場合、driver_param の値が優先され、
+     * 構成ファイルの値は上書きされる。
      */
     const char *driver_param;
 
     /**
-     * ifname - Interface name
+     * ifname - インタフェース名
      */
     const char *ifname;
 
     /**
-     * bridge_ifname - Optional bridge interface name
+     * bridge_ifname - オプションのブリッジインタエース名
      *
      * If the driver interface (ifname) is included in a Linux bridge
      * device, the bridge interface may need to be used for receiving EAPOL
@@ -117,11 +116,11 @@ struct wpa_interface {
     const char *bridge_ifname;
 
     /**
-     * p2p_mgmt - Interface used for P2P management (P2P Device operations)
+     * p2p_mgmt - P2P管理用に使用されるインタフェース（P2Pデバイス操作）
      *
-     * Indicates whether wpas_p2p_init() must be called for this interface.
-     * This is used only when the driver supports a dedicated P2P Device
-     * interface that is not a network interface.
+     * このインタフェースに対して wpas_p2p_init() を呼び出す必要があるか
+     * 否かを示す。これは、ドライバがネットワークインタフェースではない
+     * 専用の P2P デバイスインタフェースをサポートしている場合にのみ使用される。
      */
     int p2p_mgmt;
 
@@ -139,7 +138,7 @@ struct wpa_interface {
 };
 
 /**
- * struct wpa_params - Parameters for wpa_supplicant_init()
+ * struct wpa_params - wpa_supplicant_init()用のパラメタ
  */
 struct wpa_params {
     /**
@@ -274,10 +273,11 @@ struct p2p_srv_upnp {
 };
 
 /**
- * struct wpa_global - Internal, global data for all %wpa_supplicant interfaces
+ * struct wpa_global - すべての %wpa_supplicant インタフェースで使用する
+ *  内部グローバルデータ
  *
- * This structure is initialized by calling wpa_supplicant_init() when starting
- * %wpa_supplicant.
+ * この構造体は %wpa_supplicant の起動時に wpa_supplicant_init() により
+ * 初期化される.
  */
 struct wpa_global {
     struct wpa_supplicant *ifaces;
@@ -669,12 +669,12 @@ struct ml_sta_link_info {
 
 
 /**
- * struct wpa_supplicant - Internal data for wpa_supplicant interface
+ * struct wpa_supplicant - wpa_supplicant インタフェース用の内部データ
  *
- * This structure contains the internal data for core wpa_supplicant code. This
- * should be only used directly from the core code. However, a pointer to this
- * data is used from other files as an arbitrary context pointer in calls to
- * core functions.
+ * この構造体には wpa_supplicant のコアコード用の内部データが含まれている。
+ * これはコアコード内からのみ直接使用されるべきものである。ただし、このデータへの
+ * ポインタは、コア関数の呼び出しにおいて、任意のコンテキストポインタとして
+ * 他のファイルからも使用されている。
  */
 struct wpa_supplicant {
     struct wpa_global *global;

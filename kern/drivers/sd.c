@@ -51,7 +51,7 @@ int sd_init(void)
 
 #if RASPI == 3
     irq_enable(IRQ_SDIO);
-    irq_register(IRQ_SDIO, sd_intr, 0);
+    irq_register(IRQ_SDIO, sd_intr, &card);
 #elif RASPI == 4
 #endif
 
@@ -96,10 +96,11 @@ void sd_postinit(void)
 
 void sd_intr(void *params)
 {
+    struct emmc *sdcard = (struct emmc *)params;
     acquire(&cardlock);
-    emmc_intr(&card);
+    emmc_intr(sdcard);
     disb();
-    wakeup(&card);
+    wakeup(sdcard);
     release(&cardlock);
 }
 
@@ -183,7 +184,7 @@ int sd_close(minor_t minor)
 /* offsetはブロック単位(sector/0)、sizeはバイト単位 */
 int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
 {
-    trace("minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
+    trace("sd_read: minor: %d, buffer: 0x%x, offset: 0x%x, size: 0x%x", minor, buffer, offset, size);
     uint64_t bno;
 
     if (minor > ptnum) {
@@ -198,7 +199,7 @@ int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
 
     if (sector) {
         bno = (fs_lba(minor) + offset) * SECTOR_SIZE;
-        //trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+        trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
         // seekはバイト単位
         emmc_seek(&card, bno);
         if (emmc_read(&card, buffer, SECTOR_SIZE) != SECTOR_SIZE)

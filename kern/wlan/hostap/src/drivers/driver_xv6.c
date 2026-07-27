@@ -196,13 +196,13 @@ static int wpa_driver_xv6_set_key(void *priv,
     char number[2];
     cstring_t address;
     if (cstring_init(&address, 0) < 0) {
-        error("no memory for address");
+        wpa_printf(MSG_ERROR, "no memory for address\n");
         return -1;
     }
     for (int i = 0; i < ETH_ALEN; i++) {
         snprintf(number, 2, "%02X", addr[i]);
         if (cstring_append(&address, number) < 0) {
-            error("failed to append addr[%d]: %d", i, addr[i]);
+            wpa_printf(MSG_ERROR, "failed to append addr[%d]: %d\n", i, addr[i]);
             return -1;
         }
     }
@@ -210,11 +210,11 @@ static int wpa_driver_xv6_set_key(void *priv,
     assert(alg == WPA_ALG_TKIP || alg == WPA_ALG_CCMP);
     struct cstring keys;
     if (cstring_init(&keys, 0) < 0) {
-        error("no memory for key");
+        wpa_printf(MSG_ERROR, "no memory for key\n");
         return -1;
     }
     if (cstring_append(&keys, alg == WPA_ALG_TKIP ? "tkip:" : "ccmp:") < 0) {
-        error("failed to append key head");
+        wpa_printf(MSG_ERROR, "failed to append key head\n");
         return -1;
     }
 
@@ -222,13 +222,13 @@ static int wpa_driver_xv6_set_key(void *priv,
     for (unsigned i = 0; i < key_len; i++) {
         snprintf(number, 2, "%02X", key[i]);
         if (cstring_append(&keys, number) < 0) {
-            error("failed to append key[%d]: %d", i, key[i]);
+            wpa_printf(MSG_ERROR, "failed to append key[%d]: %d\n", i, key[i]);
             return -1;
         }
     }
 
     if (cstring_append(&keys, "@") < 0) {
-        error("failed to append @");
+        wpa_printf(MSG_ERROR, "failed to append @\n");
         return -1;
     }
 
@@ -236,7 +236,7 @@ static int wpa_driver_xv6_set_key(void *priv,
     for (int i = seq_len-1; i >= 0; i--) {
         snprintf(number, 2, "%02X", seq[i]);
         if (cstring_append(&keys, number) < 0) {
-            error("failed to append seq[%d]: %d", i, seq[i]);
+            wpa_printf(MSG_ERROR, "failed to append seq[%d]: %d\n", i, seq[i]);
             return -1;
         }
     }
@@ -252,7 +252,7 @@ static int wpa_driver_xv6_set_key(void *priv,
 
     if (!bcm4343_control(drv->netdev, "%s %s %s", (const char *)command,
                    (const char *) address.data, (const char *) keys.data)) {
-        error("failed bcm4343_control");
+        wpa_printf(MSG_ERROR, "failed bcm4343_control\n");
         return -1;
     }
 
@@ -482,7 +482,7 @@ static int wpa_driver_xv6_associate(void *priv, struct wpa_driver_associate_para
 
     struct cstring BSSID;
     if (cstring_init(&BSSID, "FFFFFFFFFFFF") < 0) {
-        error("failed init BSSID");
+        wpa_printf(MSG_ERROR, "failed init BSSID\n");
         return -1;
     }
     if (params->bssid != 0) {
@@ -491,7 +491,7 @@ static int wpa_driver_xv6_associate(void *priv, struct wpa_driver_associate_para
             char number[2];
             snprintf(number, 2, "%02X", (unsigned) params->bssid[i]);
             if (cstring_append(&BSSID, number) < 0 ) {
-                error("failed append BSSID");
+                wpa_printf(MSG_ERROR, "failed append BSSID\n");
                 return -1;
             }
         }
@@ -505,16 +505,16 @@ static int wpa_driver_xv6_associate(void *priv, struct wpa_driver_associate_para
 
     struct cstring SSID;
     if (cstring_init(&SSID, ssid) < 0) {
-        error("failed init SSID");
+        wpa_printf(MSG_ERROR, "failed init SSID\n");
         return -1;
     }
     if (cstring_replace(&SSID, " ", "\\x20") < 0) {
-        error("failed replace SSID");
+        wpa_printf(MSG_ERROR, "failed replace SSID\n");
         return -1;
     }
 
     if (!(params->auth_alg & WPA_AUTH_ALG_OPEN)) {
-        error("Auth algorithm not supported (0x%X)", params->auth_alg);
+        wpa_printf(MSG_ERROR, "Auth algorithm not supported (0x%X)\n", params->auth_alg);
         return -1;
     }
 
@@ -522,7 +522,7 @@ static int wpa_driver_xv6_associate(void *priv, struct wpa_driver_associate_para
 
     struct cstring Auth;
     if (cstring_init(&Auth, "off") < 0) {
-        error("failed init Auth");
+        wpa_printf(MSG_ERROR, "failed init Auth\n");
         return -1;
     }
     if (params->wpa_ie != 0 && params->wpa_ie_len > 0) {
@@ -533,14 +533,14 @@ static int wpa_driver_xv6_associate(void *priv, struct wpa_driver_associate_para
             char number[2];
             snprintf(number, 2, "%02X", (unsigned) params->wpa_ie[i]);
             if (cstring_append(&Auth, number) < 0) {
-                error("failed append BSSID");
+                wpa_printf(MSG_ERROR, "failed append BSSID\n");
                 return -1;
             }
         }
     }
 
     if (!drv->country_set) {
-        error("Country code not set");
+        wpa_printf(MSG_ERROR, "Country code not set\n");
         return -1;
     }
 
@@ -571,11 +571,11 @@ static int wpa_driver_xv6_set_country(void *priv, const char *alpha2)
     country[2] = '\0';
 
     if (!is_valid_country_code (alpha2)) {
-        error("Invalid country code: '%s'", country);
+        wpa_printf(MSG_ERROR, "Invalid country code: '%s'\n", country);
         return -1;
     }
 
-    info("Setting country code to '%s'", country);
+    wpa_printf(MSG_INFO, "Setting country code to '%s'\n", country);
 
     assert(drv->netdev != 0);
     if (!bcm4343_control(drv->netdev, "country %s", country)) {

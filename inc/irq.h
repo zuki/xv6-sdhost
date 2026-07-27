@@ -9,8 +9,8 @@
 
 #define IRQ_USB              9
 #define IRQ_AUX             29
-#define IRQ_SDIO            56
-#define IRQ_ARASANSDIO      62
+#define IRQ_SDIO            56          // SDHost
+#define IRQ_ARASANSDIO      62          // SDIO
 
 #define IRQ_LINES           64
 

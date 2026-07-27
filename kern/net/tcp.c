@@ -98,7 +98,7 @@ struct tcp_pcb {
     uint16_t mtu;           // 一回のデータ転送で送信可能なIPデータグラムの最大値
     uint16_t mss;           // 受信可能なセグメントサイズの最大値
     uint8_t buf[65535];     // 受信バッファ
-    struct sched_ctx ctx;
+    struct sched_ctx ctx;   // イベント同期用コンテキスト
     struct queue_head queue; // 再送キュー
     struct tcp_pcb *parent;
     struct queue_head backlog;

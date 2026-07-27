@@ -87,7 +87,7 @@ proc_init(void)
  * Otherwise return 0.
  */
 static struct proc *
-proc_alloc(void)
+proc_alloc(int npages)
 {
     struct proc *p;
     int found = 0;
@@ -101,7 +101,7 @@ proc_alloc(void)
         }
     }
 
-    if (!found || !(p->kstack = kalloc(1))) {
+    if (!found || !(p->kstack = kalloc(npages))) {
         release(&ptable.lock);
         return 0;
     }
@@ -112,7 +112,7 @@ proc_alloc(void)
 
     p->name[0] = 0;
 
-    void *sp = p->kstack + PGSIZE;
+    void *sp = p->kstack + npages * PGSIZE;
     assert(sizeof(*p->tf) == 19 * 16 && sizeof(*p->context) == 7 * 16);
 
     sp -= sizeof(*p->tf);
@@ -136,7 +136,7 @@ proc_alloc(void)
 static struct proc *
 proc_initx(char *name, char *code, size_t len)
 {
-    struct proc *p = proc_alloc();
+    struct proc *p = proc_alloc(1);
     void *va = kalloc(1);
     assert(p && va);
 
@@ -277,14 +277,14 @@ forkret(void)
         net_init();
         net_run();
         wpasupplicant_init("4:/wpa_supplicant.conf");
-//#if NET_DRV != NET_INDEX_BCM4343
-        p = kthread_create("ether", kthread_read_ether, NULL);
+#if NET_DRV != NET_INDEX_BCM4343
+        p = kthread_create("ether_reader", ether_reader, NULL, 1);
         trace("kthread ether created: pid=%d", p->pid);
         workqueue_init();
-        p = kthread_create("recycle", recycle_proc, NULL);
+        p = kthread_create("recycle", recycle_proc, NULL, 1);
         trace("kthread recycle created: pid=%d", p->pid);
 
-//#endif
+#endif
     } else {
         release(&ptable.lock);
     }
@@ -380,7 +380,7 @@ fork(void)
     int ret = 0;
     struct proc *cp = thisproc();
     trace("call proc_alloc for fork");
-    struct proc *np = proc_alloc();
+    struct proc *np = proc_alloc(1);
 
     if (np == 0) {
         error("proc_alloc returns null");
@@ -735,6 +735,7 @@ static void kthread_stub(void)
     struct proc *p = thisproc();
     assert(p);
     if (p->iskthread && p->fn_ptr) {
+        debug("call kthread %s", p->name);
         p->fn_ptr(p->fn_arg);
     }
 
@@ -749,7 +750,7 @@ void workqueue_init(void)
     wq.tail = 0;
     wq.shutdown = 0;
 
-    wq.worker = kthread_create("workqueue", wq_worker, &wq);
+    wq.worker = kthread_create("workqueue", wq_worker, &wq, 1);
     release(&wq.lock);
     trace("workqueue_init ok, worker pid - %d", wq.worker->pid);
 }
@@ -782,11 +783,12 @@ int queue_work(struct workqueue *wq, void (*func)(void *), void *arg)
     return 0;
 }
 
-struct proc *kthread_create(const char *name, void(*func)(void *), void *param)
+struct proc *kthread_create(const char *name, void(*func)(void *),
+    void *param, int npages)
 {
     struct proc *p;
 
-    p = proc_alloc();
+    p = proc_alloc(npages);
     p->pgdir = (void *)kpgdir;
 
     p->sz = PGSIZE;
@@ -806,7 +808,7 @@ struct proc *kthread_create(const char *name, void(*func)(void *), void *param)
     return p;
 }
 
-void kthread_read_ether(void *param)
+void ether_reader(void *param)
 {
     while(1) {
 #ifdef USING_RASPI

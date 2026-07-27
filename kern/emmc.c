@@ -409,7 +409,7 @@ emmc_issue_command_int(struct emmc *self, uint32_t reg, uint32_t arg,
     // Set block size and block count
     // For now, block size = 512 bytes, block count = 1,
     if (self->blocks_to_transfer > 0xffff) {
-        debug("blocks_to_transfer too great: %d",
+        error("blocks_to_transfer too great: %d",
               self->blocks_to_transfer);
         return;
     }
@@ -417,6 +417,9 @@ emmc_issue_command_int(struct emmc *self, uint32_t reg, uint32_t arg,
     struct mmc_command cmd;
     memset(&cmd, 0, sizeof(cmd));
     cmd.opcode = reg >> 24;
+    if (&cmd == 0xffffffff || cmd.opcode > 255) {
+        error("cmd: %p, opcdde: %d", cmd, cmd.opcode);
+    }
     cmd.arg = arg;
 
     switch (reg & SD_CMD_RSPNS_TYPE_MASK) {
@@ -971,7 +974,8 @@ emmc_card_reset(struct emmc *self)
 }
 
 // これはemmc, sdhost共通で、emmc_issue_command_int()がemmcとsdhostで
-// 各々同名で定義されていて、処理が分かれる
+// (USE_SDHOSTで条件コンパイルして)各々同名で定義されていて、処理が分かれる
+// 失敗し場合に0が、成功した場合に0以外が返るのに注意
 static int
 emmc_issue_command(struct emmc *self, uint32_t cmd, uint32_t arg,
                    int timeout)
@@ -998,6 +1002,7 @@ emmc_issue_command(struct emmc *self, uint32_t cmd, uint32_t arg,
             emmc_issue_command_int(self, sd_acommands[cmd], arg, timeout);
         }
     } else {
+        trace("issuing command %d", cmd);
         if (sd_commands[cmd] == SD_CMD_RESERVED(0)) {
             error("invalid command CMD%d", cmd);
             self->last_cmd_success = 0;

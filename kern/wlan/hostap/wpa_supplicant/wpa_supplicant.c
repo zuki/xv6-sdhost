@@ -5784,11 +5784,11 @@ int wpa_supplicant_update_mac_addr(struct wpa_supplicant *wpa_s)
         if (l2_packet_set_packet_filter(wpa_s->l2,
                         L2_PACKET_FILTER_PKTTYPE))
             wpa_dbg(wpa_s, MSG_DEBUG,
-                "Failed to attach pkt_type filter");
+                "Failed to attach pkt_type filter\n");
 
         if (l2_packet_get_own_addr(wpa_s->l2, wpa_s->own_addr)) {
             wpa_msg(wpa_s, MSG_ERROR,
-                "Failed to get own L2 address");
+                "Failed to get own L2 address\n");
             return -1;
         }
     } else {
@@ -5912,20 +5912,20 @@ int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s)
     if (wpa_supplicant_update_mac_addr(wpa_s) < 0)
         return -1;
 
-    wpa_dbg(wpa_s, MSG_DEBUG, "Own MAC address: " MACSTR,
+    wpa_dbg(wpa_s, MSG_DEBUG, "Own MAC address: " MACSTR "\n",
         MAC2STR(wpa_s->own_addr));
     os_memcpy(wpa_s->perm_addr, wpa_s->own_addr, ETH_ALEN);
     wpa_sm_set_own_addr(wpa_s->wpa, wpa_s->own_addr);
 
     if (wpa_s->bridge_ifname[0] && wpas_eapol_needs_l2_packet(wpa_s)) {
         wpa_dbg(wpa_s, MSG_DEBUG, "Receiving packets from bridge "
-            "interface '%s'", wpa_s->bridge_ifname);
+            "interface '%s'\n", wpa_s->bridge_ifname);
         wpa_s->l2_br = l2_packet_init_bridge(
             wpa_s->bridge_ifname, wpa_s->ifname, wpa_s->own_addr,
             ETH_P_EAPOL, wpa_supplicant_rx_eapol_bridge, wpa_s, 1);
         if (wpa_s->l2_br == NULL) {
             wpa_msg(wpa_s, MSG_ERROR, "Failed to open l2_packet "
-                "connection for the bridge interface '%s'",
+                "connection for the bridge interface '%s'\b",
                 wpa_s->bridge_ifname);
             return -1;
         }
@@ -5934,7 +5934,7 @@ int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s)
     if (wpa_s->conf->ap_scan == 2 &&
         os_strcmp(wpa_s->driver->name, "nl80211") == 0) {
         wpa_printf(MSG_INFO,
-               "Note: nl80211 driver interface is not designed to be used with ap_scan=2; this can result in connection failures");
+               "Note: nl80211 driver interface is not designed to be used with ap_scan=2; this can result in connection failures\n");
     }
 
     wpa_clear_keys(wpa_s, NULL);
@@ -5943,7 +5943,7 @@ int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s)
      * happen if wpa_supplicant is killed during countermeasures. */
     wpa_drv_set_countermeasures(wpa_s, 0);
 
-    wpa_dbg(wpa_s, MSG_DEBUG, "RSN: flushing PMKID list in the driver");
+    wpa_dbg(wpa_s, MSG_DEBUG, "RSN: flushing PMKID list in the driver\n");
     wpa_drv_flush_pmkid(wpa_s);
 
     wpa_s->prev_scan_ssid = WILDCARD_SSID_SCAN;
@@ -6664,7 +6664,7 @@ static struct wpa_radio * radio_add_interface(struct wpa_supplicant *wpa_s,
     while (rn && iface) {
         radio = iface->radio;
         if (radio && os_strcmp(rn, radio->name) == 0) {
-            wpa_printf(MSG_DEBUG, "Add interface %s to existing radio %s",
+            wpa_printf(MSG_DEBUG, "Add interface %s to existing radio %s\n",
                    wpa_s->ifname, rn);
             dl_list_add(&radio->ifaces, &wpa_s->radio_list);
             return radio;
@@ -6673,7 +6673,7 @@ static struct wpa_radio * radio_add_interface(struct wpa_supplicant *wpa_s,
         iface = iface->next;
     }
 
-    wpa_printf(MSG_DEBUG, "Add interface %s to a new radio %s",
+    wpa_printf(MSG_DEBUG, "Add interface %s to a new radio %s\n",
            wpa_s->ifname, rn ? rn : "N/A");
     radio = os_zalloc(sizeof(*radio));
     if (radio == NULL)
@@ -7185,8 +7185,8 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
     int capa_res;
     uint8_t dfs_domain;
 
-    wpa_printf(MSG_DEBUG, "Initializing interface '%s' conf '%s' driver "
-           "'%s' ctrl_interface '%s' bridge '%s'", iface->ifname,
+    wpa_printf(MSG_DEBUG, "\nInitializing interface '%s' conf '%s'\n  driver "
+           "'%s' ctrl_interface '%s' bridge '%s'\n", iface->ifname,
            iface->confname ? iface->confname : "N/A",
            iface->driver ? iface->driver : "default",
            iface->ctrl_interface ? iface->ctrl_interface : "N/A",
@@ -7201,7 +7201,7 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
                    iface->confname);
             return -1;
         }
-        wpa_printf(MSG_DEBUG, "Configuration file '%s' -> '%s'",
+        wpa_printf(MSG_DEBUG, "Configuration file '%s' -> '%s'\n",
                iface->confname, wpa_s->confname);
 #else /* CONFIG_BACKEND_FILE */
         wpa_s->confname = os_strdup(iface->confname);
@@ -7220,7 +7220,6 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
                    wpa_s->confanother);
             return -1;
         }
-
         /*
          * Override ctrl_interface and driver_param if set on command
          * line.
@@ -7236,7 +7235,6 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
                 return -1;
             }
         }
-
         if (iface->driver_param) {
             os_free(wpa_s->conf->driver_param);
             wpa_s->conf->driver_param =
@@ -7248,7 +7246,6 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
                 return -1;
             }
         }
-
         if (iface->p2p_mgmt && !iface->ctrl_interface) {
             os_free(wpa_s->conf->ctrl_interface);
             wpa_s->conf->ctrl_interface = NULL;
@@ -7266,11 +7263,13 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
         wpa_printf(MSG_ERROR, "\nInterface name is required.");
         return -1;
     }
+
     if (os_strlen(iface->ifname) >= sizeof(wpa_s->ifname)) {
         wpa_printf(MSG_ERROR, "\nToo long interface name '%s'.",
                iface->ifname);
         return -1;
     }
+
     os_strlcpy(wpa_s->ifname, iface->ifname, sizeof(wpa_s->ifname));
 #ifdef CONFIG_MATCH_IFACE
     wpa_s->matched = iface->matched;
@@ -7304,6 +7303,7 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
     wpa_sm_set_ifname(wpa_s->wpa, wpa_s->ifname,
               wpa_s->bridge_ifname[0] ? wpa_s->bridge_ifname :
               NULL);
+
     wpa_sm_set_fast_reauth(wpa_s->wpa, wpa_s->conf->fast_reauth);
 
     if (wpa_s->conf->dot11RSNAConfigPMKLifetime &&
@@ -7337,6 +7337,7 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
                               &wpa_s->hw.num_modes,
                               &wpa_s->hw.flags,
                               &dfs_domain);
+
     if (wpa_s->hw.modes) {
         uint16_t i;
 
@@ -7402,9 +7403,11 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
 #ifdef CONFIG_PASN
     wpa_pasn_sm_set_caps(wpa_s->wpa, wpa_s->drv_flags2);
 #endif /* CONFIG_PASN */
+
     wpa_sm_set_driver_bss_selection(wpa_s->wpa,
                     !!(wpa_s->drv_flags &
                        WPA_DRIVER_FLAGS_BSS_SELECTION));
+
     if (wpa_s->max_remain_on_chan == 0)
         wpa_s->max_remain_on_chan = 1000;
 
@@ -7989,8 +7992,9 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
     // デバッグ出力先の選択
     if (params->wpa_debug_file_path)
         wpa_debug_open_file(params->wpa_debug_file_path);
-    if (!params->wpa_debug_file_path && !params->wpa_debug_syslog)
+    if (!params->wpa_debug_file_path && !params->wpa_debug_syslog) {
         wpa_debug_setup_stdout();   // これが該当
+    }
     if (params->wpa_debug_syslog)
         wpa_debug_open_syslog();
     if (params->wpa_debug_tracing) {
@@ -8011,7 +8015,6 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
                    "the same EAP type.");
         return NULL;
     }
-
     // global構造体の初期化
     global = os_zalloc(sizeof(*global));
     if (global == NULL)
@@ -8021,7 +8024,6 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
     global->params.daemonize = params->daemonize;
     global->params.wait_for_monitor = params->wait_for_monitor;
     global->params.dbus_ctrl_interface = params->dbus_ctrl_interface;
-
     // 該当せず
     if (params->pid_file) {
         global->params.pid_file = os_strdup(params->pid_file);
@@ -8106,7 +8108,6 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
         params->wpa_debug_show_keys;
     wpa_debug_timestamp = global->params.wpa_debug_timestamp =
         params->wpa_debug_timestamp;
-
     wpa_printf(MSG_DEBUG, "wpa_supplicant v%s", VERSION_STR);
 
     // イベントループデータ構造体の初期化
@@ -8115,21 +8116,17 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
         wpa_supplicant_deinit(global);
         return NULL;
     }
-
     // 乱数期の初期化: random.cで処理済み
     random_init(params->entropy_file);
-
     global->ctrl_iface = wpa_supplicant_global_ctrl_iface_init(global);
     if (global->ctrl_iface == NULL) {
         wpa_supplicant_deinit(global);
         return NULL;
     }
-
     if (wpas_notify_supplicant_initialized(global)) {
         wpa_supplicant_deinit(global);
         return NULL;
     }
-
     for (i = 0; wpa_drivers[i]; i++)
         global->drv_count++;
     if (global->drv_count == 0) {
@@ -8142,7 +8139,6 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
         wpa_supplicant_deinit(global);
         return NULL;
     }
-
 #ifdef CONFIG_WIFI_DISPLAY
     if (wifi_display_init(global) < 0) {
         wpa_printf(MSG_ERROR, "Failed to initialize Wi-Fi Display");
@@ -8150,7 +8146,6 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
         return NULL;
     }
 #endif /* CONFIG_WIFI_DISPLAY */
-
     eloop_register_timeout(WPA_SUPPLICANT_CLEANUP_INTERVAL, 0,
                    wpas_periodic, global, NULL);
 

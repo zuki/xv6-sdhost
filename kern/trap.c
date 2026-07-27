@@ -113,7 +113,9 @@ void trap(struct trapframe *tf)
             trap_error(4);
         }
         break;
-
+    case EC_ALIGNMENT:  // 0x22 = 34
+        error("SP alignment fault exception at elr: 0x%llx with far: 0x%llx", elr, far);
+        exit(1);
     default:
         error("[%d] unknown trap code: %d at elr: 0x%llx with far: 0x%llx", thisproc()->pid, ec, elr, far);
         dump_tf(tf);

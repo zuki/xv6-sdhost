@@ -42,6 +42,7 @@
 #define EC_SVC64                    0x15
 #define EC_IABORT                   0x20
 #define EC_IABORT2                  0x21
+#define EC_ALIGNMENT                0x22
 #define EC_DABORT                   0x24
 #define EC_DABORT2                  0x25
 

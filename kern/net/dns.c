@@ -81,7 +81,7 @@ static ssize_t make_query_name(char *query, const char *host) {
 
     char *save;
     size_t wlen, name_len = 0;
-    char *word = strtok_r1(name, '.', &save);
+    char *word = strtok_r(name, ".", &save);
     while (word != 0) {
         wlen = strlen(word);
         if (wlen > 255) {
@@ -93,7 +93,7 @@ static ssize_t make_query_name(char *query, const char *host) {
         strncpy((char *)query, word, wlen);
         query += wlen;
         name_len += wlen + 1;
-        word = strtok_r1(0, '.', &save);
+        word = strtok_r(0, ".", &save);
     }
     *query++ = '\0';
     name_len += 1;

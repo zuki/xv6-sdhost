@@ -13,7 +13,6 @@
 #define BC_SECTOR_SIZE      512
 #define BC_BLOCK_SIZE       4096
 #define BLOCKCACHE_MAX      30
-#define DMA_MINALIGN        64
 
 static struct queue bufcache;
 static struct buf blocks[BLOCKCACHE_MAX];
@@ -58,7 +57,7 @@ struct buf *get_block(device_t dev, uint32_t blockno, boolean issec)
     /* 1. bufcacheにあればrefcountを増分して返す */
     acquire(&bufcache.lock);
     for (cur = (struct buf *) bufcache.head; cur; cur = (struct buf *) cur->node.next) {
-        if (cur->flags & BCF_ALLOCATED && cur->dev == dev && cur->blockno == blockno && cur->issec == issec) {
+        if (/*cur->flags & BCF_ALLOCATED && */ cur->dev == dev && cur->blockno == blockno && cur->issec == issec) {
             cur->refcount++;
             trace("hit: dev: 0x%x, bno: 0x%x", cur->dev, cur->blockno);
             /* curをキャッシュリストの先頭に移動させる */

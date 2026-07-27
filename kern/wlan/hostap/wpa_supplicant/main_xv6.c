@@ -19,6 +19,7 @@
 
 #include <utils/common.h>
 #include <wpa_supplicant_i.h>
+#include <console.h>
 
 
 static struct wpa_global *global = NULL;
@@ -33,12 +34,13 @@ int wpa_supplicant_is_connected(void)
 
 int wpa_supplicant_main(const char *confname)
 {
+    debug("start");
     struct wpa_interface iface;
     int exitcode = 0;
     struct wpa_params params;
 
     memset(&params, 0, sizeof(params));
-    params.wpa_debug_level = MSG_INFO;
+    params.wpa_debug_level = MSG_MSGDUMP;     // これがwpa_supplicantの出力レベル
 
     global = wpa_supplicant_init(&params);
     if (global == NULL)

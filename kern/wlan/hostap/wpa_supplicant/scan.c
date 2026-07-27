@@ -1629,13 +1629,13 @@ void wpa_supplicant_req_scan(struct wpa_supplicant *wpa_s, int sec, int usec)
 	res = eloop_deplete_timeout(sec, usec, wpa_supplicant_scan, wpa_s,
 				    NULL);
 	if (res == 1) {
-		wpa_dbg(wpa_s, MSG_DEBUG, "Rescheduling scan request: %d.%06d sec",
+		wpa_dbg(wpa_s, MSG_DEBUG, "Rescheduling scan request: %d.%06d sec\n",
 			sec, usec);
 	} else if (res == 0) {
-		wpa_dbg(wpa_s, MSG_DEBUG, "Ignore new scan request for %d.%06d sec since an earlier request is scheduled to trigger sooner",
+		wpa_dbg(wpa_s, MSG_DEBUG, "Ignore new scan request for %d.%06d sec since an earlier request is scheduled to trigger sooner\n",
 			sec, usec);
 	} else {
-		wpa_dbg(wpa_s, MSG_DEBUG, "Setting scan request: %d.%06d sec",
+		wpa_dbg(wpa_s, MSG_DEBUG, "Setting scan request: %d.%06d sec\n",
 			sec, usec);
 		eloop_register_timeout(sec, usec, wpa_supplicant_scan, wpa_s, NULL);
 	}

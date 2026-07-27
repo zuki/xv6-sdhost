@@ -81,12 +81,12 @@ enum wpas_mac_addr_style {
 };
 
 /**
- * struct wpa_ssid - Network configuration data
+ * struct wpa_ssid - ネットワーク構成データ
  *
- * This structure includes all the configuration variables for a network. This
- * data is included in the per-interface configuration data as an element of
- * the network list, struct wpa_config::ssid. Each network block in the
- * configuration is mapped to a struct wpa_ssid instance.
+ * この構造体にはネットワークに関するすべての構成変数が含まれている。
+ * このデータはネットワークリストである struct wpa_config::ssid の
+ * 要素として、インタフェースごとの構成データに含まれる。構成内の
+ * 各ネットワークブロックは struct wpa_ssid のインスタンスにマッピングされる。
  */
 struct wpa_ssid {
 	/**
@@ -117,7 +117,7 @@ struct wpa_ssid {
 	int id;
 
 	/**
-	 * ro - Whether a network is declared as read-only
+	 * ro - ネットワークはRead-Onlyとして宣言されているか否か
 	 *
 	 * Every network which is defined in a config file that is passed to
 	 * wpa_supplicant using the -I option will be marked as read-only

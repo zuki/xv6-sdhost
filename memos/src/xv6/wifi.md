@@ -217,7 +217,7 @@ f_read 012345.6789cdefghijkn.678abcdefghijkn.678abcdefghi
 [1]get_block: dev: 0x101, bno: 0x812, issec: 1
 [1]get_block: no hit: dev: 0x101, blockno: 0x812, issec: true
 [1]_find_free_entry: i: 0, last: 0xffff0000003bd1c0, ref: 0
-01234 ok        // こちらは last->block = 0 なのでkmfree()は実行せず　_find_free_entry() が正常終了
+01234 ok    // こちらは last->block = 0 なのでkmfree()は実行せず　_find_free_entry() が正常終了
 [1]_load_block: recycle entry: 0xffff0000003bd1c0
 [1]_read_entry: read: dev: 0x101, buffer: 0x73d0140, bno: 0x812, size: 0x200
 [2]_read_entry: ok
@@ -231,7 +231,7 @@ f_read 012345.6789cdefghijkn.678abcdefghijkn.678abcdefghi
 [2]get_block: dev: 0x101, bno: 0x812, issec: 1
 [2]get_block: no hit: dev: 0x101, blockno: 0x812, issec: true
 [2]_find_free_entry: i: 0, last: 0xffff0000003bd1f0, ref: 0
-0123456     // kmfree(last->block)が帰ってこず、_find_free_entry()でストール
+0123456   // kmfree(last->block)が帰ってこず、_find_free_entry()でストール
 
 // bufcache->blockのkmalloc(512)を　kalloc()　または slabcache で書き換えると firmware も読み込まなくなる
 
@@ -550,7 +550,7 @@ cfgwritel 18004020: 40 00 80 00
 [2]bcm4343_init_internal: bcm4343_init_internal ok
 
 [a] o_protoc l_negistati n ped/ (I_MP)(Iile '/d/wt_proppcic_rtgcsnf': erper:x5806 edRt)
-li2anp.prot'c           // net_init()で問題が発生している
+li2anp.prot'c       // net_init()で問題が発生している
 ```
 
 ## wpasupplicant_init()でwpa_supplicant.confが開けなかった
@@ -579,7 +579,7 @@ ether4330: addr b8:27:eb:fe:bd:1d
 [3]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.110 dev=net3
 [3]net_init: net_init ok
 [3]net_device_open: dev=net3, state=up
-[3]net_device_open: dev=net1, state=up      // これのlinkupを待っている。有線LANは抜いていたのでlinkupはしない
+[3]net_device_open: dev=net1, state=up    // これのlinkupを待っている。有線LANは抜いていたのでlinkupはしない
 ```
 
 ## wpa_supplicant_init()をnet_run()の後に移動
@@ -718,7 +718,7 @@ ether4330: addr b8:27:eb:fe:bd:1d
 [2]netrun: running...
 [2]wpasupplicant_init: wpasupplicant_init ok
 [1]wpa_supplicant_init_iface: Initializing interface 'wlan0' conf '/d/wpa_supplicant.conf' driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
-[2]release:         // unlockのasserttionエラーだと思われる
+[2]release:     // unlockのasserttionエラーだと思われる
 ```
 
 ```bash
@@ -788,7 +788,7 @@ ether4330: addr b8:27:eb:fe:bd:1d
 [2]wpa_supplicant_init: wpa_supplicant v2.11
 add_iface 012345[2]wpa_supplicant_init_iface: Initializing interface 'wlan0' conf '/d/wpa_supplicant.conf' driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
 [2]wpa_config_debug_dump_networks: Priority group 0
-[2]wpa_config_debug_dump_networks:    id=0 ssid='xxx'
+[2]wpa_config_debug_dump_networks:  id=0 ssid='xxx'
 [2]radio_add_interface: Add interface wlan0 to a new radio N/A
 kmalloc: Cannot allocate the requested size of memory 5880 ( > 4080 )   // wpa_sm_init()#sizeof(*sm)
 kern/drivers/console.c:264: kernel panic at cpu 2.
@@ -834,7 +834,7 @@ add_iface 012345[2]wpa_supplicant_init_iface: Initializing interface 'wlan0' con
 [2]wpa_supplicant_init_iface: bss_select
 [2]wpa_supplicant_init_iface: driver_init
 [2]wpa_supplicant_init_iface: set_sountry
-[2]wpa_driver_xv6_set_country: Setting country code to 'JP'     // ここでストール
+[2]wpa_driver_xv6_set_country: Setting country code to 'JP'   // ここでストール
 ```
 
 - strcspn()のバグだった. muslのソースで置き換えた。
@@ -906,7 +906,7 @@ rreadchan: rbyte: 2048, new_offset: 0x800
 readchan: offset=0x800
 kmalloc 124.568 ok
 [3]_load_block: recycle entry: 0xffff0000004439d0
-kmalloc 124.9.57                                   // kmalloc()でストール
+kmalloc 124.9.57                   // kmalloc()でストール
 ```
 
 - 2度読みができるようなったがcclose() (vfs_close())でストール
@@ -998,3 +998,323 @@ ether4330: addr b8:27:eb:fe:bd:1d
 kern/sdhost.c:1349: assertion failed.
 kern/drivers/console.c:264: kernel panic at cpu 3.
 ```
+
+## wpa_suplicant_wpa_supplicant_init_iface()を調査中
+
+```bash
+[3]wpa_supplicant_main: start
+wpa_supplicant v2.11Initializing interface 'wlan0' conf '4:/wpa_supplicant.conf'
+  driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
+012Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+4Reading configuration file '4:/wpa_supplicant.conf'
+[3]trap: [8] unknown trap code: 34 at elr: 0x2c070201022320a6 with far: 0x2c070201022320a6
+
+4fp: 0xffff0000073db278 0[1]trap: [8] unknown trap code: 34 at elr: 0x660e6ed08dccc267 with far: 0x660e6ed08dccc267
+```
+
+- プログラムカウンタに変な値がセットされ、alignmetエラーが発生している
+- elrとfarは常に同じ値になっており、実行するたびにこれらの値は変わる。
+- f_open()の最初の行で発生している
+- スタックオーバーフローくさい
+
+## p->kstackを4ページにしたところ、このエラーはなくなった
+
+- おなじみのsdhost.cのアサーションエラー
+
+```bash
+f_open 012345               // 4:/firmware/配下のファイルの場合
+follow_path 01234569.abcjkmn.abcj ok
+679ayzBDEFGLMNOPXY ok
+
+[0]wpa_supplicant_main: start
+wwpa_supplicant v2.11Initializing interface 'wlan0' conf '4:/wpa_supplicant.conf'
+  driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
+012
+Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+4
+f_open 012345
+follow_path 01234569.ab         // 4:/wpa_supplicant.conf
+kern/sdhost.c:1349: assertion failed.
+kern/drivers/console.c:264: kernel panic at cpu 2.
+```
+
+- wpa_supplicant.confを`4:/firmware/`配下においたが結果は同じ
+
+```bash
+Configuration file '4:/firmware/wpa_supplicant.conf' -> '4:/firmware/wpa_supplicant.conf'
+4
+f_open 012345
+follow_path 01234569.ab
+kern/sdhost.c:1349: assertion failed.
+kern/drivers/console.c:264: kernel panic at cpu 1.
+```
+
+```bash
+[0]sdhost_request: pre-command: 0x133ba8, host->mrq: 0x52, done: 0x73f8710,
+  host->mrq->sbc 0x0 opcode: 0x0,
+  host->mrq->cmd 0xffffffff opcode: 0x73f87a0
+  host->mrq->data 0xabab8eaa00000012 flag: 0x73f87d0,
+kern/sdhost.c:1349: assertion failed.
+```
+
+- circleのメインスレッドのスタックサイズは32ページ
+- kstackを32ページ（40ページもテスト）に増やしても4ページでも結果は同じ
+- opcodeは最大255 (0xff)、cmdのポインタアドレスは8バイトのハズ、mrq->stopが出力されない
+- sdhost.cで`host->irq = IRQ_SDIO`をセットしたが変化なし
+
+```bash
+Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+[0]sdhost_request: pre-command: 0x133c58, host->mrq: 0x52, done: 0x7380710
+        host->mrq->sbc 0x0 opcode: 0x0
+        host->mrq->cmd 0xffffffff opcode: 0x73807a0
+        host->mrq->data 0xaaaaaaaa00000012 flag: 0x73807d0
+
+[0]sdhost_request: mrq->sbc 0xffff000000133d10 opcode: 0x0
+        mrq->cmd 0xffffffff opcode: 0x71bfbb0
+        mrq->data 0xd flag: 0x0
+
+kern/sdhost.c:1359: assertion failed.
+```
+
+- 発行したコマンドを出力
+
+```bash
+[2]emmc_issue_command: issuing command 13
+[2]emmc_issue_command: issuing command 17
+ether4330: addr b8:27:eb:fe:bd:1d
+[1]net_device_register: dev=net3, type=3 (WLAN)
+[1]bcm4343_init_internal: bcm4343_init_internal ok
+[1]net_protocol_register: type=0x0800 (IP)
+[1]net_protocol_register: type=0x0806 (ARP)
+[1]ip_protocol_register: type=1 (ICMP)
+[1]ip_protocol_register: type=17 (UDP)
+[1]ip_protocol_register: type=6 (TCP)
+[1]net_init: net_init ok
+[1]net_device_open: dev=net3, state=up
+[1]net_device_open: dev=net1, state=up
+[2]netrun: running...
+[3]wpa_supplicant_main: start
+[2a_sup_iicuet omm1nI:iisalizgngoimted 13
+iver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
+012
+Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+4[3]emmc_issue_command: issuing command 13
+[3]sdhost_request: pre-command: 0x133d18, host->mrq: 0x52, done: 0x73f8700
+        host->mrq->sbc 0x0 opcode: 0x0
+        host->mrq->cmd 0xffffffff opcode: 0x73f8790
+        host->mrq->data 0x12 flag: 0x73f87c0
+
+[3]sdhost_request: mrq->sbc 0xffff000000133dd0 opcode: 0x0
+        mrq->cmd 0xffffffff opcode: 0x73afba0
+        mrq->data 0xd flag: 0x0
+
+kern/sdhost.c:1359: assertion failed.
+```
+
+- カーネルスタックの設定ミスを修正、string.hの関数をmuslのコードに変更をしたが
+  結果は変わらず
+
+```bash
+[1]wpa_supplicant_main: start
+wpa_supplicant v2.11Initializing interface 'wlan0' conf '4:/wpa_supplicant.conf'
+  driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
+012
+Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+4[1]sdhost_request: pre-command: 0x12fe48, host->mrq: 0x52, done: 0x73fe730
+        host->mrq->sbc 0x0 opcode: 0x0
+        host->mrq->cmd 0xffffffff opcode: 0x73fe7c0
+        host->mrq->data 0xaaa2aaaa00000012 flag: 0x73fe7f8
+
+[1]sdhost_request: mrq->sbc 0xffff00000012ff00 opcode: 0x0
+        mrq->cmd 0xffffffff opcode: 0x73bebc0
+        mrq->data 0xd flag: 0x0
+
+kern/sdhost.c:1359: assertion failed.
+```
+
+## 有線LANのデータ読み込みをキックするkthreadの実行を止めたらwpa_supplicantの初期化が進んだ
+
+- デバッグ出力を削除したら、たまにしか進まなくなった
+- 進まない場合、アサートエラー前の出力がでない
+
+```bash
+[2]net_device_register: dev=net1, type=2 (ETHERNET)
+[2]usb_init: usb_init ok
+emmc control 0x0 0x0 0x0
+ether4330: chip 0x4345 rev 6 type 1
+[1]kthread_stub: call kthread wifireader
+itimerethers330: firm kthreeddwi
+ether4330: addr b8:27:eb:fe:bd:1d
+[1]net_device_register: dev=net3, type=3 (WLAN)
+[1]bcm4343_init_internal: bcm4343_init_internal ok
+[1]net_protocol_register: type=0x0800 (IP)
+[1]net_protocol_register: type=0x0806 (ARP)
+[1]ip_protocol_register: type=1 (ICMP)
+[1]ip_protocol_register: type=17 (UDP)
+[1]ip_protocol_register: type=6 (TCP)
+[1]net_init: net_init ok
+[1]net_device_open: dev=net3, state=up
+[1]net_device_open: dev=net1, state=up
+[3]netrun: running...
+[2]kthread_stub: call kthread wpa_supplicant
+[2]wpa_supplicant_main: start
+wpa_supplicant v2.11
+Initializing interface 'wlan0' conf '4:/wpa_supplicant.conf'
+  driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
+ws_init_iface 012
+3 Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+4
+opened. res: 0
+get_line
+, esz:: 512get_line 0[3]1d o:t_r
+buflen: 512 len: 2 buf[buflen-1]: 0 buf[len-1]: a
+[2] s: # wpa_supplicant.conf
+, size: 512
+buflen: 512 len: 22 buf[buflen-1]: 0 buf[len-1]: a
+[3] s: #
+, size: 512
+buflen: 512 len: 2 buf[buflen-1]: 0 buf[len-1]: a
+[4] s:
+, size: 512
+buflen: 512 len: 1 buf[buflen-1]: 0 buf[len-1]: a
+[5] s: country=JP
+, size: 512
+buflen: 512 len: 11 buf[buflen-1]: 0 buf[len-1]: a
+123456 ok
+pos: country=JP
+country='JP'wpa_config_get_line 0[6] s:
+, size: 512
+buflen: 512 len: 1 buf[buflen-1]: 0 buf[len-1]: a
+[7] s: network={
+, size: 512
+buflen: 512 len: 10 buf[buflen-1]: 0 buf[len-1]: a
+123456 ok
+pos: network={
+wpa_config_get_line 0[8] s:     ssid="MSRS_TDF_A5_A11"
+, size: 2000
+buflen: 2000 len: 24 buf[buflen-1]: 0 buf[len-1]: a
+123456 ok
+```
+
+-
+```bash
+[0]kthread_stub: call kthread wpa_supplicant
+[0]wpa_supplicant_main: start
+wpa_supplicant v2.11
+Initializing interface 'wlan0' conf '4:/wpa_supplicant.conf'
+  driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
+ws_init_iface 012
+3 Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+4
+[0]sdhost_request:
+        host->mrq: 0xffff00000012fb70, done: 0x73fe730
+        host->mrq->sbc 0x0 opcode: 0x0
+        host->mrq->cmd 0xffffffff opcode: 0x73fe7c0
+        host->mrq->data 0x12 flag: 0x73fe7f8
+
+[0]sdhost_request: mrq: 0xffff00000012fc18
+        mrq->sbc 0xffff0000073beb30 opcode: 0x0
+        mrq->cmd 0xffffffff opcode: 0x73bebc0
+        mrq->data 0xd flag: 0x0
+
+kern/sdhost.c:1362: assertion failed.
+kern/drivers/console.c:264: kernel panic at cpu 0.
+$
+```
+
+- アサーションエラーが発生した後、いったんスイッチを切り、再度実行すると
+  少し進むことが多い（進まない場合もある）
+
+```bash
+[3]kthread_stub: call kthread wpa_supplicant
+[3]wpa_supplicant_main: start
+wpa_supplicant v2.11
+Initializing interface 'wlan0' conf '4:/wpa_supplicant.conf'
+  driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
+ws_init_iface 012
+3 Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+4
+[1]sdhostcruntry='JP'
+Line: 7 - start of a new network block
+=== ssid dump ===
++------+-------------------------------------------------+------------------+
+| 0000 | 4d 53 52 53 5f 54 44 46 5f 41 35 5f 41 31 31    | MSRS_TDF_A5_A11  |
++------+-------------------------------------------------+------------------+
+```
+
+## NULLポインタをkmfree()しているのが原因だった
+
+- `kern/wlan/hostap/wpa_supplicant/config.c#L126`
+- kmfree(void *ap)を修正してapがNULLの場合は何もせずreturnとした
+
+```bash
+[2]netrun: running...
+[3]kthread_stub: call kthread wpa_supplicant
+[3]wpa_supplicant_main: start
+wpa_supplicant v2.11
+Initializing interface 'wlan0' conf '4:/wpa_supplicant.conf'
+  driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
+Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+country='JP'
+Line: 7 - start of a new network block
+ssid: 4d 53 52 53 5f 54 44 46 5f 41 35 5f 41 31 31
+proto: 0x2
+key_mgmt: 0x2
+$ Priority group 0
+   id=0 ssid='MSRS_TDF_A5_A11'
+Add interface wlan0 to a new radio N/A
+Failed to attach pkt_type filter
+Own MAC address: b8:27:eb:fe:bd:1d
+RSN: flushing PMKID list in the driver
+Setting scan request: 0.100000 sec
+Setting country code to 'JP'
+ether4330: cmd 263 error status -2
+=== ether4330: cmd error dump ===
++------+-------------------------------------------------+------------------+
+| 0000 | 30 00 cf ff 14 00 00 0c 00 3b 00 00 07 01 00 00 | 0........;...... |
+| 0010 | 00 00 00 00 01 00 13 00 fe ff ff ff 63 6f 75 6e | ............coun |
+| 0020 | 74 72 79 00 4a 00 aa a8 ff ff ff ff 4a 00 8a a2 | try.J.......J... |
++------+-------------------------------------------------+------------------+
+
+wlcmd error
+kern/dma.c:160: assertion failed.
+```
+
+
+```bash
+wpasupplicant_init()
+  initialize()
+    kthread_create("wpa_supplicant", proc_entry, self);
+      proc_entry()
+        wpa_supplicant_main()
+          wpa_supplicant_init()
+          wpa_supplicant_add_iface()
+            wpa_supplicant_init_iface()
+              wpa_supplicant_init_iface()
+                wpa_config_read()
+                  f_open()
+                    mount_volume()
+                      follow_path()
+                        dir_find()
+                          move_window()
+                            disk_read()
+                              get_block()
+                                _load_block()
+                                _find_free_entry()
+                                _read_entry()
+                                  dev_read()
+                                    sd_read()
+                                      emmc_read()
+                                        emmc_do_read()
+                                          emmc_do_data_command()
+                                            emmc_issue_command()
+                                              emmc_issue_command_int()
+                                                sdhost_command()
+                                                  sdhost_request_sync()
+                                                    sdhost_request()
+                                                      assert(host->mrq == 0) // ここでアサーションエラー
+```
+
+
+
+

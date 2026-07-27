@@ -274,5 +274,34 @@ void *os_zalloc(size_t size)
 
 void os_hexdump(const char *title, const void *p, size_t len)
 {
-    hexdump(p, len, title);
+    unsigned char *src;
+    int offset, index;
+
+    src = (unsigned char *)p;
+
+    cprintf("%s: ", title);
+    for (offset = 0; offset < (int)len; offset += 16) {
+        for (index = 0; index < 16; index++) {
+            if (offset + index < (int)len) {
+                cprintf("%02x ", 0xff & src[offset + index]);
+            } else {
+                cprintf("   ");
+            }
+        }
+#if 0
+        cprintf(" = ");
+        for (index = 0; index < 16; index++) {
+            if (offset + index < (int)len) {
+                if (isascii(src[offset + index]) && isprint(src[offset + index])) {
+                    cprintf("%c", src[offset + index]);
+                } else {
+                    cprintf(".");
+                }
+            } else {
+                cprintf(" ");
+            }
+        }
+#endif
+        cprintf(" \n");
+    }
 }
