@@ -1043,7 +1043,6 @@ static Chan *findfirmware(char *file)
     return c;
 }
 
-#if 1
 /* ファイル（ファームウェア、config）をアップロードする */
 static int upload(Ctlr *ctl, char *file, int isconfig)
 {
@@ -2118,10 +2117,10 @@ static void wlsetcountry(Ctlr *ctlr, const char *ccode)
         p9error("Invalid country code");
     }
 
-    safestrcpy(params.country_ie, ccode, strlen(ccode));
-    safestrcpy(params.country_code, ccode, strlen(ccode));
+    strcpy(params.country_ie, ccode);
+    strcpy(params.country_code, ccode);
     params.revision = (uint) -1;
-
+    debug("ccode: %s, country: %s", ccode, params.country_code);
     wlsetvar(ctlr, "country", &params, sizeof params);
 }
 
