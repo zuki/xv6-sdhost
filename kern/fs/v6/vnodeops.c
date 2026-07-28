@@ -32,9 +32,7 @@ int v6_create(struct vnode *parent, const char *name, mode_t mode, uid_t uid, st
     struct vnode *vnode;
     struct v6_inode *ip, *dp = VTOI(parent);
     struct timespec ts;
-    struct proc *p = thisproc();
     int err = -EINVAL;
-    ino_t ino;
     uint16_t v6type = mode2v6type(mode);
 
     trace("parent->ino: %d, name: %s", parent->ino, name);
@@ -65,7 +63,7 @@ int v6_create(struct vnode *parent, const char *name, mode_t mode, uid_t uid, st
     if (S_ISDIR(mode)) {  // Create . and .. entries.
         vfs_clone_vnode(parent);
         v6_iupdate(dp);
-        if (v6_dirlink(ip, ".", ino, v6type) < 0 || v6_dirlink(ip, "..", vnode->ino, mode2v6type(vnode->mode)) < 0) {
+        if (v6_dirlink(ip, ".", vnode->ino, v6type) < 0 || v6_dirlink(ip, "..", parent->ino, mode2v6type(vnode->mode)) < 0) {
             err = -ENOMEM;
             goto fail;
         }
