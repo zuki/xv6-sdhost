@@ -184,7 +184,6 @@ int socket_accept(struct socket *s, struct sockaddr *addr, int *addrlen)
 {
     int adesc, fd;
     struct vfile *file;
-    struct socket *as;
     struct ip_endpoint foreign;
     struct proc *p = thisproc();
     struct sock_vnode *vnode;
@@ -216,8 +215,8 @@ int socket_accept(struct socket *s, struct sockaddr *addr, int *addrlen)
     ((struct sockaddr_in *)addr)->sin_family = AF_INET;
     ((struct sockaddr_in *)addr)->sin_addr.s_addr = foreign.addr;
     ((struct sockaddr_in *)addr)->sin_port = foreign.port;
-    as->type = s->type;
-    as->desc = adesc;
+    SOCKET(vnode)->type = s->type;
+    SOCKET(vnode)->desc = adesc;
 
     if (addrlen)
         *addrlen = sizeof(struct sockaddr_in);
