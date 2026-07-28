@@ -61,23 +61,23 @@ struct v6_vfs {
 };
 #endif
 
-extern struct v6_superblock v6_sb;
+//extern struct v6_superblock v6_sb;
 
 #define ITOV(ip)    ((struct vnode *)ip)
-#define VTOI(vp)    ((struct v6_inode *)(vp)->data)
+//#define VTOI(vp)    ((struct v6_inode *)(vp)->data)
 #define FTOI(fp)    ((struct v6_inode *)(fp)->vnode->data)
 
 
 /* v6mountops.c */
-extern struct mount_ops v6_mount_ops;
+//extern struct mount_ops v6_mount_ops;
 /* v6vnodeops.c */
-extern struct vnode_ops v6_vnode_ops;
+//extern struct vnode_ops v6_vnode_ops;
 /* v6vfileops.c */
-extern struct vfile_ops v6_file_ops;
+//extern struct vfile_ops v6_file_ops;
 
 /* v6fs.c */
-extern struct _v6_icache v6_icache;
-extern struct v6_vfs v6_vfs;
+//extern struct _v6_icache v6_icache;
+//extern struct v6_vfs v6_vfs;
 
 void v6_readsb(device_t dev, struct v6_superblock *sb);
 void v6_set_super(void);
@@ -96,9 +96,9 @@ void v6_iunlockput(struct v6_inode *ip);
 uint32_t v6_bmap(struct v6_inode *ip, uint32_t bn);
 void v6_itrunc(struct v6_inode *ip);
 size_t v6_readi(struct v6_inode *ip, char *dst, off_t offset, size_t n);
-size_t v6_writei(struct v6_inode *ip, char *src, off_t offset, size_t n);
-struct v6_inode *v6_dirlookup(struct v6_inode *dp, char *name);
-int v6_dirlink(struct v6_inode *dp, char *name, uint32_t ino, uint16_t type);
+size_t v6_writei(struct v6_inode *ip, const char *src, off_t offset, size_t n);
+struct v6_inode *v6_dirlookup(struct v6_inode *dp, const char *name);
+int v6_dirlink(struct v6_inode *dp, const char *name, uint32_t ino, uint16_t type);
 void sync_v6_inodes(void);
 
 int mode2v6type(mode_t mode);

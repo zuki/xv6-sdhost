@@ -32,7 +32,7 @@ typedef boolean bcm4343_connect_provider(void);
 // BC4343x WLANデバイス用ドライバ構造体
 struct bcm4343 {
     struct net_device   *net_dev;   // ネットデバイスオブジェクト
-    char *  firm_path;              // ファームウェアのパス
+    const char * firm_path;         // ファームウェアのパス
     uint8_t macaddr[6];             // MACアドレス
     uint8_t bssid[6];               // APのSSID
 

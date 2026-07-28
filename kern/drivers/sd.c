@@ -44,8 +44,6 @@ struct driver sd_driver = {
  */
 int sd_init(void)
 {
-    char buf[BSIZE];
-
     list_init(&sdque);
     initlock(&cardlock, "card");
 

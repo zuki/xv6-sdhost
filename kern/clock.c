@@ -112,7 +112,6 @@ long clock_gettime(clockid_t clk_id, struct timespec *tp)
 {
     uint64_t ptime;
     struct proc *p = thisproc();
-    static int count = 0;
 
     switch(clk_id) {
         default:
@@ -128,6 +127,7 @@ long clock_gettime(clockid_t clk_id, struct timespec *tp)
             break;
     }
 #if 0
+    static int count = 0;
     if ((++count % 1000) == 0)
         debug("[%d] clk: %d, tv_sec: %lld, tv_nsec: %lld", count, clk_id, tp->tv_sec, tp->tv_nsec);
 #endif

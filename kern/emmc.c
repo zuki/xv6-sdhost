@@ -322,7 +322,7 @@ static int emmc_do_data_command(struct emmc *self, int is_write,
                                 uint32_t block_no);
 static size_t emmc_do_read(struct emmc *self, uint8_t * buf,
                            size_t buf_size, uint32_t block_no);
-static size_t emmc_do_write(struct emmc *self, uint8_t * buf,
+static size_t emmc_do_write(struct emmc *self, const uint8_t * buf,
                             size_t buf_size, uint32_t block_no);
 
 static int emmc_card_init(struct emmc *self);
@@ -379,7 +379,7 @@ emmc_read(struct emmc *self, void *buf, size_t cnt)
 }
 
 size_t
-emmc_write(struct emmc *self, void *buf, size_t cnt)
+emmc_write(struct emmc *self, const void *buf, size_t cnt)
 {
     if (self->ull_offset % SD_BLOCK_SIZE != 0) {
         return -1;
@@ -417,7 +417,7 @@ emmc_issue_command_int(struct emmc *self, uint32_t reg, uint32_t arg,
     struct mmc_command cmd;
     memset(&cmd, 0, sizeof(cmd));
     cmd.opcode = reg >> 24;
-    if (&cmd == 0xffffffff || cmd.opcode > 255) {
+    if ((uint64_t)&cmd == 0xffffffff || cmd.opcode > 255) {
         error("cmd: %p, opcdde: %d", cmd, cmd.opcode);
     }
     cmd.arg = arg;
@@ -662,7 +662,7 @@ emmc_do_read(struct emmc *self, uint8_t * buf, size_t buf_size,
 }
 
 static size_t
-emmc_do_write(struct emmc *self, uint8_t * buf, size_t buf_size,
+emmc_do_write(struct emmc *self, const uint8_t * buf, size_t buf_size,
               uint32_t block_no)
 {
     // Check the status of the card
@@ -671,7 +671,7 @@ emmc_do_write(struct emmc *self, uint8_t * buf, size_t buf_size,
     }
     trace("writing to block %u", block_no);
 
-    if (emmc_do_data_command(self, 1, buf, buf_size, block_no) < 0) {
+    if (emmc_do_data_command(self, 1, (uint8_t *)buf, buf_size, block_no) < 0) {
         return -1;
     }
 

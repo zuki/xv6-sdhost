@@ -199,7 +199,7 @@ int dns_resolve(const char *host, ip_addr_t *ipaddr)
     }
 
     // 10. レスポンスをダンプ出力
-    dns_dump((const char *)resbuf, DNS_MAX_MESSAGE_SIZE, name_len);
+    dns_dump((const uint8_t *)resbuf, DNS_MAX_MESSAGE_SIZE, name_len);
 
     // 11. レスポンスをパースする
     // 11.1 リクエスト部分（dns_hdr_t, name, dns_query_t）を読み飛ばす

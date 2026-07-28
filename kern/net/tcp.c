@@ -117,6 +117,7 @@ struct tcp_queue_entry {
 static mutex_t mutex; // = MUTEX_INITIALIZER;
 static struct tcp_pcb pcbs[TCP_PCB_SIZE];
 
+#ifdef LOG_TRACE
 static char *tcp_flg_ntoa(uint8_t flg)
 {
     static char str[9];
@@ -130,6 +131,7 @@ static char *tcp_flg_ntoa(uint8_t flg)
         TCP_FLG_ISSET(flg, TCP_FLG_FIN) ? 'F' : '-');
     return str;
 }
+#endif
 
 static void tcp_dump(const uint8_t *data, size_t len)
 {
@@ -180,8 +182,6 @@ static void tcp_pcb_release(struct tcp_pcb *pcb)
 {
     struct queue_entry *entry;
     struct tcp_pcb *est;
-    char ep1[IP_ENDPOINT_STR_LEN];
-    char ep2[IP_ENDPOINT_STR_LEN];
 
     if (sched_ctx_destroy(&pcb->ctx) == -1) {
         sched_wakeup(&pcb->ctx);
@@ -193,9 +193,13 @@ static void tcp_pcb_release(struct tcp_pcb *pcb)
     while ((est = queue_pop(&pcb->backlog)) != NULL) {
         tcp_pcb_release(est);
     }
-    trace("released, local=%s, foreign=%s",
+#if 0
+    char ep1[IP_ENDPOINT_STR_LEN];
+    char ep2[IP_ENDPOINT_STR_LEN];
+    debug("released, local=%s, foreign=%s",
         ip_endpoint_ntop(&pcb->local, ep1, sizeof(ep1)),
         ip_endpoint_ntop(&pcb->foreign, ep2, sizeof(ep2)));
+#endif
     memset(pcb, 0, sizeof(*pcb)); /* pcb->state is set to TCP_PCB_STATE_FREE (0) */
 }
 
@@ -249,8 +253,6 @@ static ssize_t tcp_output_segment(uint32_t seq, uint32_t ack, uint8_t flg, uint1
     struct pseudo_hdr pseudo;
     uint16_t psum;
     uint16_t total;
-    char ep1[IP_ENDPOINT_STR_LEN];
-    char ep2[IP_ENDPOINT_STR_LEN];
 
     buf = memory_alloc(IP_PAYLOAD_SIZE_MAX);
     if (!buf) {
@@ -276,10 +278,14 @@ static ssize_t tcp_output_segment(uint32_t seq, uint32_t ack, uint8_t flg, uint1
     pseudo.len = hton16(total);
     psum = ~cksum16((uint16_t *)&pseudo, sizeof(pseudo), 0);
     hdr->sum = cksum16((uint16_t *)hdr, total, psum);
-    trace("%s => %s, len=%u (payload=%u)",
+#if 0
+    char ep1[IP_ENDPOINT_STR_LEN];
+    char ep2[IP_ENDPOINT_STR_LEN];
+    debug("%s => %s, len=%u (payload=%u)",
         ip_endpoint_ntop(local, ep1, sizeof(ep1)),
         ip_endpoint_ntop(foreign, ep2, sizeof(ep2)),
         total, len);
+#endif
     tcp_dump((uint8_t *)hdr, total);
     if (ip_output(IP_PROTOCOL_TCP, (uint8_t *)hdr, total, local->addr, foreign->addr) == -1) {
         memory_free(buf);
@@ -799,9 +805,11 @@ int tcp_init(void)
 int tcp_open_rfc793(struct ip_endpoint *local, struct ip_endpoint *foreign, int active)
 {
     struct tcp_pcb *pcb;
+    int state, id;
+#if 0
     char ep1[IP_ENDPOINT_STR_LEN];
     char ep2[IP_ENDPOINT_STR_LEN];
-    int state, id;
+#endif
 
     mutex_lock(&mutex);
     pcb = tcp_pcb_alloc();
@@ -811,8 +819,10 @@ int tcp_open_rfc793(struct ip_endpoint *local, struct ip_endpoint *foreign, int 
         return -1;
     }
     if (active) {
-        trace("active open: local=%s, foreign=%s, connecting...",
+#if 0
+        debug("active open: local=%s, foreign=%s, connecting...",
             ip_endpoint_ntop(local, ep1, sizeof(ep1)), ip_endpoint_ntop(foreign, ep2, sizeof(ep2)));
+#endif
         pcb->local = *local;
         pcb->foreign = *foreign;
         pcb->rcv.wnd = sizeof(pcb->buf);
@@ -828,7 +838,9 @@ int tcp_open_rfc793(struct ip_endpoint *local, struct ip_endpoint *foreign, int 
         pcb->snd.nxt = pcb->iss + 1;
         pcb->state = TCP_PCB_STATE_SYN_SENT;
     } else {
-        trace("passive open: local=%s, waiting for connection...", ip_endpoint_ntop(local, ep1, sizeof(ep1)));
+#if 0
+        debug("passive open: local=%s, waiting for connection...", ip_endpoint_ntop(local, ep1, sizeof(ep1)));
+#endif
         pcb->local = *local;
         if (foreign) {
             pcb->foreign = *foreign;
@@ -858,8 +870,10 @@ AGAIN:
         return -1;
     }
     id = tcp_pcb_id(pcb);
-    trace("connection established: local=%s, foreign=%s",
+#if 0
+    debug("connection established: local=%s, foreign=%s",
         ip_endpoint_ntop(&pcb->local, ep1, sizeof(ep1)), ip_endpoint_ntop(&pcb->foreign, ep2, sizeof(ep2)));
+#endif
     mutex_unlock(&mutex);
     return id;
 }
@@ -931,7 +945,6 @@ int tcp_connect(int id, struct ip_endpoint *foreign)
     struct tcp_pcb *pcb;
     struct ip_endpoint local;
     struct ip_iface *iface;
-    char addr[IP_ADDR_STR_LEN];
     int p;
     int state;
 
@@ -956,7 +969,10 @@ int tcp_connect(int id, struct ip_endpoint *foreign)
             mutex_unlock(&mutex);
             return -1;
         }
-        trace("select source address: %s", ip_addr_ntop(iface->unicast, addr, sizeof(addr)));
+#if 0
+        char addr[IP_ADDR_STR_LEN];
+        debug("select source address: %s", ip_addr_ntop(iface->unicast, addr, sizeof(addr)));
+#endif
         local.addr = iface->unicast;
     }
     if (!local.port) {

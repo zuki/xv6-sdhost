@@ -159,7 +159,7 @@ uint8_t *bcm4343_get_macaddr(struct bcm4343 *self)
 // バッファの内容を送信する
 long bcm4343_send_frame(struct net_device *dev, const uint8_t *buff, uint64_t len)
 {
-    struct bcm4343 *self = (struct bcm4343 *)dev;
+    //struct bcm4343 *self = (struct bcm4343 *)dev;
 
     //hexdump (buff, len, "wlantx");
 
@@ -268,7 +268,7 @@ boolean bcm4343_control(struct bcm4343 *self, const char *format, ...)
     if (waserror ()) {
         return false;
     }
-    trace("command: '%s'", command);
+    debug("command: '%s'", command);
     assert(ether_device.ctl != 0);
     // etherbcmctl()を実行
     (*ether_device.ctl)(&ether_device, (const char *)command, 0);

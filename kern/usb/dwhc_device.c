@@ -1027,9 +1027,9 @@ void dwhc_channel_intr_hdl(dwhc_device_t *self, unsigned channel)
     }
 
     unsigned status;
-    uint32_t character;
 
 #ifdef USE_NAK_USB_FIX
+    uint32_t character;
     character = get32(DWHCI_HOST_CHAN_CHARACTER(channel));
 #endif
 

@@ -1124,8 +1124,8 @@ static int upload(Ctlr *ctl, char *file, int isconfig)
     if (FWDEBUG) print("ok\n");
     return n;
 }
-#endif
 
+#if 0
 /* ファームウェアをアップロードする */
 static int loadfirm(Ctlr *ctl)
 {
@@ -1190,7 +1190,6 @@ static int loadfirm(Ctlr *ctl)
 }
 
 /* configをアップロードする */
-#if 0
 static int loadconfig(Ctlr *ctl)
 {
     uint8_t *buf = brcmfmac43455_sdio_txt;
@@ -1210,14 +1209,12 @@ static int loadconfig(Ctlr *ctl)
     if (FWDEBUG) print("ok\n");
     return n;
 }
-#endif
 
 /*
  * 規制ファイル (.clm) をファームウェアにアップロードする.
  * パケットフォーマットは次の通り
  *    [2]flag [2]type [4]len [4]crc [len]data
  */
-#if 0
 static void reguload2(Ctlr *ctl)
 {
     uint8_t *buf = brcmfmac43455_sdio_clm_blob;

@@ -615,7 +615,7 @@ int vfs_readlink(struct vnode *cwd, const char *path, char *buf, size_t bufsize,
     file = get_vnode(thisproc()->fd_table, vnode);
     if (file) {
         error = file->ops->read(file, buf, bufsize);
-    } else if (file = get_file(vnode, O_RDONLY)) {
+    } else if ((file = get_file(vnode, O_RDONLY))) {
         error = file->ops->read(file, buf, bufsize);
         //if (error > 0 && error < bufsize)
         //    buf[error] = 0;

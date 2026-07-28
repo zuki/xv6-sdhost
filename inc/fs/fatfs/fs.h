@@ -19,9 +19,6 @@ struct fat_inode {
     DIR *               fatdir;
 };
 
-#define ITOV(ip)    ((struct vnode *)ip)
-#define VTOI(vp)    ((struct fat_inode *)vp->data)
-
 long fat_open(char *path, int flags, mode_t mode);
 long fat_unlink(char *path);
 long fat_mkdir(char *path);

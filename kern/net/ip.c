@@ -333,7 +333,6 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev)
     uint8_t v;
     uint16_t hlen, total, offset;
     struct ip_iface *iface;
-    char addr[IP_ADDR_STR_LEN];
     struct ip_protocol *proto;
 
     if (len < IP_HDR_SIZE_MIN) {
@@ -376,8 +375,12 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev)
             return;
         }
     }
-    trace("dev=%s, iface=%s, protocol=%u, total=%u",
+
+#if 0
+    char addr[IP_ADDR_STR_LEN];
+    debug("dev=%s, iface=%s, protocol=%u, total=%u",
         dev->name, ip_addr_ntop(iface->unicast, addr, sizeof(addr)), hdr->protocol, total);
+#endif
     ip_dump(data, total);
     for (proto = protocols; proto; proto = proto->next) {
         if (proto->type == hdr->protocol) {
@@ -393,7 +396,6 @@ static int ip_output_device(struct ip_iface *iface, const uint8_t *data, size_t 
 {
     uint8_t hwaddr[NET_DEVICE_ADDR_LEN] = {};
     int ret;
-    char addr2[ETHER_ADDR_STR_LEN];
     static int try = 0;
 
     if (NET_IFACE(iface)->dev->flags & IFF_NOARP) {
@@ -412,7 +414,10 @@ static int ip_output_device(struct ip_iface *iface, const uint8_t *data, size_t 
         }
     }
 ok:
-    trace("hwaddr: %s", ether_addr_ntop(hwaddr, addr2, sizeof(addr2)));
+#if 0
+    char addr2[ETHER_ADDR_STR_LEN];
+    debug("hwaddr: %s", ether_addr_ntop(hwaddr, addr2, sizeof(addr2)));
+#endif
     debugdump(data, len, "IP output data");
     return net_device_output(NET_IFACE(iface)->dev, NET_PROTOCOL_TYPE_IP, data, len, hwaddr);
 }
@@ -424,7 +429,6 @@ static ssize_t ip_output_core(struct ip_iface *iface, uint8_t protocol,
     uint8_t *buf;
     struct ip_hdr *hdr;
     uint16_t hlen, total;
-    char addr[IP_ADDR_STR_LEN];
     ssize_t ret;
 
     buf = memory_alloc(IP_TOTAL_SIZE_MAX);
@@ -446,8 +450,11 @@ static ssize_t ip_output_core(struct ip_iface *iface, uint8_t protocol,
     hdr->dst = dst;
     hdr->sum = cksum16((uint16_t *)hdr, hlen, 0); /* don't convert byteoder */
     memcpy(hdr+1, data, len);
-    trace("dev=%s, dst=%s, protocol=%u, len=%u",
+#if 0
+    char addr[IP_ADDR_STR_LEN];
+    debug("dev=%s, dst=%s, protocol=%u, len=%u",
         NET_IFACE(iface)->dev->name, ip_addr_ntop(dst, addr, sizeof(addr)), protocol, total);
+#endif
     ip_dump(buf, total);
     ret = ip_output_device(iface, buf, total, nexthop);
     memory_free(buf);

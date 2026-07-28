@@ -25,6 +25,7 @@ struct icmp_echo {
     uint16_t seq;
 };
 
+#ifdef LOG_TRACE
 static char *icmp_type_ntoa(uint8_t type) {
     switch (type) {
     case ICMP_TYPE_ECHOREPLY:
@@ -52,6 +53,7 @@ static char *icmp_type_ntoa(uint8_t type) {
     }
     return "Unknown";
 }
+#endif
 
 static void icmp_dump(const uint8_t *data, size_t len)
 {
@@ -85,8 +87,6 @@ static void icmp_dump(const uint8_t *data, size_t len)
 void icmp_input(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t dst, struct ip_iface *iface)
 {
     struct icmp_hdr *hdr;
-    char addr1[IP_ADDR_STR_LEN];
-    char addr2[IP_ADDR_STR_LEN];
 
     if (len < sizeof(*hdr)) {
         error("too short");
@@ -97,7 +97,11 @@ void icmp_input(const uint8_t *data, size_t len, ip_addr_t src, ip_addr_t dst, s
         error("checksum error, sum=0x%04x, verify=0x%04x", ntoh16(hdr->sum), ntoh16(cksum16((uint16_t *)data, len, -hdr->sum)));
         return;
     }
-    trace("%s => %s, len=%u", ip_addr_ntop(src, addr1, sizeof(addr1)), ip_addr_ntop(dst, addr2, sizeof(addr2)), len);
+#if 0
+    char addr1[IP_ADDR_STR_LEN];
+    char addr2[IP_ADDR_STR_LEN];
+    debug("%s => %s, len=%u", ip_addr_ntop(src, addr1, sizeof(addr1)), ip_addr_ntop(dst, addr2, sizeof(addr2)), len);
+#endif
     icmp_dump(data, len);
     switch (hdr->type) {
     case ICMP_TYPE_ECHO:
@@ -115,8 +119,6 @@ int icmp_output(uint8_t type, uint8_t code, uint32_t values, const uint8_t *data
     uint8_t *buf;
     struct icmp_hdr *hdr;
     size_t msg_len;
-    char addr1[IP_ADDR_STR_LEN];
-    char addr2[IP_ADDR_STR_LEN];
     int ret;
 
     buf = memory_alloc(ICMP_BUFSIZ);
@@ -132,7 +134,11 @@ int icmp_output(uint8_t type, uint8_t code, uint32_t values, const uint8_t *data
     memcpy(hdr+1, data, len);
     msg_len = sizeof(*hdr) + len;
     hdr->sum = cksum16((uint16_t *)hdr, msg_len, 0);
-    trace("%s => %s, len=%u", ip_addr_ntop(src, addr1, sizeof(addr1)), ip_addr_ntop(dst, addr2, sizeof(addr2)), msg_len);
+#if 0
+    char addr1[IP_ADDR_STR_LEN];
+    char addr2[IP_ADDR_STR_LEN];
+    debug("%s => %s, len=%u", ip_addr_ntop(src, addr1, sizeof(addr1)), ip_addr_ntop(dst, addr2, sizeof(addr2)), msg_len);
+#endif
     icmp_dump(buf, msg_len);
     ret = ip_output(IP_PROTOCOL_ICMP, buf, msg_len, src, dst);
     memory_free(buf);

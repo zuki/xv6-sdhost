@@ -13,6 +13,8 @@
 #include <cachepage.h>
 #include <linux/errno.h>
 
+#define VTOI(vp)    ((struct v6_inode *)(vp)->data)
+
 struct vfile_ops v6_file_ops = {
     v6_open,
     v6_close,
@@ -74,7 +76,7 @@ int v6_write(struct vfile *file, const char *buffer, size_t size)
 
         v6_ilock(ip);
         if ((error = v6_writei(ip, buffer + i, file->offset, n1)) > 0) {
-            update_cachepage(file->vnode->rdev, file->vnode->ino, file->offset, buffer + i, error);
+            update_cachepage(file->vnode->rdev, file->vnode->ino, file->offset, (char *)buffer + i, error);
             file->offset += error;
         }
         v6_iunlock(ip);

@@ -34,6 +34,9 @@ struct mount_ops fat_mount_ops = {
     fat_sync,
 };
 
+#define ITOV(ip)    ((struct vnode *)ip)
+#define VTOI(vp)    ((struct fat_inode *)vp->data)
+
 static int fat_close(struct vfile *file);
 static int fat_read(struct vfile *file, char *buffer, size_t size);
 static off_t fat_seek(struct vfile *file, off_t offset, int whence);
@@ -413,7 +416,6 @@ static int fat_getdents(struct vfile *file, void *buffer, size_t size)
 {
     FILINFO info;
     FRESULT ret;
-    char *fn;
 
     int namelen, reclen, tlen = 0;
     off_t offset = 0;
@@ -439,7 +441,7 @@ static int fat_getdents(struct vfile *file, void *buffer, size_t size)
             continue;               // ドットエントリは無視
 
         namelen = MIN(strlen(info.fname), DIRSIZE);
-        reclen = (int)(&((struct dirent64 *)0)->d_name);
+        reclen = (size_t)(&((struct dirent64 *)0)->d_name);
         reclen += namelen;
         reclen = (reclen + 0x7) & ~0x7;
         memset(&de64, 0, reclen+1); // null終端で+1
@@ -555,7 +557,6 @@ long fat_open(char *path, int flags, mode_t mode)
     struct fat_inode *ip;
     struct proc *p = thisproc();
     BYTE attr = 0;
-    FRESULT ret;
 
     if (!redirect_fatpath(path, fatpath, &fat_rela, &fat_abs))
         return -EACCES;

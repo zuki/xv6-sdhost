@@ -245,11 +245,10 @@ forkret(void)
 {
     #include <fs/v6/file.h>
 
-    extern device_t root_dev;
+    //extern device_t root_dev;
     extern struct mount_ops procfs_mount_ops;
     extern struct mount_ops fat_mount_ops;
     int err;
-    struct proc *p;
 
     static int first = 1;
     if (first && thisproc() != thiscpu()->idle) {
@@ -278,7 +277,7 @@ forkret(void)
         net_run();
         wpasupplicant_init("4:/wpa_supplicant.conf");
 #if NET_DRV != NET_INDEX_BCM4343
-        p = kthread_create("ether_reader", ether_reader, NULL, 1);
+        struct proc *p = kthread_create("ether_reader", ether_reader, NULL, 1);
         trace("kthread ether created: pid=%d", p->pid);
         workqueue_init();
         p = kthread_create("recycle", recycle_proc, NULL, 1);
@@ -704,6 +703,7 @@ static void wq_worker(void *arg)
     kthread_exit();
 }
 
+#if NET_DRV != NET_INDEX_BCM4343
 static void recycle_proc(void *arg)
 {
     struct proc *p;
@@ -727,6 +727,7 @@ static void recycle_proc(void *arg)
         release(&ptable.lock);
     }
 }
+#endif
 
 static void kthread_stub(void)
 {
@@ -1200,12 +1201,11 @@ long sigreturn(void)
 long ppoll(struct pollfd *fds, nfds_t nfds, struct timespec *timeout_ts, sigset_t *sigmask)
 {
     struct proc *p = thisproc();
-    sigset_t old_sigmask;
-    long timeout;
 
     // TODO: timeout処理
 #if 0
-    timeout = (timeout_ts == NULL) ? -1 :
+    sigset_t old_sigmask;
+    long timeout = (timeout_ts == NULL) ? -1 :
         timeout_ts->tv_sec * 1000000 + (timeout_ts->tv_nsec + 999) / 1000;
 
     if (sigmask)
@@ -1237,7 +1237,7 @@ long ppoll(struct pollfd *fds, nfds_t nfds, struct timespec *timeout_ts, sigset_
 // sys_setpgid()の処理関数
 long setpgid(pid_t pid, pid_t pgid)
 {
-    struct proc *current = thisproc(), *p, *pp;
+    struct proc *current = thisproc(), *p = 0, *pp;
     long error = -EINVAL;
 
     if (!pid) pid = current->pid;

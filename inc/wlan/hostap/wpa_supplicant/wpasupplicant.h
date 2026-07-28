@@ -18,12 +18,11 @@
 #include <net/platform.h>
 
 struct wpasupplicant {
-    char *config_file;
+    const char *config_file;
     struct sched_ctx ctx;
 };
 
 void wpasupplicant_init(const char *config_file);
 void wpasupplicant_deinit(struct wpasupplicant *self);
-static void proc_entry(void *param);
 
 #endif

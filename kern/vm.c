@@ -114,13 +114,15 @@ uvm_copy(uint64_t * pgdir)
                                         memmove(np, P2V(pa), PGSIZE);
                                         inc_kmem_ref(P2V(pa));
                                     }
+#if 0
             if (va == 0xffdfffff0000) {
-                trace("pa: page->ref: %d", get_kmem_ref(P2V(pa)));
-                int share = vma && (vma->flags & MAP_SHARED);
-                trace("va: 0x%llx, P2V(pa): 0x%llx, np: 0x%llx, share: %s", va, P2V(pa), np, share ? "yes" : "no");
-                trace("pa[49-50]: 0x%02x%02x", ((char *)(P2V(pa)))[49], ((char *)(P2V(pa)))[50]);
-                trace("np[49-50]: 0x%02x%02x", np[49], np[50]);
+                debug("pa: page->ref: %d", get_kmem_ref(P2V(pa)));
+                int share = (vma && (vma->flags & MAP_SHARED));
+                debug("va: 0x%llx, P2V(pa): 0x%llx, np: 0x%llx, share: %s", va, P2V(pa), np, share ? "yes" : "no");
+                debug("pa[49-50]: 0x%02x%02x", ((char *)(P2V(pa)))[49], ((char *)(P2V(pa)))[50]);
+                debug("np[49-50]: 0x%02x%02x", np[49], np[50]);
             }
+#endif
                                     //disb();
                                     // Flush to memory to sync with icache.
                                     //dccivac(P2V(pa), PGSIZE);

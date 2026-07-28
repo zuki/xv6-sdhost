@@ -7,7 +7,7 @@
 #include <fs/fatfs/ff.h>
 #include <proc.h>
 
-static char *firmpath = 0;
+static const char *firmpath = 0;
 
 // ファームウェアディレクトリのファイル名 nameのファームウェアファイルを
 // チャンネルとして開く

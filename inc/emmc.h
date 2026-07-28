@@ -46,7 +46,7 @@ void emmc_clear_interrupt();
 void emmc_intr(struct emmc *self);
 int emmc_init(struct emmc *self, void (*sleep_fn)(void *), void *sleep_arg);
 size_t emmc_read(struct emmc *self, void *buf, size_t cnt);
-size_t emmc_write(struct emmc *self, void *buf, size_t cnt);
+size_t emmc_write(struct emmc *self, const void *buf, size_t cnt);
 uint64_t emmc_seek(struct emmc *self, uint64_t off);
 
 #endif

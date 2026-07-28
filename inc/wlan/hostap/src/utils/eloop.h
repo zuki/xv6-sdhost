@@ -17,6 +17,8 @@
 #ifndef INC_WLAN_UTILS_ELOOP_H
 #define INC_WLAN_UTILS_ELOOP_H
 
+#include <utils/os.h>
+
 /**
  * ELOOP_ALL_CTX - eloop_cancel_timeout() magic number to match all timeouts
  */

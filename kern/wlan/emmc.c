@@ -334,7 +334,7 @@ static int emmccmd(uint32_t cmd, uint32_t arg, uint32_t *resp)
     r = (uint32_t*)EMMCREGS;
     assert(cmd < nelem(cmdinfo) && cmdinfo[cmd] != 0);
     // CMDTM(0xc)の値をセット
-    c = (cmd << Indexshift) | cmdinfo[cmd];
+    c = cmdinfo[cmd] | (cmd << Indexshift);
     /*
      * CMD6 may be Setbuswidth or Switchfunc depending on Appcmd prefix
      *  CMD6: SWITCH_FUNC, ACMD6: SET_BUS_WIDTH

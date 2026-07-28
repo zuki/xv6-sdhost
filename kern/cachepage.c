@@ -48,11 +48,12 @@ static struct cachepage *find_cachepage(device_t dev, ino_t ino, off_t offset)
     if (!cachepages.lock.locked)
         panic("not locked");
 
+    struct cachepage *page;
     for (int i = 0; i < NPAGECACHE; i++) {
-        struct cachepage page = cachepages.pages[i];
-        if (page.dev == dev && page.ino == ino && page.offset == offset) {
-            trace("found: pages[%d].page: 0x%llx", i, &page);
-            return &page;
+        page = &cachepages.pages[i];
+        if (page->dev == dev && page->ino == ino && page->offset == offset) {
+            trace("found: pages[%d].page: 0x%llx", i, page);
+            return page;
         }
     }
     trace("not found");

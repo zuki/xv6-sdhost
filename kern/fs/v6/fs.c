@@ -208,6 +208,8 @@ void v6_set_super(void)
     get_rootfs()->super = &v6_sb;
 }
 
+extern struct vnode_ops v6_vnode_ops;
+
 /* onディスクdinodeを割り当てる.
  *
  * typeフィールでの値を設定することで割り当て済みとマークする。
@@ -594,7 +596,7 @@ size_t v6_readi(struct v6_inode *ip, char *dst, off_t off, size_t n)
  * v6_inodeにデータを書き込む.
  * 呼び出し元はip->lock を保持する必要がある。
  */
-size_t v6_writei(struct v6_inode *ip, char *src, off_t off, size_t n)
+size_t v6_writei(struct v6_inode *ip, const char *src, off_t off, size_t n)
 {
     size_t tot, m;
     struct buf *bp;
@@ -631,7 +633,7 @@ size_t v6_writei(struct v6_inode *ip, char *src, off_t off, size_t n)
  * 見つかったらそのv6_inodeを返す。見つからなかった
  * 場合はNULLを返す。
  */
-struct v6_inode *v6_dirlookup(struct v6_inode *dp, char *name)
+struct v6_inode *v6_dirlookup(struct v6_inode *dp, const char *name)
 {
     struct dirent de;
     struct vnode *vp = ITOV(dp);
@@ -652,7 +654,7 @@ struct v6_inode *v6_dirlookup(struct v6_inode *dp, char *name)
 }
 
 /* 新規ディレクトリエントリ (name, ino, type) をディレクトリdpに書き込む. */
-int v6_dirlink(struct v6_inode *dp, char *name, uint32_t ino, uint16_t type)
+int v6_dirlink(struct v6_inode *dp, const char *name, uint32_t ino, uint16_t type)
 {
     off_t off;
     struct dirent de;

@@ -299,7 +299,7 @@ long sys_fstatat(void)
     trace("(1) path: %s, vnode: %d", path, vnode->ino);
 
     if (S_ISLNK(vnode->mode) && !(flags & AT_SYMLINK_NOFOLLOW)) {
-        char *name = path_last_component(path);
+        const char *name = path_last_component((const char *)path);
         if ((error = vfs_readlink(cwd, name, linkpath, 512, thisproc()->uid)) < 0) {
             error("readlink: vnode: %d, name: %s", vnode->ino, name);
             vfs_release_vnode(cwd);
@@ -368,7 +368,7 @@ long sys_linkat(void)
 
     if (S_ISLNK(vnode->mode) && flags & AT_SYMLINK_FOLLOW) {
         char linkpath[512];
-        char *name = path_last_component(oldpath);
+        const char *name = path_last_component((const char *)oldpath);
         vfs_release_vnode(oldv);
         if ((error = vfs_readlink(vnode, name, linkpath, 512, uid)) < 0) {
             vfs_release_vnode(vnode);

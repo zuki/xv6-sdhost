@@ -87,7 +87,7 @@ static void padzero(uint64_t bss)
 static void *set_brk(uint64_t start, uint64_t end)
 {
     uint64_t old_start = start;
-    uint64_t old_end = end;
+    //uint64_t old_end = end;
 
     start = ELF_PAGEALIGN(start);
     end = ELF_PAGEALIGN(end);
@@ -112,7 +112,6 @@ static uint64_t load_interpreter(char *path, uint64_t *base, struct proc *p)
     uint64_t load_addr = 0;                 // interpreterロードアドレス
     uint64_t bss_start = 0, bss_end = 0;    // bssの開始/終了アドレス
     void *mapped;
-    size_t size;
     boolean set = false;
     long err = -ENOEXEC;
     int i;
@@ -249,10 +248,10 @@ bad:
 int execve(const char *path, char *const argv[], char *const envp[])
 {
     struct vfile *file;
-    char *s, *ip;
+    char *s, *ip = 0;
     int has_ip = 0;
     uint64_t ip_entry;
-    uint64_t ip_base;
+    uint64_t ip_base = 0;
     long err = -EACCES;
 
     trace("path='%s', argv=%p, envp=%p", path, argv, envp);
@@ -260,7 +259,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
     // 呼び出し元のプロセスをcurprocとする
     struct proc *curproc = thisproc();
 
-    if ((err = get_file(path, curproc, &file)) < 0) {
+    if ((err = get_file((char *)path, curproc, &file)) < 0) {
         trace("get_file: %s, err: %d", path, err);
         return err;
     }

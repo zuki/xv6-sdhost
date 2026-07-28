@@ -174,7 +174,7 @@ static struct vma *is_usable(void *addr, size_t length)
  */
 static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t perm, struct vfile *f, off_t offset)
 {
-    long ret;
+    long ret = 0;
     size_t mapsize, size = length;
     struct cachepage *cpage;
     uint64_t cur;
@@ -200,12 +200,14 @@ static long map_file_pages(struct proc *p, void *addr, uint64_t length, uint64_t
         trace("cur: %lld, f: %d, offset+cur: 0x%llx", cur, f->vnode->ino, offset+cur);
         if ((cpage = get_cachepage(f, offset + cur)) == NULL) {
             error("get_cachepage failed");
+            ret = -1;
             goto err;
         }
         trace("cpage->page: 0x%llx, V2P(cpage->page): 0x%llx, ino: %lld, dev: 0x%x, offset: 0x%x, mapsize: 0x%x", cpage->page, V2P(cpage->page), cpage->ino, cpage->dev, cpage->offset, mapsize);
         trace("cpage->page[49-50]: 0x%02x%02x", cpage->page[49], cpage->page[50]);
         if ((ret = uvm_map(p->pgdir, addr + cur, mapsize, V2P(cpage->page))) < 0) {
             error("uvm_map failed: addr: %p, len: 0x%x, mem: %p", addr + cur, mapsize, V2P(cpage->page));
+            ret = -1;
             goto err;
         }
         releasesleep(&cpage->lock);
@@ -387,6 +389,7 @@ struct vma *find_vma(struct proc *p, void *start)
 }
 
 /* startを含むvmaを返し、そのprevをセットする */
+#if 0
 static struct vma *find_vma_prev(struct proc *p, void *start, struct vma **pprev)
 {
     struct vma *vma = p->vmas;
@@ -402,6 +405,7 @@ static struct vma *find_vma_prev(struct proc *p, void *start, struct vma **pprev
     }
     return NULL;
 }
+#endif
 
 /* addr + length はp->vmasに含まれるか */
 boolean is_vma(struct proc *p, void *addr, uint64_t length)
@@ -736,7 +740,7 @@ load_pages:
     trace("return addr: %p, length: 0x%llx, prot: 0x%x, flags: 0x%x, f: %d, offset: 0x%x",
         vma->addr, vma->length, vma->prot, vma->flags, vma->f ? vma->f->vnode->ino : 0, vma->offset);
     //print_mmap_list(p, "mmap");
-    if (vma->addr == 0xffdfffff0000) {
+    if ((uint64_t)vma->addr == 0xffdfffff0000) {
         trace("addr[49-50]: 0x%02x%02x", ((char *)vma->addr)[49],((char *)vma->addr)[50]);
     }
 
