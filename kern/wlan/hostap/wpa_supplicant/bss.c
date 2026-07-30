@@ -812,7 +812,7 @@ wpa_bss_update(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 void wpa_bss_update_start(struct wpa_supplicant *wpa_s)
 {
 	wpa_s->bss_update_idx++;
-	wpa_dbg(wpa_s, MSG_DEBUG, "BSS: Start scan result update %u",
+	wpa_dbg(wpa_s, MSG_DEBUG, "BSS: Start scan result update %u\n",
 		wpa_s->bss_update_idx);
 	wpa_s->last_scan_res_used = 0;
 }

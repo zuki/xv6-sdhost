@@ -67,7 +67,7 @@ struct net_device {
         uint8_t broadcast[NET_DEVICE_ADDR_LEN];
     };
     struct net_device_ops *ops;
-    void *priv;
+    void *priv;                     // 各ドライバ固有の構造体、struct lan7800, struct bcm4343など
 };
 
 // これはxv6-net由来

@@ -42,7 +42,7 @@ static void wpa_supplicant_set_config_blob(void *ctx,
 		int ret = wpa_config_write(wpa_s->confname, wpa_s->conf);
 		if (ret) {
 			wpa_printf(MSG_DEBUG, "Failed to update config after "
-				   "blob set");
+				   "blob set\n");
 		}
 	}
 }
@@ -162,7 +162,7 @@ static int wpa_supplicant_eapol_send(void *ctx, int type, const uint8_t *buf,
 		 * EAPOL frames (mainly, EAPOL-Start) from EAPOL state
 		 * machines. */
 		wpa_printf(MSG_DEBUG, "WPA: drop TX EAPOL in non-IEEE 802.1X "
-			   "mode (type=%d len=%lu)", type,
+			   "mode (type=%d len=%lu)\n", type,
 			   (unsigned long) len);
 		return -1;
 	}
@@ -186,28 +186,28 @@ static int wpa_supplicant_eapol_send(void *ctx, int type, const uint8_t *buf,
 		if (!wpa_s->current_ssid ||
 		    wpa_s->current_ssid->eap_workaround) {
 			wpa_printf(MSG_DEBUG,
-				   "RSN: Timeout on waiting for the AP to initiate 4-way handshake for PMKSA caching or EAP authentication - try to force it to start EAP authentication");
+				   "RSN: Timeout on waiting for the AP to initiate 4-way handshake for PMKSA caching or EAP authentication - try to force it to start EAP authentication\n");
 		} else {
 			wpa_printf(MSG_DEBUG,
-				   "RSN: PMKSA caching - do not send EAPOL-Start");
+				   "RSN: PMKSA caching - do not send EAPOL-Start\n");
 			return -1;
 		}
 	}
 
 	if (is_zero_ether_addr(wpa_s->bssid)) {
 		wpa_printf(MSG_DEBUG, "BSSID not set when trying to send an "
-			   "EAPOL frame");
+			   "EAPOL frame\n");
 		if (wpa_drv_get_bssid(wpa_s, bssid) == 0 &&
 		    !is_zero_ether_addr(bssid)) {
 			dst = bssid;
 			wpa_printf(MSG_DEBUG, "Using current BSSID " MACSTR
-				   " from the driver as the EAPOL destination",
+				   " from the driver as the EAPOL destination\n",
 				   MAC2STR(dst));
 		} else {
 			dst = wpa_s->last_eapol_src;
 			wpa_printf(MSG_DEBUG, "Using the source address of the"
 				   " last received EAPOL frame " MACSTR " as "
-				   "the EAPOL destination",
+				   "the EAPOL destination\n",
 				   MAC2STR(dst));
 		}
 	} else {
@@ -220,7 +220,7 @@ static int wpa_supplicant_eapol_send(void *ctx, int type, const uint8_t *buf,
 	if (msg == NULL)
 		return -1;
 
-	wpa_printf(MSG_DEBUG, "TX EAPOL: dst=" MACSTR, MAC2STR(dst));
+	wpa_printf(MSG_DEBUG, "TX EAPOL: dst=" MACSTR "\n", MAC2STR(dst));
 	wpa_hexdump(MSG_MSGDUMP, "TX EAPOL", msg, msglen);
 	res = wpa_ether_send(wpa_s, dst, ETH_P_EAPOL, msg, msglen);
 	os_free(msg);
@@ -288,7 +288,7 @@ static void wpa_supplicant_eapol_cb(struct eapol_sm *eapol,
 	int res, pmk_len;
 	uint8_t pmk[PMK_LEN_MAX];
 
-	wpa_printf(MSG_DEBUG, "EAPOL authentication completed - result=%s",
+	wpa_printf(MSG_DEBUG, "EAPOL authentication completed - result=%s\n",
 		   result_str(result));
 
 	if (wpas_wps_eapol_cb(wpa_s) > 0)
@@ -306,7 +306,7 @@ static void wpa_supplicant_eapol_cb(struct eapol_sm *eapol,
 		 */
 		if (wpa_s->eapol_failed) {
 			wpa_printf(MSG_DEBUG,
-				   "EAPOL authentication failed again and AP did not disconnect us");
+				   "EAPOL authentication failed again and AP did not disconnect us\n");
 			timeout = 0;
 		}
 		wpa_s->eapol_failed = 1;
@@ -324,7 +324,7 @@ static void wpa_supplicant_eapol_cb(struct eapol_sm *eapol,
 		return;
 
 	wpa_printf(MSG_DEBUG, "Configure PMK for driver-based RSN 4-way "
-		   "handshake");
+		   "handshake\n");
 
 	if (wpa_key_mgmt_sha384(wpa_s->key_mgmt))
 		pmk_len = PMK_LEN_SUITE_B_192;
@@ -335,7 +335,7 @@ static void wpa_supplicant_eapol_cb(struct eapol_sm *eapol,
 #ifdef CONFIG_IEEE80211R
 		uint8_t buf[2 * PMK_LEN];
 		wpa_printf(MSG_DEBUG, "RSN: Use FT XXKey as PMK for "
-			   "driver-based 4-way hs and FT");
+			   "driver-based 4-way hs and FT\n");
 		res = eapol_sm_get_key(eapol, buf, 2 * PMK_LEN);
 		if (res == 0) {
 			os_memcpy(pmk, buf + PMK_LEN, PMK_LEN);
@@ -358,16 +358,16 @@ static void wpa_supplicant_eapol_cb(struct eapol_sm *eapol,
 
 	if (res) {
 		wpa_printf(MSG_DEBUG, "Failed to get PMK from EAPOL state "
-			   "machines");
+			   "machines\n");
 		return;
 	}
 
 	wpa_hexdump_key(MSG_DEBUG, "RSN: Configure PMK for driver-based 4-way "
-			"handshake", pmk, pmk_len);
+			"handshake\n", pmk, pmk_len);
 
 	if (wpa_drv_set_key(wpa_s, -1, 0, NULL, 0, 0, NULL, 0, pmk,
 			    pmk_len, KEY_FLAG_PMK)) {
-		wpa_printf(MSG_DEBUG, "Failed to set PMK to the driver");
+		wpa_printf(MSG_DEBUG, "Failed to set PMK to the driver\n");
 	}
 
 	wpa_supplicant_cancel_scan(wpa_s);
@@ -617,7 +617,7 @@ static int wpa_supplicant_add_pmkid(void *_wpa_s, void *network_ctx,
 			 * so that we won't be hitting those interop issues
 			 * with driver-based RSNE generation. */
 			wpa_printf(MSG_DEBUG,
-				   "FT: Do not add PMKID entry to the driver since FT-EAP PMKSA caching is not enabled in configuration");
+				   "FT: Do not add PMKID entry to the driver since FT-EAP PMKSA caching is not enabled in configuration\n");
 			return 0;
 		}
 	}
@@ -687,7 +687,7 @@ static int wpa_supplicant_send_ft_action(void *ctx, uint8_t action,
 	size_t data_len;
 
 	if (action != 1) {
-		wpa_printf(MSG_ERROR, "Unsupported send_ft_action action %d",
+		wpa_printf(MSG_ERROR, "Unsupported send_ft_action action %d\n",
 			   action);
 		return -1;
 	}
@@ -944,7 +944,7 @@ const char * wpa_supplicant_ctrl_req_to_string(enum wpa_ctrl_req_type field,
 
 	/* txt needs to be something */
 	if (*txt == NULL) {
-		wpa_printf(MSG_WARNING, "No message for request %d", field);
+		wpa_printf(MSG_WARNING, "No message for request %d\n", field);
 		ret = NULL;
 	}
 
@@ -981,7 +981,7 @@ static void wpa_supplicant_eap_param_needed(void *ctx,
 	field_name = wpa_supplicant_ctrl_req_to_string(field, default_txt,
 						       &txt);
 	if (field_name == NULL) {
-		wpa_printf(MSG_WARNING, "Unhandled EAP param %d needed",
+		wpa_printf(MSG_WARNING, "Unhandled EAP param %d needed\n",
 			   field);
 		return;
 	}
@@ -1006,10 +1006,10 @@ static void wpa_supplicant_eap_proxy_cb(void *ctx)
 						     wpa_s->imsi, &len);
 	if (wpa_s->mnc_len > 0) {
 		wpa_s->imsi[len] = '\0';
-		wpa_printf(MSG_DEBUG, "eap_proxy: IMSI %s (MNC length %d)",
+		wpa_printf(MSG_DEBUG, "eap_proxy: IMSI %s (MNC length %d)\n",
 			   wpa_s->imsi, wpa_s->mnc_len);
 	} else {
-		wpa_printf(MSG_DEBUG, "eap_proxy: IMSI not available");
+		wpa_printf(MSG_DEBUG, "eap_proxy: IMSI not available\n");
 	}
 }
 
@@ -1047,13 +1047,13 @@ wpa_supplicant_eap_proxy_notify_sim_status(void *ctx,
 {
 	struct wpa_supplicant *wpa_s = ctx;
 
-	wpa_printf(MSG_DEBUG, "eap_proxy: SIM card status %u", sim_state);
+	wpa_printf(MSG_DEBUG, "eap_proxy: SIM card status %u\n", sim_state);
 	switch (sim_state) {
 	case SIM_STATE_ERROR:
 		wpa_sm_sim_state_error_handler(wpa_s);
 		break;
 	default:
-		wpa_printf(MSG_DEBUG, "eap_proxy: SIM card status unknown");
+		wpa_printf(MSG_DEBUG, "eap_proxy: SIM card status unknown\n");
 		break;
 	}
 }
@@ -1067,12 +1067,12 @@ static void wpa_supplicant_port_cb(void *ctx, int authorized)
 #ifdef CONFIG_AP
 	if (wpa_s->ap_iface) {
 		wpa_printf(MSG_DEBUG, "AP mode active - skip EAPOL Supplicant "
-			   "port status: %s",
+			   "port status: %s\n",
 			   authorized ? "Authorized" : "Unauthorized");
 		return;
 	}
 #endif /* CONFIG_AP */
-	wpa_printf(MSG_DEBUG, "EAPOL: Supplicant port status: %s",
+	wpa_printf(MSG_DEBUG, "EAPOL: Supplicant port status: %s\n",
 		   authorized ? "Authorized" : "Unauthorized");
 	wpa_drv_set_supp_port(wpa_s, authorized);
 }
@@ -1151,7 +1151,7 @@ static void wpa_supplicant_set_anon_id(void *ctx, const uint8_t *id, size_t len)
 		res = wpa_config_write(wpa_s->confname, wpa_s->conf);
 		if (res) {
 			wpa_printf(MSG_DEBUG, "Failed to update config after "
-				   "anonymous_id update");
+				   "anonymous_id update\n");
 		}
 	}
 }
@@ -1175,7 +1175,7 @@ int wpa_supplicant_init_eapol(struct wpa_supplicant *wpa_s)
 	struct eapol_ctx *ctx;
 	ctx = os_zalloc(sizeof(*ctx));
 	if (ctx == NULL) {
-		wpa_printf(MSG_ERROR, "Failed to allocate EAPOL context.");
+		wpa_printf(MSG_ERROR, "Failed to allocate EAPOL context.\n");
 		return -1;
 	}
 
@@ -1224,11 +1224,11 @@ int wpa_supplicant_init_eapol(struct wpa_supplicant *wpa_s)
 	if (wpa_s->eapol == NULL) {
 		os_free(ctx);
 		wpa_printf(MSG_ERROR, "Failed to initialize EAPOL state "
-			   "machines.");
+			   "machines.\n");
 		return -1;
 	}
 #endif /* IEEE8021X_EAPOL */
-
+    wpa_printf(MSG_DEBUG, "wpa_supplicant_init_eapol ok\n");
 	return 0;
 }
 
@@ -1319,7 +1319,7 @@ void wpas_transition_disable(struct wpa_supplicant *wpa_s, uint8_t bitmap)
 	    (ssid->ieee80211w != MGMT_FRAME_PROTECTION_REQUIRED ||
 	     (ssid->group_cipher & WPA_CIPHER_TKIP))) {
 		wpa_printf(MSG_DEBUG,
-			   "WPA3-Personal transition mode disabled based on AP notification");
+			   "WPA3-Personal transition mode disabled based on AP notification\n");
 		disable_wpa_wpa2(ssid);
 		changed = 1;
 	}
@@ -1335,7 +1335,7 @@ void wpas_transition_disable(struct wpa_supplicant *wpa_s, uint8_t bitmap)
 	     ssid->ieee80211w != MGMT_FRAME_PROTECTION_REQUIRED ||
 	     (ssid->group_cipher & WPA_CIPHER_TKIP))) {
 		wpa_printf(MSG_DEBUG,
-			   "SAE-PK: SAE authentication without PK disabled based on AP notification");
+			   "SAE-PK: SAE authentication without PK disabled based on AP notification\n");
 		disable_wpa_wpa2(ssid);
 		ssid->sae_pk = SAE_PK_MODE_ONLY;
 		changed = 1;
@@ -1368,7 +1368,7 @@ void wpas_transition_disable(struct wpa_supplicant *wpa_s, uint8_t bitmap)
 #ifndef CONFIG_NO_CONFIG_WRITE
 	if (wpa_s->conf->update_config &&
 	    wpa_config_write(wpa_s->confname, wpa_s->conf))
-		wpa_printf(MSG_DEBUG, "Failed to update configuration");
+		wpa_printf(MSG_DEBUG, "Failed to update configuration\n");
 #endif /* CONFIG_NO_CONFIG_WRITE */
 }
 
@@ -1433,13 +1433,13 @@ int wpa_supplicant_init_wpa(struct wpa_supplicant *wpa_s)
 
 	wpa_s->ptksa = ptksa_cache_init();
 	if (!wpa_s->ptksa) {
-		wpa_printf(MSG_ERROR, "Failed to allocate PTKSA");
+		wpa_printf(MSG_ERROR, "Failed to allocate PTKSA\n");
 		return -1;
 	}
 
 	ctx = os_zalloc(sizeof(*ctx));
 	if (ctx == NULL) {
-		wpa_printf(MSG_ERROR, "Failed to allocate WPA context.");
+		wpa_printf(MSG_ERROR, "Failed to allocate WPA context.\n");
 
 		ptksa_cache_deinit(wpa_s->ptksa);
 		wpa_s->ptksa = NULL;
@@ -1497,7 +1497,7 @@ int wpa_supplicant_init_wpa(struct wpa_supplicant *wpa_s)
 	wpa_s->wpa = wpa_sm_init(ctx);
 	if (wpa_s->wpa == NULL) {
 		wpa_printf(MSG_ERROR,
-			   "Failed to initialize WPA state machine");
+			   "Failed to initialize WPA state machine\n");
 		os_free(ctx);
 		ptksa_cache_deinit(wpa_s->ptksa);
 		wpa_s->ptksa = NULL;

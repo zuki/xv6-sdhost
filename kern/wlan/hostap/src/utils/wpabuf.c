@@ -177,7 +177,7 @@ struct wpabuf * wpabuf_dup(const struct wpabuf *src)
 
 
 /**
- * wpabuf_free - Free a wpabuf
+ * wpabuf_free - wpabufを解放する
  * @buf: wpabuf buffer
  */
 void wpabuf_free(struct wpabuf *buf)

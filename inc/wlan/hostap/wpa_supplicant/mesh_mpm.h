@@ -11,7 +11,7 @@
 
 #include <types.h>
 
-extern struct sta_info;
+struct sta_info;
 
 /* notify MPM of new mesh peer to be inserted in MPM and driver */
 void wpa_mesh_new_mesh_peer(struct wpa_supplicant *wpa_s, const uint8_t *addr,

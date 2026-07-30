@@ -2190,18 +2190,17 @@ static void eap_peer_sm_tls_event(void *ctx, enum tls_event ev,
 
 
 /**
- * eap_peer_sm_init - Allocate and initialize EAP peer state machine
+ * eap_peer_sm_init - EAPピアステートマシンを割り当て、初期化する
  * @eapol_ctx: Context data to be used with eapol_cb calls
  * @eapol_cb: Pointer to EAPOL callback functions
  * @msg_ctx: Context data for wpa_msg() calls
  * @conf: EAP configuration
  * Returns: Pointer to the allocated EAP state machine or %NULL on failure
  *
- * This function allocates and initializes an EAP state machine. In addition,
- * this initializes TLS library for the new EAP state machine. eapol_cb pointer
- * will be in use until eap_peer_sm_deinit() is used to deinitialize this EAP
- * state machine. Consequently, the caller must make sure that this data
- * structure remains alive while the EAP state machine is active.
+ * この関数は、EAPステートマシンを割り当てて初期化する。さらに、新しいEAPステートマシン用に
+ * TLSライブラリを初期化する。eapol_cbポインタは、eap_peer_sm_deinit() を使用して
+ * このEAPステートマシンの初期化を解除するまで使用される。したがって、呼び出し元は
+ * EAPステートマシンがアクティブな間、このデータ構造体が存続していることを保証する必要がある。
  */
 struct eap_sm * eap_peer_sm_init(void *eapol_ctx,
 				 const struct eapol_callbacks *eapol_cb,
@@ -2239,19 +2238,17 @@ struct eap_sm * eap_peer_sm_init(void *eapol_ctx,
 	tlsconf.cert_in_cb = conf->cert_in_cb;
 	sm->ssl_ctx = tls_init(&tlsconf);
 	if (sm->ssl_ctx == NULL) {
-		wpa_printf(MSG_WARNING, "SSL: Failed to initialize TLS "
-			   "context.");
+		wpa_printf(MSG_WARNING, "SSL: Failed to initialize TLS context.\n");
 		os_free(sm);
 		return NULL;
 	}
 
 	sm->ssl_ctx2 = tls_init(&tlsconf);
 	if (sm->ssl_ctx2 == NULL) {
-		wpa_printf(MSG_INFO, "SSL: Failed to initialize TLS "
-			   "context (2).");
+		wpa_printf(MSG_INFO, "SSL: Failed to initialize TLS context (2).\n");
 		/* Run without separate TLS context within TLS tunnel */
 	}
-
+    wpa_printf(MSG_DEBUG, "eap_peer_sm_init ok\n");
 	return sm;
 }
 
@@ -2301,11 +2298,11 @@ int eap_peer_sm_step(struct eap_sm *sm)
 
 
 /**
- * eap_sm_abort - Abort EAP authentication
+ * eap_sm_abort - EAP認証を中止する
  * @sm: Pointer to EAP state machine allocated with eap_peer_sm_init()
  *
- * Release system resources that have been allocated for the authentication
- * session without fully deinitializing the EAP state machine.
+ * EAPステートマシンを完全に初期化解除することなく、認証セッション用に
+ * 割り当てられたシステムリソースを解放する。
  */
 void eap_sm_abort(struct eap_sm *sm)
 {
@@ -2316,7 +2313,6 @@ void eap_sm_abort(struct eap_sm *sm)
 	eap_sm_free_key(sm);
 	os_free(sm->eapSessionId);
 	sm->eapSessionId = NULL;
-
 	/* This is not clearly specified in the EAP statemachines draft, but
 	 * it seems necessary to make sure that some of the EAPOL variables get
 	 * cleared for the next authentication. */

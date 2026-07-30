@@ -161,8 +161,8 @@ static void eapol_sm_set_port_authorized(struct eapol_sm *sm);
 static void eapol_sm_set_port_unauthorized(struct eapol_sm *sm);
 
 
-/* Port Timers state machine - implemented as a function that will be called
- * once a second as a registered event loop timeout */
+/* ポートタイマーのステートマシン - 登録されたイベントループの
+ * タイムアウトとして、1秒に1回呼び出される関数として実装されている */
 static void eapol_port_timers_tick(void *eloop_ctx, void *timeout_ctx)
 {
     struct eapol_sm *sm = timeout_ctx;
@@ -170,22 +170,22 @@ static void eapol_port_timers_tick(void *eloop_ctx, void *timeout_ctx)
     if (sm->authWhile > 0) {
         sm->authWhile--;
         if (sm->authWhile == 0)
-            wpa_printf(MSG_DEBUG, "EAPOL: authWhile --> 0");
+            wpa_printf(MSG_DEBUG, "EAPOL: authWhile --> 0\n");
     }
     if (sm->heldWhile > 0) {
         sm->heldWhile--;
         if (sm->heldWhile == 0)
-            wpa_printf(MSG_DEBUG, "EAPOL: heldWhile --> 0");
+            wpa_printf(MSG_DEBUG, "EAPOL: heldWhile --> 0\n");
     }
     if (sm->startWhen > 0) {
         sm->startWhen--;
         if (sm->startWhen == 0)
-            wpa_printf(MSG_DEBUG, "EAPOL: startWhen --> 0");
+            wpa_printf(MSG_DEBUG, "EAPOL: startWhen --> 0\n");
     }
     if (sm->idleWhile > 0) {
         sm->idleWhile--;
         if (sm->idleWhile == 0)
-            wpa_printf(MSG_DEBUG, "EAPOL: idleWhile --> 0");
+            wpa_printf(MSG_DEBUG, "EAPOL: idleWhile --> 0\n");
     }
 
     if (sm->authWhile | sm->heldWhile | sm->startWhen | sm->idleWhile) {
@@ -193,7 +193,7 @@ static void eapol_port_timers_tick(void *eloop_ctx, void *timeout_ctx)
                        eloop_ctx, sm) < 0)
             sm->timer_tick_enabled = 0;
     } else {
-        wpa_printf(MSG_DEBUG, "EAPOL: disable timer tick");
+        wpa_printf(MSG_DEBUG, "EAPOL: disable timer tick\n");
         sm->timer_tick_enabled = 0;
     }
     eapol_sm_step(sm);
@@ -902,7 +902,7 @@ static void eapol_sm_txSuppRsp(struct eapol_sm *sm)
     resp = eap_get_eapRespData(sm->eap);
     if (resp == NULL) {
         wpa_printf(MSG_WARNING, "EAPOL: txSuppRsp - EAP response data "
-               "not available");
+               "not available\n");
         return;
     }
 
@@ -1717,7 +1717,7 @@ void eapol_sm_notify_pmkid_attempt(struct eapol_sm *sm)
 static void eapol_sm_abort_cached(struct eapol_sm *sm)
 {
     wpa_printf(MSG_DEBUG, "RSN: Authenticator did not accept PMKID, "
-           "doing full EAP authentication");
+           "doing full EAP authentication\n");
     if (sm == NULL)
         return;
     sm->cached_pmk = false;
@@ -2109,12 +2109,12 @@ static const struct eapol_callbacks eapol_cb =
 
 
 /**
- * eapol_sm_init - Initialize EAPOL state machine
+ * eapol_sm_init - EAPOL ステートマシンを初期化する
  * @ctx: Pointer to EAPOL context data; this needs to be an allocated buffer
  * and EAPOL state machine will free it in eapol_sm_deinit()
  * Returns: Pointer to the allocated EAPOL state machine or %NULL on failure
  *
- * Allocate and initialize an EAPOL state machine.
+ * EAPOLステートマシンを割り当て、初期化する.
  */
 struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
 {
@@ -2172,7 +2172,7 @@ struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
 
     if (eloop_register_timeout(1, 0, eapol_port_timers_tick, NULL, sm) == 0)
         sm->timer_tick_enabled = 1;
-
+    wpa_printf(MSG_DEBUG, "eapol_sm_init ok\n");
     return sm;
 }
 

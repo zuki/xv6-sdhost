@@ -167,7 +167,7 @@ int eloop_register_event(void *event, size_t event_size,
 void eloop_unregister_event(void *event, size_t event_size);
 
 /**
- * eloop_register_timeout - Register timeout
+ * eloop_register_timeout - タイムアウトを登録する
  * @secs: Number of seconds to the timeout
  * @usecs: Number of microseconds to the timeout
  * @handler: Callback function to be called when timeout occurs
@@ -175,23 +175,23 @@ void eloop_unregister_event(void *event, size_t event_size);
  * @user_data: Callback context data (sock_ctx)
  * Returns: 0 on success, -1 on failure
  *
- * Register a timeout that will cause the handler function to be called after
- * given time.
+ * 指定した時間が経過した後にhandler関数が呼び出されるように、タイムアウトを
+ * 登録する.
  */
 int eloop_register_timeout(unsigned int secs, unsigned int usecs,
 			   eloop_timeout_handler handler,
 			   void *eloop_data, void *user_data);
 
 /**
- * eloop_cancel_timeout - Cancel timeouts
+ * eloop_cancel_timeout - タイムアウトを解除する
  * @handler: Matching callback function
  * @eloop_data: Matching eloop_data or %ELOOP_ALL_CTX to match all
  * @user_data: Matching user_data or %ELOOP_ALL_CTX to match all
  * Returns: Number of cancelled timeouts
  *
- * Cancel matching <handler,eloop_data,user_data> timeouts registered with
- * eloop_register_timeout(). ELOOP_ALL_CTX can be used as a wildcard for
- * cancelling all timeouts regardless of eloop_data/user_data.
+ * eloop_register_timeout() で登録された <handler,eloop_data,user_data> の
+ * タイムアウトを解除する。ELOOP_ALL_CTX をワイルドカードとして使用すると、
+ * eloop_data や user_data に関係なく、すべてのタイムアウトを解除できる。
  */
 int eloop_cancel_timeout(eloop_timeout_handler handler,
 			 void *eloop_data, void *user_data);
