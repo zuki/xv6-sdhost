@@ -2024,9 +2024,9 @@ int wpa_supplicant_connect(struct wpa_supplicant *wpa_s,
 #endif /* IEEE8021X_EAPOL */
 
     wpa_msg(wpa_s, MSG_DEBUG,
-        "Considering connect request: reassociate: %d  selected: "
+        "Considering connect request: reassociate: %d\n  selected: "
         MACSTR "  bssid: " MACSTR "  pending: " MACSTR
-        "  wpa_state: %s  ssid=%p  current_ssid=%p",
+        "\n  wpa_state: %s  ssid=%p  current_ssid=%p",
         wpa_s->reassociate, MAC2STR(selected->bssid),
         MAC2STR(wpa_s->bssid), MAC2STR(wpa_s->pending_bssid),
         wpa_supplicant_state_txt(wpa_s->wpa_state),
@@ -2405,13 +2405,11 @@ static int wpa_supplicant_need_to_roam(struct wpa_supplicant *wpa_s,
 
 
 /*
- * Return a negative value if no scan results could be fetched or if scan
- * results should not be shared with other virtual interfaces.
- * Return 0 if scan results were fetched and may be shared with other
- * interfaces.
- * Return 1 if scan results may be shared with other virtual interfaces but may
- * not trigger any operations.
- * Return 2 if the interface was removed and cannot be used.
+ * スキャン結果を取得できなかった場合、まスキャン結果を他の仮想インタフェースと
+ * 共有すべきでない場合は負の値を返す。スキャン結果が取得され、他のインタフェースと
+ * 共有できる場合は、0を返す。
+ * スキャン結果を他の仮想インタフェースと共有できるが、いかなる操作もトリガーしない
+ * 場合は、1を返す。インターフェースが削除され、使用できない場合は、2を返す。
  */
 static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
                           union wpa_event_data *data,
@@ -2429,14 +2427,11 @@ static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
     if (wpa_s->ap_iface)
         ap = 1;
 #endif /* CONFIG_AP */
-
     trigger_6ghz_scan = wpa_s->crossed_6ghz_dom &&
         wpa_s->last_scan_all_chan;
     wpa_s->crossed_6ghz_dom = false;
     wpa_s->last_scan_all_chan = false;
-
     wpa_supplicant_notify_scanning(wpa_s, 0);
-
     scan_res = wpa_supplicant_get_scan_results(wpa_s,
                            data ? &data->scan_info :
                            NULL, 1, NULL);
@@ -2450,7 +2445,6 @@ static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
             return -1;
         if (wpa_s->scan_res_fail_handler) {
             void (*handler)(struct wpa_supplicant *wpa_s);
-
             handler = wpa_s->scan_res_fail_handler;
             wpa_s->scan_res_fail_handler = NULL;
             handler(wpa_s);
@@ -2479,12 +2473,10 @@ static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
         random_add_randomness(buf, sizeof(buf));
     }
 #endif /* CONFIG_NO_RANDOM_POOL */
-
     if (update_only) {
         ret = 1;
         goto scan_work_done;
     }
-
     if (own_request && wpa_s->scan_res_handler &&
         !(data && data->scan_info.external_scan)) {
         void (*scan_res_handler)(struct wpa_supplicant *wpa_s,
@@ -2496,7 +2488,6 @@ static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
         ret = 1;
         goto scan_work_done;
     }
-
     wpa_dbg(wpa_s, MSG_DEBUG, "New scan results available (own=%u ext=%u)",
         wpa_s->own_scan_running,
         data ? data->scan_info.external_scan : 0);
@@ -2510,7 +2501,6 @@ static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
         wpa_msg_ctrl(wpa_s, MSG_INFO, WPA_EVENT_SCAN_RESULTS);
     }
     wpas_notify_scan_results(wpa_s);
-
     wpas_notify_scan_done(wpa_s, 1);
 
     if (ap) {
@@ -2521,57 +2511,45 @@ static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
 #endif /* CONFIG_AP */
         goto scan_work_done;
     }
-
     if (data && data->scan_info.external_scan) {
         wpa_dbg(wpa_s, MSG_DEBUG, "Do not use results from externally requested scan operation for network selection");
         wpa_scan_results_free(scan_res);
         return 0;
     }
-
     if (wnm_scan_process(wpa_s, false) > 0)
         goto scan_work_done;
-
     if (sme_proc_obss_scan(wpa_s) > 0)
         goto scan_work_done;
 
 #ifndef CONFIG_NO_RRM
     if (own_request && data &&
-        wpas_beacon_rep_scan_process(wpa_s, scan_res, &data->scan_info) > 0)
+        wpas_beacon_rep_scan_process(wpa_s, scan_res, &data->scan_info) > 0) {
         goto scan_work_done;
+    }
 #endif /* CONFIG_NO_RRM */
-
     if (ml_link_probe_scan(wpa_s))
         goto scan_work_done;
-
     if ((wpa_s->conf->ap_scan == 2 && !wpas_wps_searching(wpa_s)))
         goto scan_work_done;
-
     if (autoscan_notify_scan(wpa_s, scan_res))
         goto scan_work_done;
-
     if (wpa_s->disconnected) {
         wpa_supplicant_set_state(wpa_s, WPA_DISCONNECTED);
         goto scan_work_done;
     }
-
     if (!wpas_driver_bss_selection(wpa_s) &&
         bgscan_notify_scan(wpa_s, scan_res) == 1)
         goto scan_work_done;
-
     wpas_wps_update_ap_info(wpa_s, scan_res);
-
     if (wpa_s->wpa_state >= WPA_AUTHENTICATING &&
         wpa_s->wpa_state < WPA_COMPLETED)
         goto scan_work_done;
-
     wpa_scan_results_free(scan_res);
-
     if (own_request && wpa_s->scan_work) {
         struct wpa_radio_work *work = wpa_s->scan_work;
         wpa_s->scan_work = NULL;
         radio_work_done(work);
     }
-
     os_free(wpa_s->last_scan_freqs);
     wpa_s->last_scan_freqs = NULL;
     wpa_s->num_last_scan_freqs = 0;
@@ -2586,10 +2564,9 @@ static int _wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
             wpa_s->num_last_scan_freqs = data->scan_info.num_freqs;
         }
     }
-
-    if (wpa_s->supp_pbc_active && !wpas_wps_partner_link_scan_done(wpa_s))
+    if (wpa_s->supp_pbc_active && !wpas_wps_partner_link_scan_done(wpa_s)) {
         return ret;
-
+    }
     return wpas_select_network_from_last_scan(wpa_s, 1, own_request,
                           trigger_6ghz_scan, data);
 
@@ -2813,7 +2790,6 @@ static int wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
 {
     struct wpa_supplicant *ifs;
     int res;
-
     res = _wpa_supplicant_event_scan_results(wpa_s, data, 1, 0);
     if (res == 2) {
         /*
@@ -2822,7 +2798,6 @@ static int wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
          */
         return 1;
     }
-
     if (res < 0) {
         /*
          * If no scan results could be fetched, then no need to
@@ -2849,7 +2824,6 @@ static int wpa_supplicant_event_scan_results(struct wpa_supplicant *wpa_s,
                 return 0;
         }
     }
-
     return 0;
 }
 
@@ -4193,6 +4167,7 @@ static void wpa_supplicant_event_assoc(struct wpa_supplicant *wpa_s,
         ft_completed = wpa_fils_is_completed(wpa_s->wpa);
 
     wpa_supplicant_set_state(wpa_s, WPA_ASSOCIATED);
+    wpa_printf(MSG_EXCESSIVE, "bssid: " MACSTR ", wpa_bssid: " MACSTR, MAC2STR(bssid), MAC2STR(wpa_s->bssid));
     if (!ether_addr_equal(bssid, wpa_s->bssid)) {
         if (os_reltime_initialized(&wpa_s->session_start)) {
             os_reltime_age(&wpa_s->session_start,
@@ -6119,7 +6094,6 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
             wpa_s->last_scan_req = NORMAL_SCAN_REQ;
             break;
         }
-
         if (!(data && data->scan_info.external_scan) &&
             os_reltime_initialized(&wpa_s->scan_start_time)) {
             struct os_reltime now, diff;
@@ -6131,8 +6105,9 @@ void wpa_supplicant_event(void *ctx, enum wpa_event_type event,
             wpa_dbg(wpa_s, MSG_DEBUG, "Scan completed in %ld.%06ld seconds",
                 diff.sec, diff.usec);
         }
-        if (wpa_supplicant_event_scan_results(wpa_s, data))
+        if (wpa_supplicant_event_scan_results(wpa_s, data)) {
             break; /* interface may have been removed */
+        }
         if (!(data && data->scan_info.external_scan))
             wpa_s->own_scan_running = 0;
         if (data && data->scan_info.nl_scan_event)

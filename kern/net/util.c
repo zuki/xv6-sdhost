@@ -44,9 +44,9 @@ void *queue_pop(struct queue_head *queue) {
     struct queue_entry *entry;
     void *data;
 
-    if (!queue || !queue->head) {
+    if (queue == NULL || queue->head == NULL)
         return NULL;
-    }
+
     entry = queue->head;
     queue->head = entry->next;
     if (!queue->head) {

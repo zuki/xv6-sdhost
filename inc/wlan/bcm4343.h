@@ -43,6 +43,7 @@ struct bcm4343 {
     boolean opennet;                // ネットワークはオープン済みか?
     boolean linkup;                 // ネットワークはLinkUp済みか?
     bcm4343_connect_provider *is_connected;    // 接続済みか確認する関数へのポインタ
+    void *  data;                   // ドライバ固有データ : struct wpa_driver_xv6_data など
     //Ether               *ether_device;  // Ethernet操作関数
 };
 

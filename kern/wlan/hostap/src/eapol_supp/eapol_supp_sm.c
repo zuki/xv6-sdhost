@@ -170,22 +170,22 @@ static void eapol_port_timers_tick(void *eloop_ctx, void *timeout_ctx)
     if (sm->authWhile > 0) {
         sm->authWhile--;
         if (sm->authWhile == 0)
-            wpa_printf(MSG_DEBUG, "EAPOL: authWhile --> 0\n");
+            wpa_printf(MSG_DEBUG, "EAPOL: authWhile --> 0");
     }
     if (sm->heldWhile > 0) {
         sm->heldWhile--;
         if (sm->heldWhile == 0)
-            wpa_printf(MSG_DEBUG, "EAPOL: heldWhile --> 0\n");
+            wpa_printf(MSG_DEBUG, "EAPOL: heldWhile --> 0");
     }
     if (sm->startWhen > 0) {
         sm->startWhen--;
         if (sm->startWhen == 0)
-            wpa_printf(MSG_DEBUG, "EAPOL: startWhen --> 0\n");
+            wpa_printf(MSG_DEBUG, "EAPOL: startWhen --> 0");
     }
     if (sm->idleWhile > 0) {
         sm->idleWhile--;
         if (sm->idleWhile == 0)
-            wpa_printf(MSG_DEBUG, "EAPOL: idleWhile --> 0\n");
+            wpa_printf(MSG_DEBUG, "EAPOL: idleWhile --> 0");
     }
 
     if (sm->authWhile | sm->heldWhile | sm->startWhen | sm->idleWhile) {
@@ -193,7 +193,7 @@ static void eapol_port_timers_tick(void *eloop_ctx, void *timeout_ctx)
                        eloop_ctx, sm) < 0)
             sm->timer_tick_enabled = 0;
     } else {
-        wpa_printf(MSG_DEBUG, "EAPOL: disable timer tick\n");
+        wpa_printf(MSG_DEBUG, "EAPOL: disable timer tick");
         sm->timer_tick_enabled = 0;
     }
     eapol_sm_step(sm);
@@ -902,7 +902,7 @@ static void eapol_sm_txSuppRsp(struct eapol_sm *sm)
     resp = eap_get_eapRespData(sm->eap);
     if (resp == NULL) {
         wpa_printf(MSG_WARNING, "EAPOL: txSuppRsp - EAP response data "
-               "not available\n");
+               "not available");
         return;
     }
 
@@ -1468,7 +1468,7 @@ void eapol_sm_notify_portEnabled(struct eapol_sm *sm, bool enabled)
     if (sm == NULL)
         return;
     wpa_printf(MSG_DEBUG, "EAPOL: External notification - "
-           "portEnabled=%d\n", enabled);
+           "portEnabled=%d", enabled);
     if (sm->portEnabled != enabled)
         sm->force_authorized_update = true;
     sm->portEnabled = enabled;
@@ -1717,7 +1717,7 @@ void eapol_sm_notify_pmkid_attempt(struct eapol_sm *sm)
 static void eapol_sm_abort_cached(struct eapol_sm *sm)
 {
     wpa_printf(MSG_DEBUG, "RSN: Authenticator did not accept PMKID, "
-           "doing full EAP authentication\n");
+           "doing full EAP authentication");
     if (sm == NULL)
         return;
     sm->cached_pmk = false;
@@ -2172,7 +2172,7 @@ struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
 
     if (eloop_register_timeout(1, 0, eapol_port_timers_tick, NULL, sm) == 0)
         sm->timer_tick_enabled = 1;
-    wpa_printf(MSG_DEBUG, "eapol_sm_init ok\n");
+    wpa_printf(MSG_DEBUG, "eapol_sm_init ok");
     return sm;
 }
 

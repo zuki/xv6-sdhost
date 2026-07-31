@@ -42,7 +42,9 @@ void poperror(void)
 {
     struct error_stack_t *s = get_error_stack ();
     assert (s != 0);
-
+    if (s->stackptr >= ERROR_STACK_SIZE) {
+        debug("s->stackptr: %d", s->stackptr);
+    }
     assert (s->stackptr < ERROR_STACK_SIZE);
     s->stackptr++;
 }

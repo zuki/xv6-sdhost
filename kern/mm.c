@@ -139,6 +139,8 @@ int get_kmem_ref(void *va) {
  */
 void kfree(void *va)
 {
+    if (va == NULL)
+        return;
     struct page *page = page_find_by_address(va);
     if (page) {
         if ((uint64_t)va == 0xffff000000bfd000) {

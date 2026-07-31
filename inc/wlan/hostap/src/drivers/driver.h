@@ -1028,22 +1028,21 @@ struct wpa_driver_associate_params {
     int beacon_int;
 
     /**
-     * wpa_ie - WPA information element for (Re)Association Request
-     * WPA information element to be included in (Re)Association
-     * Request (including information element id and length). Use
-     * of this WPA IE is optional. If the driver generates the WPA
-     * IE, it can use pairwise_suite, group_suite, group_mgmt_suite, and
-     * key_mgmt_suite to select proper algorithms. In this case,
-     * the driver has to notify wpa_supplicant about the used WPA
-     * IE by generating an event that the interface code will
-     * convert into EVENT_ASSOCINFO data (see below).
+     * wpa_ie - (再)アソシエーションリクエスト用の WPA 情報要素
+     * (再)アソシエーションリクエストに含める WPA 情報要素（情報要素 ID および
+     * 長さを含む）。このWPA IEの使用はオプションである。ドライバがWPA IEを
+     * 生成する場合、pairwise_suite、group_suite、group_mgmt_suite、
+     * key_mgmt_suiteを使用して適切なアルゴリズムを選択できる。この場合、
+     * ドライバは、インタフェースコードがEVENT_ASSOCINFOデータに変換する
+     * イベントを生成することにより、使用したWPA IEについてwpa_supplicantに
+     * 通知しなければならない（後述参照）。
      *
-     * When using WPA2/IEEE 802.11i, wpa_ie is used for RSN IE
-     * instead. The driver can determine which version is used by
-     * looking at the first byte of the IE (0xdd for WPA, 0x30 for
-     * WPA2/RSN).
+     * WPA2/IEEE 802.11i を使用する場合、wpa_ie はRSN IE として使用される。
+     * ドライバは、IE の最初のバイトを確認することで、どのバージョンが使用されて
+     * いるかを判別できる（WPA の場合は 0xdd、WPA2/RSN の場合は 0x30）。
      *
-     * When using WPS, wpa_ie is used for WPS IE instead of WPA/RSN IE.
+     * WPS を使用する場合、wpa_ie は WPA/RSN IE の代わりに WPS IE として
+     * 使用される。
      */
     const uint8_t *wpa_ie;
 

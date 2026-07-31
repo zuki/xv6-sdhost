@@ -230,7 +230,7 @@ static int wpa_config_parse_int_impl(const struct parse_data *data,
         return 1;
 
     *dst = val;
-    wpa_printf(MSG_MSGDUMP, "%s=%d (0x%x)\n", data->name, *dst, *dst);
+    wpa_printf(MSG_MSGDUMP, "%s=%d (0x%x)", data->name, *dst, *dst);
 
     return 0;
 }
@@ -317,7 +317,7 @@ static int wpa_config_parse_addr_list(const struct parse_data *data,
             os_memcpy(buf, addr, 2 * ETH_ALEN);
             count++;
             wpa_printf(MSG_MSGDUMP,
-                   "%s: addr=" MACSTR " mask=" MACSTR "\n",
+                   "%s: addr=" MACSTR " mask=" MACSTR "",
                    name, MAC2STR(addr),
                    MAC2STR(&addr[ETH_ALEN]));
         }
@@ -375,11 +375,11 @@ static int wpa_config_parse_bssid(const struct parse_data *data,
     if (value[0] == '\0' || os_strcmp(value, "\"\"") == 0 ||
         os_strcmp(value, "any") == 0) {
         ssid->bssid_set = 0;
-        wpa_printf(MSG_MSGDUMP, "BSSID any\n");
+        wpa_printf(MSG_MSGDUMP, "BSSID any");
         return 0;
     }
     if (hwaddr_aton(value, ssid->bssid)) {
-        wpa_printf(MSG_ERROR, "Line %d: Invalid BSSID '%s'.\n",
+        wpa_printf(MSG_ERROR, "Line %d: Invalid BSSID '%s'.",
                line, value);
         return -1;
     }
@@ -420,11 +420,11 @@ static int wpa_config_parse_bssid_hint(const struct parse_data *data,
     if (value[0] == '\0' || os_strcmp(value, "\"\"") == 0 ||
         os_strcmp(value, "any") == 0) {
         ssid->bssid_hint_set = 0;
-        wpa_printf(MSG_MSGDUMP, "BSSID hint any\n");
+        wpa_printf(MSG_MSGDUMP, "BSSID hint any");
         return 0;
     }
     if (hwaddr_aton(value, ssid->bssid_hint)) {
-        wpa_printf(MSG_ERROR, "Line %d: Invalid BSSID hint '%s'.\n",
+        wpa_printf(MSG_ERROR, "Line %d: Invalid BSSID hint '%s'.",
                line, value);
         return -1;
     }
@@ -714,7 +714,7 @@ static int wpa_config_parse_proto(const struct parse_data *data,
 
     if (!errors && ssid->proto == val)
         return 1;
-    wpa_printf(MSG_MSGDUMP, "proto: 0x%x\n", val);
+    wpa_printf(MSG_MSGDUMP, "proto: 0x%x", val);
     ssid->proto = val;
     return errors ? -1 : 0;
 }
@@ -882,7 +882,7 @@ static int wpa_config_parse_key_mgmt(const struct parse_data *data,
 
     if (!errors && ssid->key_mgmt == val)
         return 1;
-    wpa_printf(MSG_MSGDUMP, "key_mgmt: 0x%x\n", val);
+    wpa_printf(MSG_MSGDUMP, "key_mgmt: 0x%x", val);
     ssid->key_mgmt = val;
     return errors ? -1 : 0;
 }
@@ -1239,7 +1239,7 @@ static int wpa_config_parse_pairwise(const struct parse_data *data,
 
     if (ssid->pairwise_cipher == val)
         return 1;
-    wpa_printf(MSG_MSGDUMP, "pairwise: 0x%x\n", val);
+    wpa_printf(MSG_MSGDUMP, "pairwise: 0x%x", val);
     ssid->pairwise_cipher = val;
     return 0;
 }
@@ -1277,7 +1277,7 @@ static int wpa_config_parse_group(const struct parse_data *data,
 
     if (ssid->group_cipher == val)
         return 1;
-    wpa_printf(MSG_MSGDUMP, "group: 0x%x\n", val);
+    wpa_printf(MSG_MSGDUMP, "group: 0x%x", val);
     ssid->group_cipher = val;
     return 0;
 }
@@ -1311,7 +1311,7 @@ static int wpa_config_parse_group_mgmt(const struct parse_data *data,
 
     if (ssid->group_mgmt_cipher == val)
         return 1;
-    wpa_printf(MSG_MSGDUMP, "group_mgmt: 0x%x\n", val);
+    wpa_printf(MSG_MSGDUMP, "group_mgmt: 0x%x", val);
     ssid->group_mgmt_cipher = val;
     return 0;
 }
@@ -1374,7 +1374,7 @@ static int wpa_config_parse_auth_alg(const struct parse_data *data,
 
     if (!errors && ssid->auth_alg == val)
         return 1;
-    wpa_printf(MSG_MSGDUMP, "auth_alg: 0x%x\n", val);
+    wpa_printf(MSG_MSGDUMP, "auth_alg: 0x%x", val);
     ssid->auth_alg = val;
     return errors ? -1 : 0;
 }
@@ -2087,7 +2087,7 @@ static int wpa_config_parse_go_p2p_dev_addr(const struct parse_data *data,
     if (value[0] == '\0' || os_strcmp(value, "\"\"") == 0 ||
         os_strcmp(value, "any") == 0) {
         os_memset(ssid->go_p2p_dev_addr, 0, ETH_ALEN);
-        wpa_printf(MSG_MSGDUMP, "GO P2P Device Address any\n");
+        wpa_printf(MSG_MSGDUMP, "GO P2P Device Address any");
         return 0;
     }
     if (hwaddr_aton(value, ssid->go_p2p_dev_addr)) {
@@ -2096,7 +2096,7 @@ static int wpa_config_parse_go_p2p_dev_addr(const struct parse_data *data,
         return -1;
     }
     ssid->bssid_set = 1;
-    wpa_printf(MSG_MSGDUMP, "GO P2P Device Address " MACSTR "\n",
+    wpa_printf(MSG_MSGDUMP, "GO P2P Device Address " MACSTR,
            MAC2STR(ssid->go_p2p_dev_addr));
     return 0;
 }
@@ -4722,10 +4722,10 @@ void wpa_config_debug_dump_networks(struct wpa_config *config)
 
     for (prio = 0; prio < config->num_prio; prio++) {
         ssid = config->pssid[prio];
-        wpa_printf(MSG_DEBUG, "Priority group %d\n",
+        wpa_printf(MSG_DEBUG, "Priority group %d",
                ssid->priority);
         while (ssid) {
-            wpa_printf(MSG_DEBUG, "   id=%d ssid='%s'\n",
+            wpa_printf(MSG_DEBUG, "   id=%d ssid='%s'",
                    ssid->id,
                    wpa_ssid_txt(ssid->ssid, ssid->ssid_len));
             ssid = ssid->pnext;
@@ -4991,7 +4991,7 @@ static int wpa_config_process_country(const struct global_parse_data *data,
         return 1;
     config->country[0] = pos[0];
     config->country[1] = pos[1];
-    wpa_printf(MSG_DEBUG, "country='%c%c'\n",
+    wpa_printf(MSG_DEBUG, "country='%c%c'",
            config->country[0], config->country[1]);
     return 0;
 }

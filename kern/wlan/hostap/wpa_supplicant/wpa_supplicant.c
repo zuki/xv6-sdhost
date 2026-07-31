@@ -1014,7 +1014,7 @@ static void wpas_verify_ssid_beacon_prot(struct wpa_supplicant *wpa_s)
 
 
 /**
- * wpa_supplicant_set_state - Set current connection state
+ * wpa_supplicant_set_state - 現在のコネクションステートをセットする
  * @wpa_s: Pointer to wpa_supplicant data
  * @state: The new connection state
  *
@@ -1096,7 +1096,7 @@ void wpa_supplicant_set_state(struct wpa_supplicant *wpa_s,
         mld_addr[0] = '\0';
         if (wpa_s->valid_links)
             os_snprintf(mld_addr, sizeof(mld_addr),
-                    " ap_mld_addr=" MACSTR,
+                    " ap_mld_addr=" MACSTR "\n",
                     MAC2STR(wpa_s->ap_mld_addr));
 
 #ifdef CONFIG_SME
@@ -5765,7 +5765,7 @@ static int wpas_eapol_needs_l2_packet(struct wpa_supplicant *wpa_s)
 int wpa_supplicant_update_mac_addr(struct wpa_supplicant *wpa_s)
 {
     uint8_t prev_mac_addr[ETH_ALEN];
-
+    //wpa_printf(MSG_DEBUG, "old own_addr: " MACSTR, MAC2STR(wpa_s->own_addr));
     os_memcpy(prev_mac_addr, wpa_s->own_addr, ETH_ALEN);
 
     if ((!wpa_s->p2p_mgmt ||
@@ -5784,11 +5784,11 @@ int wpa_supplicant_update_mac_addr(struct wpa_supplicant *wpa_s)
         if (l2_packet_set_packet_filter(wpa_s->l2,
                         L2_PACKET_FILTER_PKTTYPE))
             wpa_dbg(wpa_s, MSG_DEBUG,
-                "Failed to attach pkt_type filter\n");
+                "Failed to attach pkt_type filter");
 
         if (l2_packet_get_own_addr(wpa_s->l2, wpa_s->own_addr)) {
             wpa_msg(wpa_s, MSG_ERROR,
-                "Failed to get own L2 address\n");
+                "Failed to get own L2 address");
             return -1;
         }
     } else {
@@ -5796,7 +5796,7 @@ int wpa_supplicant_update_mac_addr(struct wpa_supplicant *wpa_s)
         if (addr)
             os_memcpy(wpa_s->own_addr, addr, ETH_ALEN);
     }
-
+    //wpa_printf(MSG_DEBUG, "new own_addr: " MACSTR, MAC2STR(wpa_s->own_addr));
     wpa_sm_set_own_addr(wpa_s->wpa, wpa_s->own_addr);
     wpas_wps_update_mac_addr(wpa_s);
 
@@ -5912,14 +5912,14 @@ int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s)
     if (wpa_supplicant_update_mac_addr(wpa_s) < 0)
         return -1;
 
-    wpa_dbg(wpa_s, MSG_DEBUG, "Own MAC address: " MACSTR "\n",
+    wpa_dbg(wpa_s, MSG_DEBUG, "Own MAC address: " MACSTR,
         MAC2STR(wpa_s->own_addr));
     os_memcpy(wpa_s->perm_addr, wpa_s->own_addr, ETH_ALEN);
     wpa_sm_set_own_addr(wpa_s->wpa, wpa_s->own_addr);
 
     if (wpa_s->bridge_ifname[0] && wpas_eapol_needs_l2_packet(wpa_s)) {
         wpa_dbg(wpa_s, MSG_DEBUG, "Receiving packets from bridge "
-            "interface '%s'\n", wpa_s->bridge_ifname);
+            "interface '%s'", wpa_s->bridge_ifname);
         wpa_s->l2_br = l2_packet_init_bridge(
             wpa_s->bridge_ifname, wpa_s->ifname, wpa_s->own_addr,
             ETH_P_EAPOL, wpa_supplicant_rx_eapol_bridge, wpa_s, 1);
@@ -5934,7 +5934,7 @@ int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s)
     if (wpa_s->conf->ap_scan == 2 &&
         os_strcmp(wpa_s->driver->name, "nl80211") == 0) {
         wpa_printf(MSG_INFO,
-               "Note: nl80211 driver interface is not designed to be used with ap_scan=2; this can result in connection failures\n");
+               "Note: nl80211 driver interface is not designed to be used with ap_scan=2; this can result in connection failures");
     }
 
     wpa_clear_keys(wpa_s, NULL);
@@ -5943,7 +5943,7 @@ int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s)
      * happen if wpa_supplicant is killed during countermeasures. */
     wpa_drv_set_countermeasures(wpa_s, 0);
 
-    wpa_dbg(wpa_s, MSG_DEBUG, "RSN: flushing PMKID list in the driver\n");
+    wpa_dbg(wpa_s, MSG_DEBUG, "RSN: flushing PMKID list in the driver");
     wpa_drv_flush_pmkid(wpa_s);
 
     wpa_s->prev_scan_ssid = WILDCARD_SSID_SCAN;
@@ -6046,7 +6046,7 @@ static int wpa_set_htcap_mcs(struct wpa_supplicant *wpa_s,
             tmp = end;
         } else {
             wpa_msg(wpa_s, MSG_ERROR,
-                "Failed to parse ht-mcs: %s, error: %s\n",
+                "Failed to parse ht-mcs: %s, error: %s",
                 ht_mcs, strerror(errno));
             return -1;
         }
@@ -6664,7 +6664,7 @@ static struct wpa_radio * radio_add_interface(struct wpa_supplicant *wpa_s,
     while (rn && iface) {
         radio = iface->radio;
         if (radio && os_strcmp(rn, radio->name) == 0) {
-            wpa_printf(MSG_DEBUG, "Add interface %s to existing radio %s\n",
+            wpa_printf(MSG_DEBUG, "Add interface %s to existing radio %s",
                    wpa_s->ifname, rn);
             dl_list_add(&radio->ifaces, &wpa_s->radio_list);
             return radio;
@@ -6673,7 +6673,7 @@ static struct wpa_radio * radio_add_interface(struct wpa_supplicant *wpa_s,
         iface = iface->next;
     }
 
-    wpa_printf(MSG_DEBUG, "Add interface %s to a new radio %s\n",
+    wpa_printf(MSG_DEBUG, "Add interface %s to a new radio %s",
            wpa_s->ifname, rn ? rn : "N/A");
     radio = os_zalloc(sizeof(*radio));
     if (radio == NULL)
@@ -6864,6 +6864,7 @@ static void radio_start_next_work(void *eloop_ctx, void *timeout_ctx)
 
     wpa_s = work->wpa_s;
     os_get_reltime(&now);
+    wpa_printf(MSG_EXCESSIVE, "work: sec: %ld, usec: %ld, now sec: %ld, usec: %ld", work->time.sec, work->time.usec, now.sec, now.usec);
     os_reltime_sub(&now, &work->time, &diff);
     wpa_dbg(wpa_s, MSG_DEBUG,
         "Starting radio work '%s'@%p after %ld.%06ld second wait",
@@ -6961,9 +6962,9 @@ static void radio_remove_interface(struct wpa_supplicant *wpa_s)
 void radio_work_check_next(struct wpa_supplicant *wpa_s)
 {
     struct wpa_radio *radio = wpa_s->radio;
-
-    if (dl_list_empty(&radio->work))
+    if (dl_list_empty(&radio->work)) {
         return;
+    }
     if (wpa_s->ext_work_in_progress) {
         wpa_printf(MSG_DEBUG,
                "External radio work in progress - delay start of pending item");
@@ -6975,29 +6976,27 @@ void radio_work_check_next(struct wpa_supplicant *wpa_s)
 
 
 /**
- * radio_add_work - Add a radio work item
- * @wpa_s: Pointer to wpa_supplicant data
- * @freq: Frequency of the offchannel operation in MHz or 0
- * @type: Unique identifier for each type of work
- * @next: Force as the next work to be executed
- * @cb: Callback function for indicating when radio is available
- * @ctx: Context pointer for the work (work->ctx in cb())
+ * radio_add_work - 無線ワークアイテムを追加する
+ * @wpa_s: wpa_supplicantデータへのポインタ
+ * @freq: オフチャネル動作の周波数（MHz単位)、または0
+ * @type: 各タイプのワークに対する固有識別子
+ * @next: 強制的に次に実行されるタスクとする
+ * @cb: 無線が利用可能になったことを示すコールバック関数
+ * @ctx: ワークのコンテキストポインタ (work->ctx in cb())
  * Returns: 0 on success, -1 on failure
  *
- * This function is used to request time for an operation that requires
- * exclusive radio control. Once the radio is available, the registered callback
- * function will be called. radio_work_done() must be called once the exclusive
- * radio operation has been completed, so that the radio is freed for other
- * operations. The special case of deinit=1 is used to free the context data
- * during interface removal. That does not allow the callback function to start
- * the radio operation, i.e., it must free any resources allocated for the radio
- * work and return.
+ * この関数は排他的無線制御を必要とする操作の時間を要求するために使用される。
+ * 無線が利用可能になると、登録されたコールバック関数が呼び出される。排他的な
+ * 無線操作が完了したら、radio_work_done() を呼び出し、他の操作のために
+ * 無線を解放する必要がある。deinit=1 という特殊なケースは、インタフェースの
+ * 削除時にコンテキストデータを解放するために使用される。この場合、コールバック
+ * 関数が無線操作を開始することは許可されない。つまり、無線作業のために割り当て
+ * られたリソースをすべて解放して、直ちに返却する必要がある。
  *
- * The @freq parameter can be used to indicate a single channel on which the
- * offchannel operation will occur. This may allow multiple radio work
- * operations to be performed in parallel if they apply for the same channel.
- * Setting this to 0 indicates that the work item may use multiple channels or
- * requires exclusive control of the radio.
+ * @freq パラメータを使用すると、オフチャンネル操作が行われる単一のチャンネルを
+ * 指定できる。これにより、同じチャンネルを対象とする複数の無線作業を並行して
+ * 実行できる場合がある。これに 0 をセットすると、その作業項目が複数のチャネルを
+ * 使用するか、無線の排他制御を必要とすることを示す。
  */
 int radio_add_work(struct wpa_supplicant *wpa_s, unsigned int freq,
            const char *type, int next,
@@ -7099,6 +7098,7 @@ next_driver:
         return -1;
 
     wpa_s->drv_priv = wpa_drv_init(wpa_s, wpa_s->ifname);
+    wpa_dbg(wpa_s, MSG_DEBUG, "wpa_s->drv_priv: %p", wpa_s->drv_priv);
     if (wpa_s->drv_priv == NULL) {
         const char *pos;
         int level = MSG_ERROR;
@@ -7185,8 +7185,8 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
     int capa_res;
     uint8_t dfs_domain;
 
-    wpa_printf(MSG_DEBUG, "\nInitializing interface '%s' conf '%s'\n  driver "
-           "'%s' ctrl_interface '%s' bridge '%s'\n", iface->ifname,
+    wpa_printf(MSG_DEBUG, "Initializing interface '%s' conf '%s'\n  driver "
+           "'%s' ctrl_interface '%s' bridge '%s'", iface->ifname,
            iface->confname ? iface->confname : "N/A",
            iface->driver ? iface->driver : "default",
            iface->ctrl_interface ? iface->ctrl_interface : "N/A",
@@ -7201,7 +7201,7 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
                    iface->confname);
             return -1;
         }
-        wpa_printf(MSG_DEBUG, "Configuration file '%s' -> '%s'\n",
+        wpa_printf(MSG_DEBUG, "Configuration file '%s' -> '%s'",
                iface->confname, wpa_s->confname);
 #else /* CONFIG_BACKEND_FILE */
         wpa_s->confname = os_strdup(iface->confname);
@@ -9431,15 +9431,14 @@ wpa_drv_get_scan_results(struct wpa_supplicant *wpa_s, const uint8_t *bssid)
 #ifdef CONFIG_TESTING_OPTIONS
     size_t idx;
 #endif /* CONFIG_TESTING_OPTIONS */
-
-    if (wpa_s->driver->get_scan_results)
+    if (wpa_s->driver->get_scan_results) {
         scan_res = wpa_s->driver->get_scan_results(wpa_s->drv_priv,
                                bssid);
-    else if (wpa_s->driver->get_scan_results2)
+    } else if (wpa_s->driver->get_scan_results2) {
         scan_res = wpa_s->driver->get_scan_results2(wpa_s->drv_priv);
-    else
+    } else {
         return NULL;
-
+    }
 
 #ifdef CONFIG_TESTING_OPTIONS
     for (idx = 0; scan_res && idx < scan_res->num; idx++) {
@@ -9465,7 +9464,6 @@ wpa_drv_get_scan_results(struct wpa_supplicant *wpa_s, const uint8_t *bssid)
         }
     }
 #endif /* CONFIG_TESTING_OPTIONS */
-
     return scan_res;
 }
 

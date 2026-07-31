@@ -2238,17 +2238,17 @@ struct eap_sm * eap_peer_sm_init(void *eapol_ctx,
 	tlsconf.cert_in_cb = conf->cert_in_cb;
 	sm->ssl_ctx = tls_init(&tlsconf);
 	if (sm->ssl_ctx == NULL) {
-		wpa_printf(MSG_WARNING, "SSL: Failed to initialize TLS context.\n");
+		wpa_printf(MSG_WARNING, "SSL: Failed to initialize TLS context.");
 		os_free(sm);
 		return NULL;
 	}
 
 	sm->ssl_ctx2 = tls_init(&tlsconf);
 	if (sm->ssl_ctx2 == NULL) {
-		wpa_printf(MSG_INFO, "SSL: Failed to initialize TLS context (2).\n");
+		wpa_printf(MSG_INFO, "SSL: Failed to initialize TLS context (2).");
 		/* Run without separate TLS context within TLS tunnel */
 	}
-    wpa_printf(MSG_DEBUG, "eap_peer_sm_init ok\n");
+    wpa_printf(MSG_DEBUG, "eap_peer_sm_init ok");
 	return sm;
 }
 

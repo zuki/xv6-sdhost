@@ -361,10 +361,11 @@ static int netrun(void)
     }
     trace("open all devices...");
     for (dev = devices; dev; dev = dev->next) {
+        debug("open %s", dev->name);
         net_device_open(dev);
-        while (!dev->ops->linkup(dev)) {
-            delay(1);
-        }
+        //while (!dev->ops->linkup(dev)) {
+        //    delay(1);
+        //}
     }
     info("running...");
     return 0;

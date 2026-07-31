@@ -30,7 +30,7 @@ extern void ether4330link(void);
 
 struct bcm4343_queue_entry {
     unsigned len;
-    uint8_t data[];
+    uint8_t data[FRAME_BUFFER_SIZE];
 };
 
 static ether_pnp_t *ether_pnp_handler = NULL;
@@ -49,12 +49,12 @@ static int bcm4343_close(struct net_device *dev) { return 0; }
 
 static int bcm4343_linkup(struct net_device *dev)
 {
-    struct bcm4343 *self = (struct bcm4343 *)dev;
+    struct bcm4343 *self = (struct bcm4343 *)(dev->priv);
     // LinkUpされていればtrue
     if (self->opennet) {
         return self->linkup;
     }
-    // m_pIsConnected()を実行して接続済であるか確認する
+    // is_connected()を実行して接続済であるか確認する
     if (self->is_connected != 0) {
         return (*self->is_connected)();
     }
@@ -82,13 +82,16 @@ int bcm4343_init(const char *firm_path)
         bcm4343 = memory_alloc(sizeof(struct bcm4343));
     assert(bcm4343);
 
-    bcm4343->net_dev = net_device_alloc();
-    assert(bcm4343->net_dev);
-    bcm4343->net_dev->ops = &bcm4343_ops;
-    bcm4343->net_dev->index = NET_INDEX_BCM4343;
-    bcm4343->net_dev->type = NET_DEVICE_TYPE_WLAN;
-    snprintf(bcm4343->net_dev->name, sizeof(bcm4343->net_dev->name), "net%d", bcm4343->net_dev->index);
+    struct net_device *net_dev;
+    net_dev = net_device_alloc();
+    assert(net_dev);
+    net_dev->ops = &bcm4343_ops;
+    net_dev->index = NET_INDEX_BCM4343;
+    net_dev->type = NET_DEVICE_TYPE_WLAN;
+    snprintf(net_dev->name, sizeof(net_dev->name), "net%d", net_dev->index);
+    net_dev->priv = bcm4343;
 
+    bcm4343->net_dev = net_dev;
     bcm4343->firm_path = firm_path;
     queue_init(&bcm4343->rx_queue);
     queue_init(&bcm4343->scan_queue);
@@ -96,6 +99,7 @@ int bcm4343_init(const char *firm_path)
     bcm4343->opennet = false;
     bcm4343->linkup = false;
     bcm4343->is_connected = NULL;
+    bcm4343->data = NULL;
     trace("bcm4343_init ok");
     return bcm4343_init_internal(bcm4343);
 }
@@ -147,7 +151,7 @@ static int bcm4343_init_internal(struct bcm4343 *self)
         p9error("failed net_device_register");
     }
     poperror();
-    debug("bcm4343_init_internal ok");
+    trace("bcm4343_init_internal ok");
     return 0;
 }
 
@@ -193,21 +197,21 @@ long bcm4343_send_frame(struct net_device *dev, const uint8_t *buff, uint64_t le
 // バッファにデータを読み込む(buffはetherヘッダー付きEthernetパケット)
 long bcm4343_recv_frame(struct net_device *dev, uint8_t *buff, uint64_t *rlen)
 {
-    struct bcm4343 *self = (struct bcm4343 *)dev;
+    struct bcm4343 *self = (struct bcm4343 *)dev->priv;
 
     assert(buff != 0);
     struct bcm4343_queue_entry *entry;
 
     // 受信キューの先頭エントリをbuffに読み込む
     acquire(&self->lock);
-    //
     entry = (struct bcm4343_queue_entry *)queue_pop(&self->rx_queue);
     release(&self->lock);
     if (entry == NULL || entry->len == 0)
         return -1;
     assert(rlen != 0);
-    memmove(buff, entry->data, entry->len);
+    memmove(buff, (const void *)entry->data, entry->len);
     *rlen = entry->len;
+    kmfree(entry);
     //hexdump (buff, len, "wlanrx");
 
     return 0;
@@ -283,19 +287,28 @@ boolean bcm4343_recv_scan_result(struct bcm4343 *self, void *buff, unsigned *rle
 {
     assert(buff != 0);
     struct bcm4343_queue_entry *entry;
-
     acquire(&self->lock);
+    trace("bcm4343: %p, &scan_queue: %p", self, &self->scan_queue);
     entry = (struct bcm4343_queue_entry *)queue_pop(&self->scan_queue);
-    release(&self->lock);
-    if (entry == NULL || entry->len == 0) {
+    trace("dequeue: entry: %p, len=0x%x, q->size: %d, isnull : %s", entry, entry->len, self->scan_queue.num, entry == NULL ? "yes" : "no");
+    //hexdump (entry->data, entry->len, "entry");
+    // FIXME: entry == 0 とならない件を解決する
+    if (entry == 0 || entry->len == 0) {
+        debug("no more result");
+        release(&self->lock);
         return false;
     }
+    if (self->scan_queue.num == 0) {
+        debug("queue num 0");
+        release(&self->lock);
+        return false;
+    }
+    release(&self->lock);
     assert(rlen != 0);
-    memmove(buff, entry->data, entry->len);
+    memmove(buff, (const void *)entry->data, entry->len);
     *rlen = entry->len;
-
-    //hexdump (buff, len, "wlanscan");
-
+    kmfree(entry);
+    //hexdump (buff, *rlen, "wlanscan");
     return true;
 }
 
@@ -363,9 +376,7 @@ void bcm4343_dump_status(struct bcm4343 *self)
 static void bcm4343_frame_received(struct bcm4343 *self, const void *buff, unsigned len)
 {
     assert(self != 0);
-    struct bcm4343_queue_entry *entry = kmalloc(sizeof(struct bcm4343_queue_entry));
-    assert(entry);
-
+    struct bcm4343_queue_entry *entry = (struct bcm4343_queue_entry *)kmalloc(sizeof(*entry));
     memmove(entry->data, buff, len);
     entry->len = len;
     acquire(&self->lock);
@@ -381,16 +392,16 @@ static void bcm4343_frame_received(struct bcm4343 *self, const void *buff, unsig
     release(&self->lock);
 }
 
-// スキャン結果をbuffに受信する
+// スキャン結果bufをキューに登録する
 static void bcm4343_scan_result_recv(struct bcm4343 *self, const void *buff, unsigned len)
 {
     assert(self != 0);
-    struct bcm4343_queue_entry *entry = kmalloc(sizeof(struct bcm4343_queue_entry));
-    assert(entry);
-
+    struct bcm4343_queue_entry *entry = (struct bcm4343_queue_entry *)kmalloc(sizeof(*entry));
     memmove(entry->data, buff, len);
     entry->len = len;
     acquire(&self->lock);
+    trace("bcm4343: %p, &scan_queue: %p", self, &self->scan_queue);
+    trace("enqueue: entry: %p, len=0x%x, q->size: %d", entry, entry->len, self->scan_queue.num);
     // スキャン結果キューにbuffを登録する
     if (!queue_push(&self->scan_queue, entry)) {
         error("queue_push scan_queue failed");

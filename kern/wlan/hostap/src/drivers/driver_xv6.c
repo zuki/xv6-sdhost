@@ -145,8 +145,9 @@ static int wpa_driver_xv6_get_bssid(void *priv, uint8_t *bssid)
 
     assert(drv->netdev != 0);
     assert(bssid);
-    bssid = bcm4343_get_bssid(drv->netdev);
-
+    uint8_t *bcm_bssid = bcm4343_get_bssid(drv->netdev);
+    os_memcpy(bssid, bcm_bssid, MAC_ADDRESS_SIZE);
+    wpa_printf(MSG_EXCESSIVE, "get_bssid: " MACSTR, MAC2STR(bssid));
     return 0;
 }
 
@@ -192,54 +193,29 @@ static int wpa_driver_xv6_set_key(void *priv,
 
         key = key_tkip;
     }
-
-    char number[2];
-    cstring_t address;
-    if (cstring_init(&address, 0) < 0) {
-        wpa_printf(MSG_ERROR, "no memory for address\n");
-        return -1;
-    }
-    for (int i = 0; i < ETH_ALEN; i++) {
-        snprintf(number, 2, "%02X", addr[i]);
-        if (cstring_append(&address, number) < 0) {
-            wpa_printf(MSG_ERROR, "failed to append addr[%d]: %d\n", i, addr[i]);
-            return -1;
-        }
-    }
-
     assert(alg == WPA_ALG_TKIP || alg == WPA_ALG_CCMP);
-    struct cstring keys;
-    if (cstring_init(&keys, 0) < 0) {
-        wpa_printf(MSG_ERROR, "no memory for key\n");
-        return -1;
-    }
-    if (cstring_append(&keys, alg == WPA_ALG_TKIP ? "tkip:" : "ccmp:") < 0) {
-        wpa_printf(MSG_ERROR, "failed to append key head\n");
-        return -1;
+
+    char keys[5+2*key_len+1+2*seq_len+1];
+    if (alg == WPA_ALG_TKIP)
+        strncpy(keys, "skip:", 5);
+    else
+        strncpy(keys, "ccmp:", 5);
+
+    for (int i = 0; i < key_len; i++) {
+        char num[2];
+        sprintf(num, "%02x", key[i]);
+        strncpy(keys+5+2*i, num, 2);
     }
 
-    assert(key_len > 0);
-    for (unsigned i = 0; i < key_len; i++) {
-        snprintf(number, 2, "%02X", key[i]);
-        if (cstring_append(&keys, number) < 0) {
-            wpa_printf(MSG_ERROR, "failed to append key[%d]: %d\n", i, key[i]);
-            return -1;
-        }
-    }
-
-    if (cstring_append(&keys, "@") < 0) {
-        wpa_printf(MSG_ERROR, "failed to append @\n");
-        return -1;
-    }
+    strncpy(keys+5+2*key_len, "@", 1);
 
     assert(seq_len > 1);
-    for (int i = seq_len-1; i >= 0; i--) {
-        snprintf(number, 2, "%02X", seq[i]);
-        if (cstring_append(&keys, number) < 0) {
-            wpa_printf(MSG_ERROR, "failed to append seq[%d]: %d\n", i, seq[i]);
-            return -1;
-        }
+    for (int i = seq_len - 1; i >= 0; --i) {
+        char num[2];
+        sprintf(num, "%02x", seq[i]);
+        strncpy(keys+5+2*key_len+1+2*i, num, 2);
     }
+    keys[5+2*key_len+1+2*seq_len] = '\0';
 
     char command[7];
     if (set_tx) {
@@ -249,13 +225,11 @@ static int wpa_driver_xv6_set_key(void *priv,
         assert(key_idx <= 3);
         snprintf(command, 7, "rxkey%u", key_idx);
     }
-
-    if (!bcm4343_control(drv->netdev, "%s %s %s", (const char *)command,
-                   (const char *) address.data, (const char *) keys.data)) {
-        wpa_printf(MSG_ERROR, "failed bcm4343_control\n");
+    if (!bcm4343_control(drv->netdev, "%s " MACSTR " %s", command,
+                   MAC2STR(addr), keys)) {
+        wpa_printf(MSG_ERROR, "failed bcm4343_control");
         return -1;
     }
-
     return 0;
 }
 
@@ -296,7 +270,7 @@ static void wpa_driver_xv6_event_handler (
 
 static void *wpa_driver_xv6_init(void *ctx, const char *ifname)
 {
-    struct net_device *netdev = net_device_by_index(NET_DEVICE_TYPE_WLAN);
+    struct net_device *netdev = net_device_by_index(NET_INDEX_BCM4343);
     if (netdev == 0) {
         return 0;
     }
@@ -307,10 +281,11 @@ static void *wpa_driver_xv6_init(void *ctx, const char *ifname)
     }
 
     drv->ctx = ctx;
-    drv->netdev = (struct bcm4343 *) netdev;    // netdev can only be of this type
+    drv->netdev = (struct bcm4343 *) netdev->priv;
     drv->country_set = 0;
+    drv->netdev->data = drv;
 
-    bcm4343_register_event_handler((struct bcm4343 *)netdev, wpa_driver_xv6_event_handler, drv);
+    bcm4343_register_event_handler(drv->netdev, wpa_driver_xv6_event_handler, drv);
 
     return drv;
 }
@@ -391,16 +366,16 @@ static struct wpa_scan_results *wpa_driver_xv6_get_scan_results2(void *priv)
 {
     struct wpa_driver_xv6_data *drv = (struct wpa_driver_xv6_data *) priv;
     assert(drv != 0);
-
     struct wpa_scan_res **res_vector =
         (struct wpa_scan_res **) os_zalloc (MAX_SCAN_RESULTS * sizeof (struct wpa_scan_res *));
     if (res_vector == 0) {
+        wpa_printf(MSG_ERROR, "xv6_get_scan_result2: no memory for res_vector");
         return 0;
     }
-
     struct wpa_scan_results *results = (struct wpa_scan_results *) os_zalloc (sizeof (struct wpa_scan_results));
     if (results == 0) {
         os_free(res_vector);
+        wpa_printf(MSG_ERROR, "xv6_get_scan_result2: no memory for results");
         return 0;
     }
     results->res = res_vector;
@@ -414,10 +389,8 @@ static struct wpa_scan_results *wpa_driver_xv6_get_scan_results2(void *priv)
         if (results->num == MAX_SCAN_RESULTS) {
             continue;
         }
-
         // TODO: validate escan result data
         struct brcmf_escan_result_le *scan_res = (struct brcmf_escan_result_le *) buf;
-
         struct brcmf_bss_info_le *bss = &scan_res->bss_info_le;
         for (unsigned i = 0; i < scan_res->bss_count; i++) {
             assert(bss->version == BRCMF_BSS_INFO_VERSION);
@@ -426,13 +399,11 @@ static struct wpa_scan_results *wpa_driver_xv6_get_scan_results2(void *priv)
             if (freq <= 0) {
                 continue;
             }
-
             struct wpa_scan_res *res =
                 (struct wpa_scan_res *) os_zalloc (sizeof (struct wpa_scan_res) + bss->ie_length);
             if (res == 0) {
                 break;
             }
-
             os_memset(res, 0, sizeof *res);
 
             res->flags = WPA_SCAN_LEVEL_DBM | WPA_SCAN_QUAL_INVALID;
@@ -449,14 +420,12 @@ static struct wpa_scan_results *wpa_driver_xv6_get_scan_results2(void *priv)
             res->ie_len = bss->ie_length;
             os_memcpy((uint8_t *) res + sizeof *res, (uint8_t *) bss + bss->ie_offset,
                    bss->ie_length);
-
             *res_vector++ = res;
             results->num++;
 
             bss = (struct brcmf_bss_info_le *) ((uint8_t *) bss + bss->length);
         }
     }
-
     return results;
 }
 
@@ -480,22 +449,18 @@ static int wpa_driver_xv6_associate(void *priv, struct wpa_driver_associate_para
     assert(drv != 0);
     assert(params != 0);
 
-    struct cstring BSSID;
-    if (cstring_init(&BSSID, "FFFFFFFFFFFF") < 0) {
-        wpa_printf(MSG_ERROR, "failed init BSSID\n");
-        return -1;
+    char bssid[ETH_ALEN*2+1];
+    if (params->bssid == 0)
+        strncpy(params->bssid, "FFFFFFFFFFFF", 12);
+
+#if 0
+    for (unsigned i = 0; i < ETH_ALEN; i++) {
+        char str[2];
+        sprintf(str, "%02x", params->bssid[i]);
+        strncpy(bssid+i*2, str, 2);
     }
-    if (params->bssid != 0) {
-        cstring_truncate(&BSSID);
-        for (unsigned i = 0; i < ETH_ALEN; i++) {
-            char number[2];
-            snprintf(number, 2, "%02X", (unsigned) params->bssid[i]);
-            if (cstring_append(&BSSID, number) < 0 ) {
-                wpa_printf(MSG_ERROR, "failed append BSSID\n");
-                return -1;
-            }
-        }
-    }
+    bssid[ETH_ALEN*2] = '\0';
+#endif
 
     char ssid[32+1];
     assert(params->ssid != 0);
@@ -503,51 +468,34 @@ static int wpa_driver_xv6_associate(void *priv, struct wpa_driver_associate_para
     os_memcpy(ssid, params->ssid, params->ssid_len);
     ssid[params->ssid_len] = '\0';
 
-    struct cstring SSID;
-    if (cstring_init(&SSID, ssid) < 0) {
-        wpa_printf(MSG_ERROR, "failed init SSID\n");
-        return -1;
-    }
-    if (cstring_replace(&SSID, " ", "\\x20") < 0) {
-        wpa_printf(MSG_ERROR, "failed replace SSID\n");
-        return -1;
-    }
-
     if (!(params->auth_alg & WPA_AUTH_ALG_OPEN)) {
-        wpa_printf(MSG_ERROR, "Auth algorithm not supported (0x%X)\n", params->auth_alg);
+        wpa_printf(MSG_ERROR, "Auth algorithm not supported (0x%X)", params->auth_alg);
         return -1;
     }
 
     int chan = 0;        // TODO: set channel from params->freq
 
-    struct cstring Auth;
-    if (cstring_init(&Auth, "off") < 0) {
-        wpa_printf(MSG_ERROR, "failed init Auth\n");
-        return -1;
-    }
-    if (params->wpa_ie != 0 && params->wpa_ie_len > 0) {
-
-        cstring_truncate(&Auth);
+    char auth[params->wpa_ie_len*2+1];
+    if (params->wpa_ie == 0 || params->wpa_ie_len == 0) {
+        safestrcpy(auth, "off", 4);
+    } else {
         assert(params->wpa_ie != 0);
         for (unsigned i = 0; i < params->wpa_ie_len; i++) {
             char number[2];
-            snprintf(number, 2, "%02X", (unsigned) params->wpa_ie[i]);
-            if (cstring_append(&Auth, number) < 0) {
-                wpa_printf(MSG_ERROR, "failed append BSSID\n");
-                return -1;
-            }
+            sprintf(number, "%02x", (unsigned) params->wpa_ie[i]);
+            strncpy(auth+i*2, number, 2);
         }
+        auth[params->wpa_ie_len*2] = '\0';
     }
 
     if (!drv->country_set) {
-        wpa_printf(MSG_ERROR, "Country code not set\n");
+        wpa_printf(MSG_ERROR, "Country code not set");
         return -1;
     }
 
     assert(drv->netdev != 0);
-    if (!bcm4343_control(drv->netdev, "join %s %s %u %s",
-        (const char *)SSID.data, (const char *) BSSID.data,
-        chan, (const char *) Auth.data)) {
+    if (!bcm4343_control(drv->netdev, "join %s " MACSTR " %u %s",
+            ssid, MAC2STR(params->bssid), chan, auth)) {
         return -1;
     }
 
@@ -571,11 +519,11 @@ static int wpa_driver_xv6_set_country(void *priv, const char *alpha2)
     country[2] = '\0';
 
     if (!is_valid_country_code (alpha2)) {
-        wpa_printf(MSG_ERROR, "Invalid country code: '%s'\n", country);
+        wpa_printf(MSG_ERROR, "Invalid country code: '%s'", country);
         return -1;
     }
 
-    wpa_printf(MSG_INFO, "Setting country code to '%s'\n", country);
+    wpa_printf(MSG_INFO, "Setting country code to '%s'", country);
 
     assert(drv->netdev != 0);
     if (!bcm4343_control(drv->netdev, "country %s", country)) {

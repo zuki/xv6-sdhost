@@ -85,7 +85,7 @@ static struct wpa_ssid * wpa_config_read_network(FILE *f, int *line, int id)
     int errors = 0, end = 0;
     char buf[2000], *pos, *pos2;
 
-    wpa_printf(MSG_MSGDUMP, "Line: %d - start of a new network block\n",
+    wpa_printf(MSG_MSGDUMP, "Line: %d - start of a new network block",
            *line);
     ssid = os_zalloc(sizeof(*ssid));
     if (ssid == NULL)
@@ -223,7 +223,7 @@ static struct wpa_config_blob * wpa_config_read_blob(FILE *f, int *line,
     int end = 0;
     size_t encoded_len = 0, len;
 
-    wpa_printf(MSG_MSGDUMP, "Line: %d - start of a new named blob '%s'\n",
+    wpa_printf(MSG_MSGDUMP, "Line: %d - start of a new named blob '%s'",
            *line, name);
 
     while (wpa_config_get_line(buf, sizeof(buf), f, line, &pos)) {
@@ -328,7 +328,7 @@ struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
     while (cred_tail && cred_tail->next)
         cred_tail = cred_tail->next;
 
-    //wpa_printf(MSG_DEBUG, "name '%s'\n", name);
+    //wpa_printf(MSG_DEBUG, "name '%s'", name);
 
     res = f_open(f, name, FA_READ);
     if (res != FR_OK) {

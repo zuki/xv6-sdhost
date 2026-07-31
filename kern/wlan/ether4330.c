@@ -1566,6 +1566,7 @@ static void rproc(void *a)
                 bdc = 4 + (b->rp[p->doffset + 3] << 2); // BDCヘッダーの末尾からパケットデータまでのオフセットは4 uint8_tワード単位。
                 if (BLEN(b) > p->doffset + bdc) {
                     b->rp += p->doffset + bdc;    /* BDC ヘッダーをスキップ */
+                    trace("bcmevent: len=0x%x", BLEN(b));
                     bcmevent(ctl, b->rp, BLEN(b));
                     break;
                 }
@@ -1727,9 +1728,10 @@ static void bcmevent(Ctlr *ctl, uchar *p, int len)
 
     if (len < ETHERHDRSIZE + 10 + 46)
         return;
+    //hexdump(p, 64, "event data");
     p += ETHERHDRSIZE + 10;             /* skip bcm_ether header */
     len -= ETHERHDRSIZE + 10;
-    flags = nhgets(p + 2);              /* whd_evnets.h の struct whd_evnet_msg を参照 */
+    flags = nhgets(p + 2);              /* whd_events.h の struct whd_event_msg を参照 */
     event = nhgets(p + 6);
     status = nhgetl(p + 8);
     reason = nhgetl(p + 12);
@@ -1770,6 +1772,7 @@ static void bcmevent(Ctlr *ctl, uchar *p, int len)
     case 26:    /* E_SCAN_COMPLETE */
         break;
     case 69:    /* E_ESCAN_RESULT */
+        //hexdump(p, len, "escan_result");
         wlscanresult(ctl->edev, p + 48, len - 48);
         break;
     default:
@@ -2619,9 +2622,9 @@ static void etherbcmattach(Ether *edev)
         /* 3. sbを有効にする */
         sbenable(ctlr);
         /* 4. 受信処理を行うrproc()を実行するカーネルプロセスを作成する */
-        kthread_create("wifireader", rproc, edev, 4);
+        kthread_create("wifireader", rproc, edev, 32);
         /* 5. スキャン処理を行うlproc()を実行するカーネルプロセスを作成する */
-        kthread_create("wifitimer", lproc, edev, 4);
+        kthread_create("wifitimer", lproc, edev, 32);
         /* 6. 規制ファイルが存在する場合はロードする */
         if (ctlr->regufile)
             reguload(ctlr, ctlr->regufile);     // brcmfmac43455-sdio.clm_blob

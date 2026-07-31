@@ -24,6 +24,14 @@
 
 #define __force
 
+#undef  ENOMEM
+#undef  EINVAL
+#undef  EBUSY
+#undef  EAGAIN
+#undef  EIO
+#undef  EOPNOTSUPP
+#undef  ENOTCONN
+#undef  ECANCELED
 #define ENOMEM          1
 #define EINVAL          2
 #define EBUSY           3
