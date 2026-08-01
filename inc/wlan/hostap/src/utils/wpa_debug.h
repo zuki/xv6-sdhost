@@ -74,6 +74,8 @@ void wpa_debug_print_timestamp(void);
 void wpa_printf(int level, const char *fmt, ...)
 PRINTF_FORMAT(2, 3);
 
+void wpa_print(int level, const char *fmt, ...);
+
 /**
  * wpa_hexdump - conditional hex dump
  * @level: priority level (MSG_*) of the message

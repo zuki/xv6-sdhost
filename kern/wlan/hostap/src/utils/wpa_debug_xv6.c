@@ -32,7 +32,19 @@ void wpa_printf(int level, const char *fmt, ...)
     if (level >= wpa_debug_level)
     {
         va_start(ap, fmt);
-        vprintf(fmt, ap);
+        vprintf(fmt, ap, true);
+        va_end(ap);
+    }
+}
+
+void wpa_print(int level, const char *fmt, ...)
+{
+    va_list ap;
+
+    if (level >= wpa_debug_level)
+    {
+        va_start(ap, fmt);
+        vprintf(fmt, ap, false);
         va_end(ap);
     }
 }
@@ -82,7 +94,7 @@ void wpa_msg (void *ctx, int level, const char *fmt, ...)
     if (level >= wpa_debug_level)
     {
         va_start(ap, fmt);
-        vprintf(fmt, ap);
+        vprintf(fmt, ap, true);
         va_end(ap);
     }
 }

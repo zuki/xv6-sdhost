@@ -21,13 +21,14 @@
 
 static char vbuf[1024];
 
-int vprintf(const char *fmt, va_list ap)
+int vprintf(const char *fmt, va_list ap, boolean nl)
 {
     // char vbuf[1024];
     int rc;
     rc = vsnprintfmt(vbuf, 1024, fmt, ap);
     cprintf(vbuf);
-    cprintf1("\n");
+    if (nl)
+        cprintf1("\n");
     return rc;
 }
 
@@ -36,7 +37,7 @@ int printf(const char *format, ...)
     va_list ap;
     va_start(ap, format);
 
-    int res = vprintf(format, ap);
+    int res = vprintf(format, ap, true);
 
     va_end(ap);
 

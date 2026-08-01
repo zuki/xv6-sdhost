@@ -67,7 +67,7 @@ struct ip6_addr
 #define vprintf     __wpa_vprintf
 
 int printf(const char *format, ...);
-int vprintf(const char *format, va_list ap);
+int vprintf(const char *format, va_list ap, boolean nl);
 
 void qsort (void *base, size_t nmemb, size_t size,
         int (*compare) (const void *, const void *));
