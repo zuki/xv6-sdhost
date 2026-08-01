@@ -56,13 +56,6 @@ isb()
     __asm__ __volatile__("isb" ::: "memory");
 }
 
-/* Instruction memory barrier. */
-static inline void
-imb()
-{
-    __asm__ __volatile__("isb" ::: "memory");
-}
-
 /* Data synchronization barrier. */
 static inline void
 dsb()
