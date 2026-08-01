@@ -5572,7 +5572,7 @@ static int wpa_supplicant_set_driver(struct wpa_supplicant *wpa_s,
 
 
 /**
- * wpa_supplicant_rx_eapol - Deliver a received EAPOL frame to wpa_supplicant
+ * wpa_supplicant_rx_eapol - 受信したEAPOLフレームをwpa_supplicantに配送する
  * @ctx: Context pointer (wpa_s); this is the ctx variable registered
  *    with struct wpa_driver_ops::init()
  * @src_addr: Source address of the EAPOL frame
@@ -5580,11 +5580,10 @@ static int wpa_supplicant_set_driver(struct wpa_supplicant *wpa_s,
  * @len: Length of the EAPOL data
  * @encrypted: Whether the frame was encrypted
  *
- * This function is called for each received EAPOL frame. Most driver
- * interfaces rely on more generic OS mechanism for receiving frames through
- * l2_packet, but if such a mechanism is not available, the driver wrapper may
- * take care of received EAPOL frames and deliver them to the core supplicant
- * code by calling this function.
+ * この関数はEAPOLフレームを受信する毎に呼び出される。ほとんどのドライバインタフェースは
+ * l2_packetを介してフレームを受信するための、より汎用的なOSのメカニズムに依存しているが
+ * そのようなメカニズムが利用できない場合、ドライバラッパーが受信したEAPOLフレームを処理し
+ * この関数を呼び出すことでコアサプリカントコードにそれらを渡す。
  */
 void wpa_supplicant_rx_eapol(void *ctx, const uint8_t *src_addr,
                  const uint8_t *buf, size_t len,
@@ -5613,6 +5612,8 @@ void wpa_supplicant_rx_eapol(void *ctx, const uint8_t *src_addr,
     }
 #endif /* CONFIG_TESTING_OPTIONS */
 
+    //wpa_printf(MSG_DEBUG, "rx_eapol src_addr: " MACSTR ", connected_addr: " MACSTR,
+    //    MAC2STR(src_addr), MAC2STR(connected_addr));
     if (wpa_s->wpa_state < WPA_ASSOCIATED ||
         (wpa_s->last_eapol_matches_bssid &&
 #ifdef CONFIG_AP
@@ -5620,16 +5621,14 @@ void wpa_supplicant_rx_eapol(void *ctx, const uint8_t *src_addr,
 #endif /* CONFIG_AP */
          !ether_addr_equal(src_addr, connected_addr))) {
         /*
-         * There is possible race condition between receiving the
-         * association event and the EAPOL frame since they are coming
-         * through different paths from the driver. In order to avoid
-         * issues in trying to process the EAPOL frame before receiving
-         * association information, lets queue it for processing until
-         * the association event is received. This may also be needed in
-         * driver-based roaming case, so also use src_addr != BSSID as a
-         * trigger if we have previously confirmed that the
-         * Authenticator uses BSSID as the src_addr (which is not the
-         * case with wired IEEE 802.1X).
+         * アソシエーションイベントとEAPOLフレームは、ドライバから異なる経路を
+         * 経由して到着するため、両者の間でレースコンディションが発生する可能性が
+         * ある。アソシエーション情報を受信する前にEAPOLフレームを処理しようと
+         * して問題が発生するのを防ぐため、アソシエーションイベントを受信するまで
+         * その処理をキューに保留しておく。これはドライバベースのローミングの場合にも
+         * 必要となる可能性があるため、認証装置がsrc_addrとしてBSSIDを使用している
+         * ことが事前に確認されている場合は（有線IEEE 802.1Xでは該当しない）、
+         * src_addr != BSSIDもトリガーとして使用する。
          */
         wpa_dbg(wpa_s, MSG_DEBUG,
             "Not associated - Delay processing of received EAPOL frame (state=%s connected_addr="
@@ -5750,13 +5749,14 @@ void wpa_supplicant_rx_eapol(void *ctx, const uint8_t *src_addr,
 static void wpa_supplicant_rx_eapol_cb(void *ctx, const uint8_t *src_addr,
                        const uint8_t *buf, size_t len)
 {
-    wpa_supplicant_rx_eapol(ctx, src_addr, buf, len,
-                FRAME_ENCRYPTION_UNKNOWN);
+    wpa_supplicant_rx_eapol(ctx, src_addr, buf, len, FRAME_ENCRYPTION_UNKNOWN);
 }
 
 
 static int wpas_eapol_needs_l2_packet(struct wpa_supplicant *wpa_s)
 {
+    //wpa_printf(MSG_DEBUG, "drv_flags: 0x%x, drv_flags2: 0x%x", wpa_s->drv_flags, wpa_s->drv_flags2);
+    // !false || !false -> true
     return !(wpa_s->drv_flags & WPA_DRIVER_FLAGS_CONTROL_PORT) ||
         !(wpa_s->drv_flags2 & WPA_DRIVER_FLAGS2_CONTROL_PORT_RX);
 }
@@ -5771,6 +5771,7 @@ int wpa_supplicant_update_mac_addr(struct wpa_supplicant *wpa_s)
     if ((!wpa_s->p2p_mgmt ||
          !(wpa_s->drv_flags & WPA_DRIVER_FLAGS_DEDICATED_P2P_DEVICE)) &&
         !(wpa_s->drv_flags & WPA_DRIVER_FLAGS_P2P_DEDICATED_INTERFACE)) {
+        // ここが実行されている
         l2_packet_deinit(wpa_s->l2);
         wpa_s->l2 = l2_packet_init(wpa_s->ifname,
                        wpa_drv_get_mac_addr(wpa_s),
@@ -5778,9 +5779,10 @@ int wpa_supplicant_update_mac_addr(struct wpa_supplicant *wpa_s)
                        wpas_eapol_needs_l2_packet(wpa_s) ?
                        wpa_supplicant_rx_eapol_cb : NULL,
                        wpa_s, 0);
-        if (wpa_s->l2 == NULL)
+        if (wpa_s->l2 == NULL) {
+            wpa_printf(MSG_ERROR, "failed l2_packet_init");
             return -1;
-
+        }
         if (l2_packet_set_packet_filter(wpa_s->l2,
                         L2_PACKET_FILTER_PKTTYPE))
             wpa_dbg(wpa_s, MSG_DEBUG,
@@ -7098,7 +7100,7 @@ next_driver:
         return -1;
 
     wpa_s->drv_priv = wpa_drv_init(wpa_s, wpa_s->ifname);
-    wpa_dbg(wpa_s, MSG_DEBUG, "wpa_s->drv_priv: %p", wpa_s->drv_priv);
+    //wpa_dbg(wpa_s, MSG_DEBUG, "wpa_s->drv_priv: %p", wpa_s->drv_priv);
     if (wpa_s->drv_priv == NULL) {
         const char *pos;
         int level = MSG_ERROR;
@@ -8154,18 +8156,18 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
 
 
 /**
- * wpa_supplicant_run - Run the %wpa_supplicant main event loop
+ * wpa_supplicant_run -  %wpa_supplicant メインイベントループを実行する
  * @global: Pointer to global data from wpa_supplicant_init()
  * Returns: 0 after successful event loop run, -1 on failure
  *
- * This function starts the main event loop and continues running as long as
- * there are any remaining events. In most cases, this function is running as
- * long as the %wpa_supplicant process in still in use.
+ * この関数はメインのイベントループを開始し、イベントが残っている限り実行を続ける。
+ * ほとんどの場合、この関数は %wpa_supplicant プロセスが使用されている限り
+ * 実行され続ける。
  */
 int wpa_supplicant_run(struct wpa_global *global)
 {
     struct wpa_supplicant *wpa_s;
-
+    //wpa_printf(MSG_DEBUG, "wpa_supplicant_run start");
     if (global->params.daemonize &&
         (wpa_supplicant_daemon(global->params.pid_file) ||
          eloop_sock_requeue()))
