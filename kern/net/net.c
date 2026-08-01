@@ -351,6 +351,20 @@ void net_raise_event()
     intr_raise_irq(INTR_IRQ_EVENT);
 }
 
+void set_ip_config(struct net_device *dev)
+{
+    //char addr[256];
+
+    struct ip_iface *iface = ip_iface_alloc(LOCAL_IP_ADDR, NETMASK);
+    assert(iface != 0);
+
+    trace("dev: 0x%p, iface: 0x%p, unicast: %s, netmask: %s, broadcast: %s",
+        dev, iface, ip_addr_ntop(iface->unicast, addr, 256), ip_addr_ntop(iface->netmask, addr, 256),
+        ip_addr_ntop(iface->broadcast, addr, 256));
+    ip_iface_register(dev, iface);
+    ip_route_set_default_gateway(iface, DEFAULT_GATEWAY);
+}
+
 static int netrun(void)
 {
     struct net_device *dev;
@@ -367,6 +381,7 @@ static int netrun(void)
         //    delay(1);
         //}
     }
+
     info("running...");
     return 0;
 }
@@ -422,19 +437,7 @@ static int netinit(void)
     return 0;
 }
 
-static void set_ip_config(struct net_device *dev)
-{
-    //char addr[256];
 
-    struct ip_iface *iface = ip_iface_alloc(LOCAL_IP_ADDR, NETMASK);
-    assert(iface != 0);
-
-    trace("dev: 0x%p, iface: 0x%p, unicast: %s, netmask: %s, broadcast: %s",
-        dev, iface, ip_addr_ntop(iface->unicast, addr, 256), ip_addr_ntop(iface->netmask, addr, 256),
-        ip_addr_ntop(iface->broadcast, addr, 256));
-    ip_iface_register(dev, iface);
-    ip_route_set_default_gateway(iface, DEFAULT_GATEWAY);
-}
 
 void net_init(void)
 {

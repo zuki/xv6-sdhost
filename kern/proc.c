@@ -273,8 +273,11 @@ forkret(void)
 
         usb_init();
         bcm4343_init("4:/firmware");    // 末尾に/は付けない
+        disb();
         net_init();
+        disb();
         net_run();
+        disb();
         wpasupplicant_init("4:/wpa_supplicant.conf");
 #if NET_DRV != NET_INDEX_BCM4343
         struct proc *p = kthread_create("ether_reader", ether_reader, NULL, 1);
@@ -736,7 +739,7 @@ static void kthread_stub(void)
     struct proc *p = thisproc();
     assert(p);
     if (p->iskthread && p->fn_ptr) {
-        debug("call kthread %s", p->name);
+        trace("call kthread %s", p->name);
         p->fn_ptr(p->fn_arg);
     }
 

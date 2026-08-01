@@ -96,7 +96,7 @@ boolean bcm4343_create_opennet(struct bcm4343 *self, const char *ssid, int chann
 /// \brief Destroy created open network
 boolean bcm4343_destroy_opennet(struct bcm4343 *self);
 
-void bcm4343_dump_status(struct bcm4343 *self);
+void bcm4343_dump_status(void);
 
 #endif
 

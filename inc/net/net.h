@@ -109,5 +109,6 @@ void net_raise_event(void);
 void net_run(void);
 void net_shutdown(void);
 void net_init(void);
+void set_ip_config(struct net_device *dev);
 
 #endif

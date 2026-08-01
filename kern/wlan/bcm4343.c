@@ -272,7 +272,7 @@ boolean bcm4343_control(struct bcm4343 *self, const char *format, ...)
     if (waserror ()) {
         return false;
     }
-    debug("command: '%s'", command);
+    trace("command: '%s'", command);
     assert(ether_device.ctl != 0);
     // etherbcmctl()を実行
     (*ether_device.ctl)(&ether_device, (const char *)command, 0);
@@ -293,7 +293,7 @@ boolean bcm4343_recv_scan_result(struct bcm4343 *self, void *buff, unsigned *rle
     trace("dequeue: entry: %p, len=0x%x, q->size: %d, isnull : %s", entry, entry->len, self->scan_queue.num, entry == NULL ? "yes" : "no");
     //hexdump (entry->data, entry->len, "entry");
     // FIXME: entry == 0 とならない件を解決する
-    if (entry == 0 || entry->len == 0) {
+    if (!entry || entry->len == 0) {
         debug("no more result");
         release(&self->lock);
         return false;
@@ -361,7 +361,7 @@ boolean bcm4343_destroy_opennet(struct bcm4343 *self)
 }
 
 // ifstatを出力する
-void bcm4343_dump_status(struct bcm4343 *self)
+void bcm4343_dump_status(void)
 {
     char buffer[200];
 
