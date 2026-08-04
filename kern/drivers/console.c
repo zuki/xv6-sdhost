@@ -181,19 +181,19 @@ void vprintfmt(void (*putch)(int), const char *fmt, va_list ap)
 
         switch (c) {
         case 'u':
-            if (l == 2)
+            if (l > 0)
                 printint(va_arg(ap, uint64_t), 10, 0, z, n);
             else
                 printint(va_arg(ap, uint32_t), 10, 0, z, n);
             break;
         case 'd':
-            if (l == 2)
+            if (l > 0)
                 printint(va_arg(ap, int64_t), 10, 1, z, n);
             else
                 printint(va_arg(ap, int), 10, 1, z, n);
             break;
         case 'x':
-            if (l == 2)
+            if (l > 0)
                 printint(va_arg(ap, uint64_t), 16, 0, z, n);
             else
                 printint(va_arg(ap, uint32_t), 16, 0, z, n);
@@ -273,9 +273,9 @@ void hexdump(const void *data, size_t size, const char *name)
 
     src = (unsigned char *)data;
     cprintf("=== %s dump ===\n", name ? name : "");
-    cprintf("+------+-------------------------------------------------+------------------+\n");
+    cprintf("+------------------+-------------------------------------------------+------------------+\n");
     for (offset = 0; offset < (int)size; offset += 16) {
-        cprintf("| %04x | ", offset);
+        cprintf("| 0x%016llx | ", (uint64_t)src + offset);
         for (index = 0; index < 16; index++) {
             if (offset + index < (int)size) {
                 cprintf("%02x ", 0xff & src[offset + index]);
@@ -297,7 +297,7 @@ void hexdump(const void *data, size_t size, const char *name)
         }
         cprintf(" |\n");
     }
-    cprintf("+------+-------------------------------------------------+------------------+\n\n");
+    cprintf("+------------------+-------------------------------------------------+------------------+\n\n");
 
 }
 
