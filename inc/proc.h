@@ -14,6 +14,7 @@
 #include <linux/ppoll.h>
 #include <linux/time.h>
 #include <linux/capability.h>
+#include <p9error.h>
 
 #define NPROC           100     /* 最大プロセス数 */
 #define NCPU            4       /* コア数 */
@@ -122,6 +123,7 @@ struct proc {
     int iskthread;              /* 1: kthread, 0: user proc */
     void (*fn_ptr)(void *);     /* kthreadの実行関数 */
     void *fn_arg;               /* kthreadの関数に渡す引数 */
+    struct error_stack_t errstack;  /* p9error stack */
 
     void *userdata;             /* proc/thread固有データへのポインタ */
 };

@@ -739,6 +739,8 @@ static void kthread_stub(void)
     struct proc *p = thisproc();
     assert(p);
     if (p->iskthread && p->fn_ptr) {
+        p->errstack.stackptr = ERROR_STACK_SIZE;
+        p->userdata = &p->errstack;
         trace("call kthread %s", p->name);
         p->fn_ptr(p->fn_arg);
     }
