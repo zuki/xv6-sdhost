@@ -3356,11 +3356,1043 @@ new own_addr: c0:b0:3d:07:00:00
 Own MAC address: c0:b0:3d:07:00:00
 ```
 
+- wpa_driver_xv6_get_bssid(), wpa_driver_xv6_set_key()を修正して4WAY_HANDSHAKEまで成功
+
+```bash
+[2]net_device_register: dev=net1, type=2 (ETHERNET)
+[2]usb_init: usb_init ok
+emmc control 0x0 0x0 0x0
+ether4330: chip 0x4345 rev 6 type 1
+[0]kthread_stub: call kthread wifireader
+[1]ether4d3s:ufi caar kthrda
+wifitimer
+ether4330: addr b8:27:eb:fe:bd:1d
+[0]net_device_register: dev=net3, type=3 (WLAN)
+[0]net_protocol_register: type=0x0800 (IP)
+[0]net_protocol_register: type=0x0806 (ARP)
+[0]ip_protocol_register: type=1 (ICMP)
+[0]ip_protocol_register: type=17 (UDP)
+[0]ip_protocol_register: type=6 (TCP)
+[0]net_init: net_init ok
+[0]netrun: open net3
+[0]net_device_open: dev=net3, state=up
+[0]netrun: open net1
+[0]net_device_open: dev=net1, state=up
+[0]netrun: running...
+[3]kthread_stub: call kthread wpa_supplicant
+[3]wpa_supplicant_main: start
+wpa_supplicant v2.11
+Initializing interface 'wlan0' conf '4:/wpa_supplicant.conf'
+  driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
+Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+country='JP'
+Line: 7 - start of a new network block
+ssid: 4d 53 52 53 5f 54 44 46 5f 41 35 5f 41 31 31
+proto: 0x2
+key_mgmt: 0x2
+$ Priority group 0
+   id=0 ssid='MSRS_TDF_A5_A11'
+wpa_s->drv_priv: ffff0000073db0c0
+Add interface wlan0 to a new radio N/A
+Failed to attach pkt_type filter
+Own MAC address: b8:27:eb:fe:bd:1d
+RSN: flushing PMKID list in the driver
+Setting scan request: 0.100000 sec
+Setting country code to 'JP'
+[2]bcm4343_control: command: 'country JP'
+[2]wlsetcountry: ccode: JP, country: JP
+eap_peer_sm_init ok
+EAPOL: SUPP_PAE entering state DISCONNECTED
+EAPOL: Supplicant port status: Unauthorized
+EAPOL: KEY_RX entering state NO_KEY_RECEIVE
+EAPOL: SUPP_BE entering state INITIALIZE
+EAP: EAP entering state DISABLED
+eapol_sm_init ok
+wpa_supplicant_init_eapol ok
+Added interface wlan0
+State: DISCONNECTED -> DISCONNECTED
+State: DISCONNECTED -> SCANNING
+Starting AP scan for wildcard SSID
+Add radio work 'scan'@ffff0000073d8700
+First radio work item in the queue - schedule start immediately
+Starting radio work 'scan'@ffff0000073d8700 after 0.200000 second wait
+[1]bcm4343_control: command: 'escan 5'
+EAPOL: disable timer tick
+[1]bcm4343_control: command: 'escan 0'
+Event SCAN_RESULTS (3) received
+[1]bcm4343_recv_scan_result: queue num 0
+BSS: Start scan result update 1
+BSS: Add new id 0 BSSID f8:b7:97:87:2c:df SSID 'MSRS_TDF_A5_A11' freq 5210
+BSS: f8:b7:97:87:2c:df has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 5210)
+New last_update: 7.590000 (freq 5210)
+Ignore this BSS entry since the previous update looks more current
+BSS: f8:b7:97:87:2c:df has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 5210)
+New last_update: 7.590000 (freq 5210)
+Ignore this BSS entry since the previous update looks more current
+BSS: Add new id 1 BSSID f8:b7:97:87:2c:de SSID 'MSRS_TDF_A2_S04' freq 2462
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 2462)
+New last_update: 7.590000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 2462)
+New last_update: 7.590000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 2462)
+New last_update: 7.590000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 2462)
+New last_update: 7.590000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: Add new id 2 BSSID fa:b7:97:87:2c:de SSID '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' freq 2452
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 2462)
+New last_update: 7.590000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 2462)
+New last_update: 7.590000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: fa:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 2452)
+New last_update: 7.590000 (freq 2452)
+Ignore this BSS entry since the previous update looks more current
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 2462)
+New last_update: 7.590000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: Add new id 3 BSSID a0:95:7f:d3:b4:3c SSID 'A0957FD3B43D-2G' freq 2437
+BSS: a0:95:7f:d3:b4:3c has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 2437)
+New last_update: 7.590000 (freq 2437)
+Ignore this BSS entry since the previous update looks more current
+BSS: Add new id 4 BSSID 54:9b:49:d3:e7:f2 SSID 'xg100n-d3e7f1-1' freq 2462
+BSS: a0:95:7f:d3:b4:3c has multiple entries in the scan results - select the most current one
+Previous last_update: 7.590000 (freq 2437)
+New last_update: 7.590000 (freq 2437)
+Ignore this BSS entry since the previous update looks more current
+BSS: last_scan_res_used=%zu/%zu
+New scan results available (own=0 ext=0)
+Radio work 'scan'@ffff0000073d8700 done in 3.490000 seconds
+radio_work_free('scan'@ffff0000073d8700): num_active_works --> 0
+Selecting BSS from priority group 0
+0: f8:b7:97:87:2c:df ssid='MSRS_TDF_A5_A11' wpa_ie_len=0 rsn_ie_len=20 caps=0x431 level=65497 freq=5210  wps
+   selected based on RSN IE
+MLD: No Multi-Link element
+   selected BSS f8:b7:97:87:2c:df ssid='MSRS_TDF_A5_A11'
+Considering connect request: reassociate: 0
+  selected: f8:b7:97:87:2c:df  bssid: 00:00:00:00:00:00  pending: 00:00:00:00:00:00
+  wpa_state: SCANNING  ssid=ffff0000073cca60  current_ssid=0
+Request association with f8:b7:97:87:2c:df
+No ongoing scan/p2p-scan found to abort
+Add radio work 'connect'@ffff0000073d8c80
+First radio work item in the queue - schedule start immediately
+Starting radio work 'connect'@ffff0000073d8c80 after 0.200000 second wait
+WPA: clearing own WPA/RSN IE
+RSN: clearing own RSNXE
+RSN: PMKSA cache search - network_ctx=ffff0000073cca60 try_opportunistic=0 akmp=0x0
+RSN: Search for BSSID f8:b7:97:87:2c:df
+RSN: No PMKSA cache entry found
+RSN: using IEEE 802.11i/D9.0
+WPA: Selected cipher suites: group 16 pairwise 16 key_mgmt 2 proto 2
+WPA: Selected mgmt group cipher 32
+WPA: clearing AP WPA IE
+WPA: set AP RSN IE: 30 14 01 00 00 0f ac 04 01 00 00 0f ac 04 01 00
+00 0f ac 02 00 00
+WPA: clearing AP RSNXE
+WPA: AP group 0x10 network profile group 0x18; available group 0x10
+WPA: using GTK CCMP
+WPA: AP pairwise 0x10 network profile pairwise 0x18; available pairwise 0x10
+WPA: using PTK CCMP
+WPA: AP key_mgmt 0x2 network profile key_mgmt 0x2; available key_mgmt 0x2
+WPA: using KEY_MGMT WPA-PSK
+WPA: AP mgmt_group_cipher 0x20 network profile mgmt_group_cipher 0x0; available mgmt_group_cipher 0x0
+WPA: not using MGMT group cipher
+WPA: Set own WPA IE default: 30 14 01 00 00 0f ac 04 01 00 00 0f ac 04 01 00
+00 0f ac 02 0c 00
+RSN: Set own RSNXE default: Automatic auth_alg selection: 0x1
+No supported operating classes IE to add
+Trying to associate with f8:b7:97:87:2c:df (SSID='MSRS_TDF_A5_A11' freq=5210 MHz)
+Cancelling scan request
+State: SCANNING -> ASSOCIATING
+Limit connection to BSSID f8:b7:97:87:2c:df freq=5210 MHz based on scan results (bssid_set=0 wps=0)
+[1]bcm4343_control: command: 'join MSRS_TDF_A5_A11 f8:b7:97:87:2c:df 0 30140100000fac040100000fac040100000fac020c00'
+Event ASSOC (0) received
+State: ASSOCIATING -> ASSOCIATED
+Associated to a new BSS: BSSID=f8:b7:97:87:2c:df
+Associated with f8:b7:97:87:2c:df
+WPA: Association event - clear replay counter
+WPA: Clear old PTK
+EAPOL: External notification - portEnabled=0
+EAPOL: External notification - portValid=0
+EAPOL: External notification - EAP success=0
+EAPOL: External notification - portEnabled=1
+EAPOL: SUPP_PAE entering state CONNECTING
+EAPOL: enable timer tick
+EAPOL: SUPP_BE entering state IDLE
+EAP: EAP entering state INITIALIZE
+EAP: EAP entering state IDLE
+Setting authentication timeout: 10 sec 0 usec
+Cancelling scan request
+Setting authentication timeout: 10 sec 0 usec
+EAPOL: External notification - EAP success=0
+EAPOL: External notification - EAP fail=0
+EAPOL: External notification - portControl=Auto
+RX EAPOL from f8:b7:97:87:2c:df (encrypted=-1)
+RX EAPOL: 01 03 00 75 02 00 8a 00 10 00 00 00 00 00 00 00
+00 df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12
+2b 12 8c f5 c8 81 67 af 55 46 a0 ad 38 6a a7 4d
+58 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 16 dd 14 00 0f ac 04 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00
+Setting authentication timeout: 10 sec 0 usec
+IEEE 802.1X RX: version=1 type=3 length=117
+WPA: RX EAPOL-Key: 01 03 00 75 02 00 8a 00 10 00 00 00 00 00 00 00
+00 df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12
+2b 12 8c f5 c8 81 67 af 55 46 a0 ad 38 6a a7 4d
+58 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 16 dd 14 00 0f ac 04 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00
+  EAPOL-Key type=2
+  key_info 0x8a (ver=2 keyidx=0 rsvd=0 Pairwise Ack)
+  key_length=16 key_data_length=22
+  replay_counter: 00 00 00 00 00 00 00 00
+  key_nonce: df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12 2b
+12 8c f5 c8 81 67 af 55 46 a0 ad 38 6a a7 4d 58
+  key_iv: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  key_rsc: 00 00 00 00 00 00 00 00
+  key_id (reserved): 00 00 00 00 00 00 00 00
+  key_mic: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+EAP: EAP entering state DISABLED
+WPA: RX message 1 of 4-Way Handshake from f8:b7:97:87:2c:df (ver=2)
+RSN: msg 1/4 key data: dd 14 00 0f ac 04 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00
+WPA: PMKID in EAPOL-Key: dd 14 00 0f ac 04 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00
+RSN: PMKID from Authenticator: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+RSN: no matching PMKID found
+State: ASSOCIATED -> 4WAY_HANDSHAKE
+WPA: Renewed SNonce: 69 95 3d 98 78 88 13 5a 8b c7 55 c2 20 b5 b3 85
+e6 6a 14 e7 64 f9 53 c4 ab 95 a2 0e c8 71 33 f5
+WPA: PTK derivation using PRF(SHA1)
+WPA: PTK derivation - A1=b8:27:eb:fe:bd:1d A2=f8:b7:97:87:2c:df
+WPA: Nonce1: 69 95 3d 98 78 88 13 5a 8b c7 55 c2 20 b5 b3 85
+e6 6a 14 e7 64 f9 53 c4 ab 95 a2 0e c8 71 33 f5
+WPA: Nonce2: df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12 2b
+12 8c f5 c8 81 67 af 55 46 a0 ad 38 6a a7 4d 58
+WPA: WPA IE for msg 2/4: 30 14 01 00 00 0f ac 04 01 00 00 0f ac 04 01 00
+00 0f ac 02 0c 00
+WPA: Replay Counter: 00 00 00 00 00 00 00 00
+WPA: Sending EAPOL-Key 2/4
+WPA: Send EAPOL-Key frame to f8:b7:97:87:2c:df ver=2 mic_len=16 key_mgmt=0x2
+WPA: EAPOL-Key MIC using HMAC-SHA1
+WPA: Derived Key MIC: c4 ba 4f 3a 1d b6 ef 05 5e c1 b7 2c 29 dc 9e 70
+WPA: TX EAPOL-Key: 01 03 00 75 02 01 0a 00 00 00 00 00 00 00 00 00
+00 69 95 3d 98 78 88 13 5a 8b c7 55 c2 20 b5 b3
+85 e6 6a 14 e7 64 f9 53 c4 ab 95 a2 0e c8 71 33
+f5 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 c4 ba 4f 3a 1d b6 ef 05 5e c1 b7 2c 29 dc 9e
+70 00 16 30 14 01 00 00 0f ac 04 01 00 00 0f ac
+04 01 00 00 0f ac 02 0c 00
+RX EAPOL from f8:b7:97:87:2c:df (encrypted=-1)
+RX EAPOL: 01 03 00 97 02 13 ca 00 10 00 00 00 00 00 00 00
+01 df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12
+2b 12 8c f5 c8 81 67 af 55 46 a0 ad 38 6a a7 4d
+58 df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12
+2b 4a f7 09 00 00 00 00 00 00 00 00 00 00 00 00
+00 e3 1d e0 d3 1f de 70 c0 36 bb bc 3a 7c c1 48
+1d 00 38 04 88 84 bc 0c cc e3 d2 13 ae b4 50 1a
+3c c1 07 46 17 dc 0b 55 54 0a 85 86 7f ec fe 23
+d8 be 50 96 23 1f 09 fb 7c 1a a3 ad 1b 9d 95 a9
+a7 b5 13 4f 4e 65 04 64 90 ef e9
+IEEE 802.1X RX: version=1 type=3 length=151
+WPA: RX EAPOL-Key: 01 03 00 97 02 13 ca 00 10 00 00 00 00 00 00 00
+01 df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12
+2b 12 8c f5 c8 81 67 af 55 46 a0 ad 38 6a a7 4d
+58 df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12
+2b 4a f7 09 00 00 00 00 00 00 00 00 00 00 00 00
+00 e3 1d e0 d3 1f de 70 c0 36 bb bc 3a 7c c1 48
+1d 00 38 04 88 84 bc 0c cc e3 d2 13 ae b4 50 1a
+3c c1 07 46 17 dc 0b 55 54 0a 85 86 7f ec fe 23
+d8 be 50 96 23 1f 09 fb 7c 1a a3 ad 1b 9d 95 a9
+a7 b5 13 4f 4e 65 04 64 90 ef e9
+  EAPOL-Key type=2
+  key_info 0x13ca (ver=2 keyidx=0 rsvd=0 Pairwise Install Ack MIC Secure Encr)
+  key_length=16 key_data_length=56
+  replay_counter: 00 00 00 00 00 00 00 01
+  key_nonce: df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12 2b
+12 8c f5 c8 81 67 af 55 46 a0 ad 38 6a a7 4d 58
+  key_iv: df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12 2b
+  key_rsc: 4a f7 09 00 00 00 00 00
+  key_id (reserved): 00 00 00 00 00 00 00 00
+  key_mic: e3 1d e0 d3 1f de 70 c0 36 bb bc 3a 7c c1 48 1d
+WPA: EAPOL-Key MIC using HMAC-SHA1
+RSN: encrypted key data: 04 88 84 bc 0c cc e3 d2 13 ae b4 50 1a 3c c1 07
+46 17 dc 0b 55 54 0a 85 86 7f ec fe 23 d8 be 50
+96 23 1f 09 fb 7c 1a a3 ad 1b 9d 95 a9 a7 b5 13
+4f 4e 65 04 64 90 ef e9
+WPA: Decrypt Key Data using AES-UNWRAP (KEK length 16)
+State: 4WAY_HANDSHAKE -> 4WAY_HANDSHAKE
+RSN: RX message 3 of 4-Way Handshake from f8:b7:97:87:2c:df (ver=2)
+WPA: IE KeyData: 30 14 01 00 00 0f ac 04 01 00 00 0f ac 04 01 00
+00 0f ac 02 00 00 dd 16 00 0f ac 01 01 00 f2 76
+34 d6 8a 0d 1d d2 bc 31 03 d9 d0 b1 e9 1a dd 00
+WPA: RSN IE in EAPOL-Key: 30 14 01 00 00 0f ac 04 01 00 00 0f ac 04 01 00
+00 0f ac 02 00 00
+WPA: Sending EAPOL-Key 4/4
+WPA: Send EAPOL-Key frame to f8:b7:97:87:2c:df ver=2 mic_len=16 key_mgmt=0x2
+WPA: EAPOL-Key MIC using HMAC-SHA1
+WPA: Derived Key MIC: 02 c9 58 c9 32 55 9d 09 89 64 93 e8 08 73 0d 0c
+WPA: TX EAPOL-Key: 01 03 00 5f 02 03 0a 00 00 00 00 00 00 00 00 00
+01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 02 c9 58 c9 32 55 9d 09 89 64 93 e8 08 73 0d
+0c 00 00
+WPA: Installing PTK to the driver
+[1]bcm4343_control: command: 'txkey f8:b7:97:87:2c:df ccmp:b309fdbb84fc69d9dd703f1dc8cea7c4@000000000000'
+EAPOL: External notification - portValid=1
+State: 4WAY_HANDSHAKE -> GROUP_HANDSHAKE
+WPA: Installing GTK to the driver (keyidx=1 tx=0 len=16)
+WPA: RSC: 4a f7 09 00 00 00
+[3]bcm4343_control: command: 'rxkey1 ff:ff:ff:ff:ff:ff ccmp:f27634d68a0d1dd2bc3103d9d0b1e91a@4af709000000'
+WPA: Key negotiation completed with f8:b7:97:87:2c:df [PTK=CCMP GTK=CCMP]
+Cancelling authentication timeout
+State: GROUP_HANDSHAKE -> COMPLETED
+Radio work 'connect'@ffff0000073d8c80 done in 3.650000 seconds
+radio_work_free('connect'@ffff0000073d8c80): num_active_works --> 0
+CTRL-EVENT-CONNECTED - Connection to f8:b7:97:87:2c:df completed [id=0 id_str=]
+EAPOL: External notification - portValid=1
+EAPOL: External notification - EAP success=1
+EAPOL: SUPP_PAE entering state AUTHENTICATING
+EAPOL: SUPP_BE entering state SUCCESS
+EAP: EAP entering state DISABLED
+EAPOL: SUPP_PAE entering state AUTHENTICATED
+EAPOL: Supplicant port status: Authorized
+EAPOL: SUPP_BE entering state IDLE
+EAPOL authentication completed - result=SUCCESS
+
+EAPOL: startWhen --> 0
+EAPOL: disable timer tick
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+RX EAPOL: 00 01 08 00 06 04 00 01 f8 b7 97 87 2c dc c0 a8
+0a 01 00 00 00 00 00 00 c0 a8 0a 69
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+RX EAPOL: 60 00 00 00 00 20 3a ff fe 80 00 00 00 00 00 00
+fa b7 97 ff fe 87 2c dc ff 02 00 00 00 00 00 00
+00 00 00 01 ff f3 2a 5e 87 00 8d c6 00 00 00 00
+24 0b 00 13 94 a0 72 00 1d 2a 6a 94 69 f3 2a 5e
+01 01 f8 b7 97 87 2c dc
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+RX EAPOL: 60 00 00 00 00 20 3a ff fe 80 00 00 00 00 00 00
+fa b7 97 ff fe 87 2c dc ff 02 00 00 00 00 00 00
+00 00 00 01 ff f3 2a 5e 87 00 8d c6 00 00 00 00
+24 0b 00 13 94 a0 72 00 1d 2a 6a 94 69 f3 2a 5e
+01 01 f8 b7 97 87 2c dc
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+RX EAPOL: 60 00 00 00 00 20 3a ff fe 80 00 00 00 00 00 00
+fa b7 97 ff fe 87 2c dc ff 02 00 00 00 00 00 00
+00 00 00 01 ff f3 2a 5e 87 00 8d c6 00 00 00 00
+24 0b 00 13 94 a0 72 00 1d 2a 6a 94 69 f3 2a 5e
+01 01 f8 b7 97 87 2c dc
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+RX EAPOL: 60 00 00 00 00 50 3a ff fe 80 00 00 00 00 00 00
+fa b7 97 ff fe 87 2c dc ff 02 00 00 00 00 00 00
+00 00 00 00 00 00 00 01 86 00 3e 82 40 40 0e 10
+00 00 00 00 00 00 00 00 03 04 40 c0 00 00 01 2c
+00 00 01 2c 00 00 00 00 24 0b 00 13 94 a0 72 00
+00 00 00 00 00 00 00 00 19 03 00 00 00 00 00 2c
+24 0b 00 13 94 a0 72 00 fa b7 97 ff fe 87 2c dc
+01 01 f8 b7 97 87 2c dc
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+RX EAPOL: 60 00 00 00 00 24 00 01 fe 80 00 00 00 00 00 00
+fa b7 97 ff fe 87 2c dc ff 02 00 00 00 00 00 00
+00 00 00 00 00 00 00 01 3a 00 01 00 05 02 00 00
+82 00 b7 cb 00 01 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 0a 3c 00 00
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from 12:b0:d6:67:d5:7d (encrypted=-1)
+RX EAPOL: 60 00 00 00 00 d8 00 01 fe 80 00 00 00 00 00 00
+14 79 ad 4f 88 ac 35 74 ff 02 00 00 00 00 00 00
+00 00 00 00 00 00 00 16 3a 00 01 00 05 02 00 00
+8f 00 8b df 00 00 00 0a 02 00 00 00 ff 02 00 00
+00 00 00 00 00 00 00 01 ff f3 2a 5e 02 00 00 00
+ff 02 00 00 00 00 00 00 00 00 00 01 ff f9 ca f1
+02 00 00 00 ff 02 00 00 00 00 00 00 00 00 00 01
+ff 7c 9c c6 02 00 00 00 ff 02 00 00 00 00 00 00
+00 00 00 01 ff c2 f9 aa 02 00 00 00 ff 02 00 00
+00 00 00 00 00 00 00 01 ff d4 44 b9 02 00 00 00
+ff 02 00 00 00 00 00 00 00 00 00 01 ff a1 01 15
+02 00 00 00 ff 02 00 00 00 00 00 00 00 00 00 01
+ff 8c fe fe 02 00 00 00 ff 02 00 00 00 00 00 00
+00 00 00 01 ff 82 e1 d5 02 00 00 00 ff 02 00 00
+00 00 00 00 00 00 00 02 ff 5a 77 c9 02 00 00 00
+ff 02 00 00 00 00 00 00 00 00 00 01 ff ac 35 74
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+RX EAPOL: 60 00 00 00 00 50 3a ff fe 80 00 00 00 00 00 00
+fa b7 97 ff fe 87 2c dc ff 02 00 00 00 00 00 00
+00 00 00 00 00 00 00 01 86 00 3e 82 40 40 0e 10
+00 00 00 00 00 00 00 00 03 04 40 c0 00 00 01 2c
+00 00 01 2c 00 00 00 00 24 0b 00 13 94 a0 72 00
+00 00 00 00 00 00 00 00 19 03 00 00 00 00 00 2c
+24 0b 00 13 94 a0 72 00 fa b7 97 ff fe 87 2c dc
+01 01 f8 b7 97 87 2c dc
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+RX EAPOL: 60 00 00 00 00 20 3a ff fe 80 00 00 00 00 00 00
+fa b7 97 ff fe 87 2c dc ff 02 00 00 00 00 00 00
+00 00 00 01 ff f3 2a 5e 87 00 8d c6 00 00 00 00
+24 0b 00 13 94 a0 72 00 1d 2a 6a 94 69 f3 2a 5e
+01 01 f8 b7 97 87 2c dc
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+```
+
+- l2_packetの受信処理を調査中
+
+```bash
+EAPOL authentication completed - result=SUCCESS
+EAPOL: startWhen --> 0
+EAPOL: disable timer tick                                   // このetherはarpデータ
+ether_hdr: ff ff ff ff ff ff f8 b7 97 87 2c dc 08 06        // src_addrはap(ルータ)のmacだった
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+RX EAPOL: 00 01 08 00 06 04 00 01 f8 b7 97 87 2c dc c0 a8
+0a 01 00 00 00 00 00 00 c0 a8 0a 69
+rx_eapol src_addr: f8:b7:97:87:2c:dc, connected_addr: f8:b7:97:87:2c:df
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+```
+
+- `set_ip_config(dev)`を`spa_supplicant_main()#wpa_supplicant_run(global)`の直前で実行
+
+```bash
+[2]net_device_register: dev=net1, type=2 (ETHERNET)
+[2]usb_init: usb_init ok
+emmc control 0x0 0x0 0x0
+ether4330: chip 0x4345 rev 6 type 1
+ether4330: firmware ready
+ether4330: addr b8:27:eb:fe:bd:1d
+[1]net_device_register: dev=net3, type=3 (WLAN)
+[1]net_protocol_register: type=0x0800 (IP)
+[1]net_protocol_register: type=0x0806 (ARP)
+[1]ip_protocol_register: type=1 (ICMP)
+[1]ip_protocol_register: type=17 (UDP)
+[1]ip_protocol_register: type=6 (TCP)
+[1]net_init: net_init ok
+[1]netrun: open net3
+[1]net_device_open: dev=net3, state=up
+[1]netrun: open net1
+[1]net_device_open: dev=net1, state=up
+[1]netrun: running...
+[2]sdhost_request: host: 0xffff000000235b38, host->mrq: 0xffff0000073fe800
+=== host dump ===
++------+-------------------------------------------------+------------------+
+| 0000 | 30 ab 08 00 00 00 ff ff 30 5b 23 00 00 00 ff ff | 0.......0[#..... |
+| 0010 | 7f 00 00 00 11 dd 01 00 80 b2 e6 0e 40 78 7d 01 | ............@x}. |
+| 0020 | 1b 43 00 00 80 00 00 00 00 00 08 00 00 00 08 00 | .C.............. |
+| 0030 | 00 02 00 00 ff ff 00 00 00 00 30 00 40 78 7d 01 | ..........0.@x}. |
+| 0040 | 01 00 00 00 00 00 00 00 20 a1 07 00 40 78 7d 01 | ........ ...@x}. |
+| 0050 | 80 b2 e6 0e 00 00 00 00 00 ce 32 07 00 00 ff ff | ..........2..... |
+| 0060 | 00 02 00 00 00 00 00 00 00 02 00 00 00 00 00 00 | ................ |
+| 0070 | 00 00 00 00 38 00 00 00 04 00 00 00 40 01 00 00 | ....8.......@... |
+| 0080 | 0e 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |
+| 0090 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |
+| 00a0 | 11 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 | ................ |
+| 00b0 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |
+| 00c0 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |
++------+-------------------------------------------------+------------------+
+
+=== host->mrq dump ===
++------+-------------------------------------------------+------------------+
+| 0000 | 40 05 00 58 1f 00 00 b9 01 00 b0 52 01 08 00 b9 | @..X.......R.... |
+| 0010 | 40 b0 39 d5 41 04 80 d2 00 00 01 aa 40 b0 19 d5 | @.9.A.......@... |
+| 0020 | 80 04 00 58 00 e0 1b d5                         | ...X....         |
++------+-------------------------------------------------+------------------+
+
+Setting country code to 'JP'
+channel: 0
+bssid: 00:00:00:00:00:00
+essid:
+crypt: off
+oq: 0
+txwin: 59
+txseq: 19
+status: unassociated
+[0]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.104 dev=net3
+[0]ip_iface_register: registered: dev=net3, unicast=192.168.10.104, netmask=255.255.255.0, broadcast=192.168.10.255
+[0]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.104 dev=net3
+
+$ /bin/ls /
+drwxrwxr-x    2 root wheel 2026-08-01 08:18:38   1472 bin
+drwxrwxr-x    3 root wheel 2026-08-01 08:18:38    192 dev
+drwxr-xr-x    4 root wheel 2026-08-01 08:18:38    128 proc
+drwxrwxrwx    5 root wheel 2026-08-01 08:18:38    256 lib
+-rwxr-xr-x    9 root wheel 2026-08-01 08:18:38     34 test.txt
+$ /bin/dns
+[1]ip_output: too long, dev=net3, mtu=0 < 65
+[1]udp_output: ip_output() failure
+[1]dns_resolve: try out or failed udp_sendto
+[1]ntp_get_time: could not get ntp_ip
+$
+```
+
+```bash
+[3]net_device_register: dev=net1, type=2 (ETHERNET)
+[3]usb_init: usb_init ok
+emmc control 0x0 0x0 0x0
+ether4330: chip 0x4345 rev 6 type 1
+ether4330: firmware ready
+ether4330: addr b8:27:eb:fe:bd:1d
+[1]net_device_register: dev=net3, type=3 (WLAN)
+[1]net_protocol_register: type=0x0800 (IP)
+[1]net_protocol_register: type=0x0806 (ARP)
+[1]ip_protocol_register: type=1 (ICMP)
+[1]ip_protocol_register: type=17 (UDP)
+[1]ip_protocol_register: type=6 (TCP)
+[1]net_init: net_init ok
+[1]netrun: open net3
+[1]net_device_open: dev=net3, state=up
+[1]netrun: open net1
+[1]net_device_open: dev=net1, state=up
+[1]netrun: running...
+[2]sdhost_request: host: 0xffff000000235b38, host->mrq: 0xffff0000073fe800
+=== host dump ===
++------------------+-------------------------------------------------+------------------+
+| 0000000000235b38 | 30 ab 08 00 00 00 ff ff 30 5b 23 00 00 00 ff ff | 0.......0[#..... |   0xffff00000008ab30 : sd_sleep
+| 0000000000235b48 | 7f 00 00 00 11 dd 01 00 80 b2 e6 0e 40 78 7d 01 | ............@x}. |   0xffff000000235b30 : card
+| 0000000000235b58 | 1b 43 00 00 80 00 00 00 00 00 08 00 00 00 08 00 | .C.............. |
+| 0000000000235b68 | 00 02 00 00 ff ff 00 00 00 00 30 00 40 78 7d 01 | ..........0.@x}. |
+| 0000000000235b78 | 01 00 00 00 00 00 00 00 20 a1 07 00 40 78 7d 01 | ........ ...@x}. |
+| 0000000000235b88 | 80 b2 e6 0e 00 00 00 00 00 ae 32 07 00 00 ff ff | ..........2..... |
+| 0000000000235b98 | 00 02 00 00 00 00 00 00 00 02 00 00 00 00 00 00 | ................ |
+| 0000000000235ba8 | 00 00 00 00 38 00 00 00 11 00 00 00 40 01 00 00 | ....8.......@... |
+| 0000000000235bb8 | 0e 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |   // mrq: 0x0
+| 0000000000235bc8 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |
+| 0000000000235bd8 | 11 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 | ................ |
+| 0000000000235be8 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |
+| 0000000000235bf8 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |
++------------------+-------------------------------------------------+------------------+
+
+=== host->mrq dump ===
++------------------+-------------------------------------------------+------------------+
+| 0000000000000000 | 40 05 00 58 1f 00 00 b9 01 00 b0 52 01 08 00 b9 | @..X.......R.... |
+| 0000000000000010 | 40 b0 39 d5 41 04 80 d2 00 00 01 aa 40 b0 19 d5 | @.9.A.......@... |
+| 0000000000000020 | 80 04 00 58 00 e0 1b d5                         | ...X....         |
++------------------+-------------------------------------------------+------------------+
+
+Setting country code to 'JP'
+[0]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.104 dev=net3
+[0]ip_iface_register: registered: dev=net3, unicast=192.168.10.104, netmask=255.255.255.0, broadcast=192.168.10.255
+[0]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.104 dev=net3
+
+$ /bin/ls /
+drwxrwxr-x    2 root wheel 2026-08-02 04:46:57   1472 bin
+drwxrwxr-x    3 root wheel 2026-08-02 04:46:57    192 dev
+drwxr-xr-x    4 root wheel 2026-08-02 04:46:57    128 proc
+drwxrwxrwx    5 root wheel 2026-08-02 04:46:57    256 lib
+-rwxr-xr-x    9 root wheel 2026-08-02 04:46:57     34 test.txt
+$ /bin/dns                                                              // ストール
+```
+
+- hostとhost->mrqのデータは正しそうだが、アサーションエラー
+
+```bash
+[0]sdhost_request: host: 0xffff000000235b38, host->mrq: 0xffff0000073fe6f0                  //
+=== host dump ===
++------------------+-------------------------------------------------+------------------+
+| 0000000000235b38 | 30 ab 08 00 00 00 ff ff 30 5b 23 00 00 00 ff ff | 0.......0[#..... |
+| 0000000000235b48 | 7f 00 00 00 11 dd 01 00 80 b2 e6 0e 40 78 7d 01 | ............@x}. |
+| 0000000000235b58 | 1b 43 00 00 80 00 00 00 00 00 08 00 00 00 08 00 | .C.............. |
+| 0000000000235b68 | 00 02 00 00 ff ff 00 00 00 00 30 00 40 78 7d 01 | ..........0.@x}. |
+| 0000000000235b78 | 01 00 00 00 00 00 00 00 20 a1 07 00 40 78 7d 01 | ........ ...@x}. |
+| 0000000000235b88 | 80 b2 e6 0e 00 00 00 00 00 e0 3d 07 00 00 ff ff | ..........=..... |
+| 0000000000235b98 | 00 10 00 00 00 00 00 00 00 02 00 00 00 00 00 00 | ................ |
+| 0000000000235ba8 | 04 00 00 00 38 00 00 00 03 00 00 00 40 01 00 00 | ....8.......@... |
+| 0000000000235bb8 | 1e 04 00 00 00 00 00 00 f0 e6 3f 07 00 00 ff ff | ..........?..... |   // 0xffff0000073fe6f0 : host->mrg に一致
+| 0000000000235bc8 | 20 e7 00 00 00 00 00 00 c8 e9 3f 07 00 00 ff ff | ..........?..... |
+| 0000000000235bd8 | 10 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 | ................ |
+| 0000000000235be8 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |
+| 0000000000235bf8 | 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 | ................ |
++------------------+-------------------------------------------------+------------------+
+
+=== host->mrq dump ===
++------------------+-------------------------------------------------+------------------+
+| 00000000073fe830 | 00 00 00 00 00 00 00 00 c0 e8 3f 07 00 00 ff ff | ..........?..... |   // sbc: 0x0, cmd: 0xffff0000073fe8c0
+| 00000000073fe840 | f8 e8 3f 07 00 00 ff ff 60 e8 3f 07 00 00 ff ff | ..?.....`.?..... |   // data: 0xffff0000073fe8f8, stop: 0xffff0000073fe860
+| 00000000073fe850 | 00 00 00 00 00 00 00 00                         | ........         |   // done: 0x00
++------------------+-------------------------------------------------+------------------+
+
+kern/sdhost.c:1374: assertion failed.
+kern/drivers/console.c:264: kernel panic at cpu 0.
+```
+
+- `struct bcm2835_host`をダンプ表示する関数を作成
+- 8バイトアドレスが正しく表示されない点を修正（`0x%x`ではint値とみなすため、`0x%lx`と書く）
+
+```bash
+[3]net_device_register: dev=net1, type=2 (ETHERNET)
+[3]usb_init: usb_init ok
+emmc control 0x0 0x0 0x0
+ether4330: chip 0x4345 rev 6 type 1
+ether4330: firmware ready
+ether4330: addr b8:27:eb:fe:bd:1d
+[1]net_device_register: dev=net3, type=3 (WLAN)
+[1]net_protocol_register: type=0x0800 (IP)
+[1]net_protocol_register: type=0x0806 (ARP)
+[1]ip_protocol_register: type=1 (ICMP)
+[1]ip_protocol_register: type=17 (UDP)
+[1]ip_protocol_register: type=6 (TCP)
+[1]net_init: net_init ok
+[1]netrun: open net3
+[1]net_device_open: dev=net3, state=up
+[1]netrun: open net1
+[1]net_device_open: dev=net1, state=up
+[1]netrun: running...
+
+sleep_fn:  0xffff00000008ab30
+sleep_arg: 0xffff000000236b30
+mmc:       0xffff000000236b48
+  caps:       0x0000007f
+  f_min:      0x0001dd11
+  f_max:      0x0ee6b280
+  act_clock:  0x017d7840
+  max_busy:   0x0000431b
+  max_segs:   0x0080
+  max_segsize:0x00080000
+  max_reqsize:0x00080000
+  max_bsize:  0x00000200
+  max_bcount: 0x0000ffff
+  ocr_avail:  0x00300000
+  ios: 0xffff000000236b74
+    clock: 0x017d7840, bus: 01, power: 00, time: 00, vol: 00, type: 00
+pio_timeout:0x0007a120
+clock:     0x017d7840
+max_clk:   0x0ee6b280
+sg_mitter: 0xffff000000236b90
+  addr:     0x016x
+  length:   0x016x
+  consumed: 0x016x
+blocks:    0x00000000
+irq:       0x0038
+cmd_retry: 0x00000005
+ns_fifo:   0x00000140
+hcfg:      0x0000040e
+cdiv:      0x00000000
+mrq:       0x0000000000000000               // mrqはnullなのに、なぜ `if (host->mrq)`がヒットするのか
+  sbc:  0xb900001f58000540                  //   でたらめなデータ
+  cmd:  0xb900080152b00001
+  data: 0xd2800441d539b040
+  stop: 0xd519b040aa010000
+  done: 0x58000480
+cmd:       0x0000000000000000
+  opcode:  0x58000540
+  arg:     0xb900001f
+  flags:   0x52b00001
+  resp:    0xb9000801 d539b040 d2800441 aa010000
+  retries: 0xd519b040
+  error:   0x58000480
+  data:    0xd51ce07fx
+data:      0x0000000000000000
+  flags:    0x58000540
+  blksz:    0xb900001f
+  blocks:   0x52b00001
+  sg:       0xd2800441d539b040
+  sg_len:   0xaa010000
+  bytes_tx: 0xd519b040
+  error:    0xd
+  stop:     0xd51ce07f
+  mrq:      0xd51e1140
+data_comp: 0x00000001
+max_delay: 0x00000001
+stop_time: 0x0000000000000000
+dly_stop:  0x0000000000000000
+dly_this:  0x00000000
+u_ovclk:   0x00000000
+ovclck50:  0x00000000
+overclock: 0x00000000
+Setting country code to 'JP'
+[3]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.104 dev=net3
+[3]ip_iface_register: registered: dev=net3, unicast=192.168.10.104, netmask=255.255.255.0, broadcast=192.168.10.255
+[3]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.104 dev=net3
+[3]bcm4343_recv_scan_result: queue num 0
+Trying to associate with f8:b7:97:87:2c:df (SSID='MSRS_TDF_A5_A11' freq=5210 MHz)
+Associated with f8:b7:97:87:2c:df
+WPA: Key negotiation completed with f8:b7:97:87:2c:df [PTK=CCMP GTK=CCMP]
+CTRL-EVENT-CONNECTED - Connection to f8:b7:97:87:2c:df completed [id=0 id_str=]
+
+$ /bin/dns
+[0]get_file: error [-2]: cwd->ino: 1, path: /bin/dns, uid 0
+execve: No such file or directory
+$ /bin/ls /
+[0]get_file: error [-2]: cwd->ino: 1, path: /bin/ls, uid 0
+execve: No such file or directory
+$ RSN: Group rekeying completed with f8:b7:97:87:2c:df [GTK=CCMP]
+
+$ kern/wlan/p9error.c:46: assertion failed.
+kern/drivers/console.c:264: kernel panic at cpu 3.
+```
+
+```bash
+  1 sleeping init
+  2 runnable idle
+  3 runnable idle
+  4 running  idle
+  5 runnable idle
+  6 running  wifireader
+  7 runnable wifitimer
+  8 running  wpa_supplicant
+  9 sleeping sh ppid: 1
+
+[1] push: 27
+[1] pop: 28
+[1] push: 27
+[6] push: 27        // プロセス6はここで初めて出力で27
+[1] pop: 28
+[6] push: 26
+[1] push: 26        // プロセス1は前回28で今回は26で値が飛んでいる
+[6] push: 25
+[6] pop: 25
+[6] pop: 26
+[6] pop: 27
+[6] push: 26
+[1] push: 26
+[6] pop: 27
+[1] push: 25
+```
+
+- errorstackの持ち方が誤っていた（カーネルスレッドを実行する際に設定）
+
+```bash
+[1] push: 27
+[1] pop: 28         // プロセス1と6のstackptrは独立している
+[6] push: 29
+[1] push: 27
+[6] push: 28
+[1] pop: 28
+[6] push: 27
+[1] push: 27
+```
+
+- assert(host->mrq)が発生していない
+- queue_pop, コマンドパスが読み込めない問題は未解決
+
+```bash
+[1]net_device_register: dev=net1, type=2 (ETHERNET)
+[1]usb_init: usb_init ok
+emmc control 0x0 0x0 0x0
+ether4330: chip 0x4345 rev 6 type 1
+ether4330: firmware ready
+ether4330: addr b8:27:eb:fe:bd:1d
+[2]net_device_register: dev=net3, type=3 (WLAN)
+[2]net_protocol_register: type=0x0800 (IP)
+[2]net_protocol_register: type=0x0806 (ARP)
+[2]ip_protocol_register: type=1 (ICMP)
+[2]ip_protocol_register: type=17 (UDP)
+[2]ip_protocol_register: type=6 (TCP)
+[2]net_init: net_init ok
+[2]netrun: open net3
+[2]net_device_open: dev=net3, state=up
+[2]netrun: open net1
+[2]net_device_open: dev=net1, state=up
+[2]netrun: running...
+[2]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/init, flags: 0x0
+[1]vfs_lookup: [[v6]] OK: cur->ino: 11, ref: 1
+[0]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/init, flags: 0x0
+[0]vfs_lookup: [[v6]] OK: cur->ino: 11, ref: 1
+[1]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /dev/tty1, flags: 0x0
+[2]vfs_lookup: [[v6]] OK: cur->ino: 6, ref: 1
+[0]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/sh, flags: 0x0
+[0]vfs_lookup: [[v6]] OK: cur->ino: 17, ref: 1
+[1]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/sh, flags: 0x0
+[1]vfs_lookup: [[v6]] OK: cur->ino: 17, ref: 1
+[2]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /dev/tty1, flags: 0x0
+[2]vfs_lookup: [[v6]] OK: cur->ino: 6, ref: 1
+$ Setting country code to 'JP'
+[1]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.104 dev=net3
+[1]ip_iface_register: registered: dev=net3, unicast=192.168.10.104, netmask=255.255.255.0, broadcast=192.168.10.255
+[1]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.104 dev=net3
+[1]bcm4343_recv_scan_result: queue num 0        // queue_popの問題は未解決
+Trying to associate with f8:b7:97:87:2c:df (SSID='MSRS_TDF_A5_A11' freq=5210 MHz)
+Associated with f8:b7:97:87:2c:df
+WPA: Key negotiation completed with f8:b7:97:87:2c:df [PTK=CCMP GTK=CCMP]
+CTRL-EVENT-CONNECTED - Connection to f8:b7:97:87:2c:df completed [id=0 id_str=]
+
+$ /bin/dns
+[3]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/dns, flags: 0x0
+[3]vfs_access: lookup error: path: /bin/dns, cwd: 1, err: -2
+[3]get_file: error [-2]: cwd->ino: 1, path: /bin/dns, uid 0
+execve: No such file or directory
+$ /bin/ls /
+[3]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/ls, flags: 0x0
+[3]vfs_access: lookup error: path: /bin/ls, cwd: 1, err: -2
+[3]get_file: error [-2]: cwd->ino: 1, path: /bin/ls, uid 0
+execve: No such file or directory
+$
+  1 sleeping init
+  2 running  idle
+  3 runnable idle
+  4 runnable idle
+  5 runnable idle
+  6 running  wifireader
+  7 runnable wifitimer
+  8 running  wpa_supplicant
+  9 sleeping sh ppid: 1
+```
+
+- associationに行かずにwpa_supplicantが立ち上がらない場合は /bin/ls は読めて、立ち上がると読めなくなる
+
+```bash
+[3]net_init: net_init ok
+[3]netrun: open net3
+[3]net_device_open: dev=net3, state=up
+[3]netrun: open net1
+[3]net_device_open: dev=net1, state=up
+[3]netrun: running...
+$ Setting country code to 'JP'
+[0]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.104 dev=net3
+[0]ip_iface_register: registered: dev=net3, unicast=192.168.10.104, netmask=255.255.255.0, broadcast=192.168.10.255
+[0]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.104 dev=net3                                             // wpa_supplicantはここでストールしている
+
+$ /bin/ls /                                          // 2つのcpuで同じコマンドを実行している
+[1]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/ls, flags: 0x0
+[1]vfs_lookup: [[v6]] LP[1] cur->ino: 1, ref: 12, bits: 0x0
+[1]vfs_lookup: COMP[1]: 'bin'
+[1]vfs_lookup: FLG (SELF), path[i]: 'l'
+[1]vfs_lookup: fs of cur->ino 1 is [[v6]] root_node: 1
+[1]vfs_lookup: call ops->lookup with [[v6]] cur: 0xffff000000405728 (1), component: bin, &cur: 0xffff000007343b28
+[1]vfs_lookup: [[v6]] LP[2] cur->ino: 2, ref: 5, bits: 0x0
+[1]vfs_lookup: COMP[2]: 'ls'
+[1]vfs_lookup: FLG (SELF), path[i]: ''
+[1]vfs_lookup: fs of cur->ino 2 is [[v6]] root_node: 1
+[1]vfs_lookup: call ops->lookup with [[v6]] cur: 0xffff0000004058d8 (2), component: ls, &cur: 0xffff000007343b28
+[1]vfs_lookup: [[v6]] LP[3] cur->ino: 24, ref: 1, bits: 0x0
+[1]vfs_lookup: [[v6]] OK: cur->ino: 24, ref: 1
+
+[2]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/ls, flags: 0x0
+[2]vfs_lookup: [[v6]] LP[1] cur->ino: 1, ref: 13, bits: 0x0
+[2]vfs_lookup: COMP[1]: 'bin'
+[2]vfs_lookup: FLG (SELF), path[i]: 'l'
+[2]vfs_lookup: fs of cur->ino 1 is [[v6]] root_node: 1
+[2]vfs_lookup: call ops->lookup with [[v6]] cur: 0xffff000000405728 (1), component: bin, &cur: 0xffff000007343b18
+[2]vfs_lookup: [[v6]] LP[2] cur->ino: 2, ref: 6, bits: 0x0
+[2]vfs_lookup: COMP[2]: 'ls'
+[2]vfs_lookup: FLG (SELF), path[i]: ''
+[2]vfs_lookup: fs of cur->ino 2 is [[v6]] root_node: 1
+[2]vfs_lookup: call ops->lookup with [[v6]] cur: 0xffff0000004058d8 (2), component: ls, &cur: 0xffff000007343b18
+[2]vfs_lookup: [[v6]] LP[3] cur->ino: 24, ref: 1, bits: 0x0
+[2]vfs_lookup: [[v6]] OK: cur->ino: 24, ref: 1
+
+[2]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /, flags: 0x0
+[2]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /, flags: 0x0
+[2]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin, flags: 0x0
+
+drwxrwxr-x    2 root wheel 2026-08-03 04:59:15   1472 bin           // /bin/ls が問題なく動く
+drwxrwxr-x    3 root wheel 2026-08-03 04:59:15    192 dev
+drwxr-xr-x    4 root wheel 2026-08-03 04:59:15    128 proc
+drwxrwxrwx    5 root wheel 2026-08-03 04:59:15    256 lib
+-rwxr-xr-x    9 root wheel 2026-08-03 04:59:15     34 test.txt
+```
+
+```bash
+$ Setting country code to 'JP'
+[1]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.104 dev=net3
+[1]ip_iface_register: registered: dev=net3, unicast=192.168.10.104, netmask=255.255.255.0, broadcast=192.168.10.255
+[1]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.104 dev=net3
+[1]bcm4343_recv_scan_result: queue num 0
+Trying to associate with f8:b7:97:87:2c:df (SSID='MSRS_TDF_A5_A11' freq=5210 MHz)       // wpa_supplicantの処理が続いている
+Associated with f8:b7:97:87:2c:df
+WPA: Key negotiation completed with f8:b7:97:87:2c:df [PTK=CCMP GTK=CCMP]
+CTRL-EVENT-CONNECTED - Connection to f8:b7:97:87:2c:df completed [id=0 id_str=]
+
+$ /bin/ls /
+[3]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/ls, flags: 0x0
+[3]vfs_lookup: [[v6]] LP[1] cur->ino: 1, ref: 12, bits: 0x0
+[3]vfs_lookup: COMP[1]: 'bin'
+[3]vfs_lookup: FLG (SELF), path[i]: 'l'
+[3]vfs_lookup: fs of cur->ino 1 is [[v6]] root_node: 1
+[3]vfs_lookup: call ops->lookup with [[v6]] cur: 0xffff000000405728 (1), component: bin, &cur: 0xffff000007343b28
+[3]get_file: error [-2]: cwd->ino: 1, path: /bin/ls, uid 0
+execve: No such file or directory
+```
+
+- /bin/sh を起動する部分
+
+```bash
+[1]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/sh, flags: 0x0
+[1]v6_lookup: vnode->ino: 1, rdev: 0x102, mode: 0x41fd, ip->valid: 1, COMP: bin
+[1]v6_dirlookup: dp->ino: 1, name: bin
+[1]dir_find_entry_by_name: dp->ino: 1, filename: 'bin'
+[1]v6_readi: ip: ino:1, rdev: 0x102, off: 0x0, n: 64
+[1]dir_find_entry_by_name: de0.name: ''
+[1]v6_readi: ip: ino:1, rdev: 0x102, off: 0x40, n: 64
+[1]dir_find_entry_by_name: de0.name: ''
+[1]v6_readi: ip: ino:1, rdev: 0x102, off: 0x80, n: 64
+[1]dir_find_entry_by_name: de0.name: 'bin'
+[1]dir_find_entry_by_name: found
+[1]v6_dirlookup: found by name: bin, dev: 0x102, ino: 2
+[1]v6_lookup: ip->ino: 2
+[1]v6_lookup: OK: bin, ip->ino: 2, ip->type: 1
+```
+
+- /bin/ls を起動する部分
+
+```bash
+[0]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/ls, flags: 0x0
+[0]v6_lookup: vnode->ino: 1, rdev: 0x102, mode: 0x41fd, ip->valid: 1, COMP: bin
+[0]v6_dirlookup: dp->ino: 1, name: bin
+[0]dir_find_entry_by_name: dp->ino: 1, filename: 'bin'
+[0]v6_readi: ip: ino:1, rdev: 0x102, off: 0x0, n: 64
+[0]dir_find_entry_by_name: de0.name: ''
+[0]v6_readi: ip: ino:1, rdev: 0x102, off: 0x40, n: 64
+[0]dir_find_entry_by_name: de0.name: ''
+[0]v6_readi: ip: ino:1, rdev: 0x102, off: 0x80, n: 64
+[0]dir_find_entry_by_name: de0.name: ''                     // 3つめに'bin'がない
+```
+
+```bash
+[0]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/init, flags: 0x0
+[1]get_block: dev: 0x101, bno: 0x802, issec: 1
+[0]v6_lookup: vnode->ino: 1, rdev: 0x102, mode: 0x41fd, ip->valid: 1, COMP: bin
+[1]get_block: hit: dev: 0x101, bno: 0x802
+[0]v6_dirlookup: dp->ino: 1, name: bin
+[1]get_block: dev: 0x101, bno: 0x20, issec: 1
+[0]dir_find_entry_by_name: dp->ino: 1, filename: 'bin'
+[1]get_block: hit: dev: 0x101, bno: 0x20
+[0]v6_readi: ip: ino:1, rdev: 0x102, off: 0x0, n: 64
+[1]get_block: dev: 0x101, bno: 0x107d, issec: 1
+[0]get_block: dev: 0x102, bno: 0x28, issec: 0
+[1]get_block: no hit: dev: 0x101, blockno: 0x107d, issec: true      // ここで /binをキャッシュ
+...
+[3]v6_lookup: vnode->ino: 1, rdev: 0x102, mode: 0x41fd, ip->valid: 1, COMP: bin
+[3]v6_dirlookup: dp->ino: 1, name: bin
+[3]dir_find_entry_by_name: dp->ino: 1, filename: 'bin'
+[3]v6_readi: ip: ino:1, rdev: 0x102, off: 0x0, n: 64
+[3]get_block: dev: 0x102, bno: 0x28, issec: 0
+[3]get_block: hit: dev: 0x102, bno: 0x28                            // // キャッシュヒット
+[3]dir_find_entry_by_name: de0.name: ''
+[3]v6_readi: ip: ino:1, rdev: 0x102, off: 0x40, n: 64
+[3]get_block: dev: 0x102, bno: 0x28, issec: 0
+[3]get_block: hit: dev: 0x102, bno: 0x28
+[3]dir_find_entry_by_name: de0.name: ''
+[3]v6_readi: ip: ino:1, rdev: 0x102, off: 0x80, n: 64
+[3]get_block: dev: 0x102, bno: 0x28, issec: 0
+[3]get_block: hit: dev: 0x102, bno: 0x28
+[3]dir_find_entry_by_name: de0.name: 'bin'
+[3]dir_find_entry_by_name: found
+..........
+[2]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/ls, flags: 0x0
+[2]vfs_lookup: [[v6]] LP[1] cur->ino: 1, ref: 12, bits: 0x0
+[2]vfs_lookup: COMP[1]: 'bin'
+[2]vfs_lookup: FLG (SELF), path[i]: 'l'
+[2]vfs_lookup: fs of cur->ino 1 is [[v6]] root_node: 1
+[2]vfs_lookup: call ops->lookup with [[v6]] cur: 0xffff000000406728 (1), component: bin, &cur: 0xffff00000733fb28
+[2]v6_lookup: vnode->ino: 1, rdev: 0x102, mode: 0x41fd, ip->valid: 1, COMP: bin
+[2]v6_dirlookup: dp->ino: 1, name: bin
+[2]dir_find_entry_by_name: dp->ino: 1, filename: 'bin'
+[2]v6_readi: ip: ino:1, rdev: 0x102, off: 0x0, n: 64
+[2]get_block: dev: 0x102, bno: 0x28, issec: 0
+[2]get_block: hit: dev: 0x102, bno: 0x28
+[2]dir_find_entry_by_name: de0.name: ''
+[2]v6_readi: ip: ino:1, rdev: 0x102, off: 0x40, n: 64
+[2]get_block: dev: 0x102, bno: 0x28, issec: 0
+[2]get_block: hit: dev: 0x102, bno: 0x28
+[2]dir_find_entry_by_name: de0.name: ''
+[2]v6_readi: ip: ino:1, rdev: 0x102, off: 0x80, n: 64
+[2]get_block: dev: 0x102, bno: 0x28, issec: 0
+[2]get_block: hit: dev: 0x102, bno: 0x28                            // キャッシュヒットしているが内容は違う
+[2]dir_find_entry_by_name: de0.name: ''
+```
+
+- bufcacheのget_block()のヒット判定理由に`cur->flags & BCF_ALLOCATED`を戻したところ
+  wpa_supplicant()後でも`/bin/ls /`が動く（ただし2つのプロセスで実行されている）
+- /bin/dnsはストール（ここでも2つのプロセスが同時に実行されている）
+
+```bash
+Setting country code to 'JP'
+[2]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /dev/tty1, flags: 0x0
+[3]ip_route_add: route added: network=192.168.10.0, netmask=2$5.255.255.0, nexthop=0.0.0.0, iface=192.168.10.104 dev=net3
+[3]ip_iface_register: registered: dev=net3, unicast=192.168.10.104, netmask=255.255.255.0, broadcast=192.168.10.255
+[3]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.104 dev=net3
+[3]bcm4343_recv_scan_result: queue num 0
+Trying to associate with f8:b7:97:87:2c:df (SSID='MSRS_TDF_A5_A11' freq=5210 MHz)
+Associated with f8:b7:97:87:2c:df
+WPA: Key negotiation completed with f8:b7:97:87:2c:df [PTK=CCMP GTK=CCMP]
+CTRL-EVENT-CONNECTED - Connection to f8:b7:97:87:2c:df completed [id=0 id_str=]
+
+$ /bin/ls /
+[0]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/ls, flags: 0x0
+[0]vfs_lookup: [[v6]] LP[1] cur->ino: 1, ref: 12, bits: 0x0
+[0]vfs_lookup: COMP[1]: 'bin'
+[0]vfs_lookup: FLG (SELF), path[i]: 'l'
+[0]vfs_lookup: fs of cur->ino 1 is [[v6]] root_node: 1
+[0]vfs_lookup: call ops->lookup with [[v6]] cur: 0xffff000000405728 (1), component: bin, &cur: 0xffff000007340b28
+[3]vfs_lookup: [[v6]] LP[2] cur->ino: 2, ref: 5, bits: 0x0
+[3]vfs_lookup: COMP[2]: 'ls'
+[3]vfs_lookup: FLG (SELF), path[i]: ''
+[3]vfs_lookup: fs of cur->ino 2 is [[v6]] root_node: 1
+[3]vfs_lookup: call ops->lookup with [[v6]] cur: 0xffff0000004058d8 (2), component: ls, &cur: 0xffff000007340b28
+[2]vfs_lookup: [[v6]] LP[3] cur->ino: 24, ref: 1, bits: 0x0
+[2]vfs_lookup: [[v6]] OK: cur->ino: 24, ref: 1
+
+drwxrwxr-x    1 root wheel 2026-08-03 06:12:37   4096 .
+drwxrwxr-x    1 root wheel 2026-08-03 06:12:37   4096 ..
+drwxrwxr-x    2 root wheel 2026-08-03 06:12:37   1472 bin
+drwxrwxr-x    3 root wheel 2026-08-03 06:12:37    192 dev
+drwxr-xr-x    4 root wheel 2026-08-03 06:12:37    128 proc
+drwxrwxrwx    5 root wheel 2026-08-03 06:12:37    256 lib
+-rwxr-xr-x    9 root wheel 2026-08-03 06:12:37     34 test.txt
+
+$ /bin/dns
+[0]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/dns, flags: 0x0
+[2]vfs_lookup: start with [[v6]] cwd->ino: 1, path: /bin/dns, flags: 0x0
+```
+
+- ether4330で受け取ったイーサデータをip, ipv6, arpとそれ以外で受信キューをわけ、
+  前者は新規フィールドether_queueを作成して、そこに追加するようにした。
+- ether_readerでこのキューからデータを読み込むようにした
+- それ以前にエラーがはっせいするため、これが正しいかまだわからない。
+
+```bash
+[3]sdhost_request: host: 0xffff000000237b38, host->mrq: 0xffff00000737eb20
+mrq:       0xffff00000737eaf0
+  sbc:  0x0000000000000000
+  cmd:  0xffff00000737eb80
+  data: 0xffff00000737ebb8
+  stop: 0x0000000000000000
+  done: 0x00000000
+cmd:       0x0000000000000000
+data:      0xffff00000737ebb8
+  flags:    0x00000001
+  blksz:    0x00000200
+  blocks:   0x00000001
+  sg:       0xffff0000073cad80
+  sg_len:   0x00000200
+  bytes_tx: 0x00000000
+  error:    0xd                         // ここでエラーが発生して処理が終わっていないということか
+  stop:     0x0
+  mrq:      0xffff00000737eaf0
+```
+
 ## macアドレス
 
 - raspi wlan:      b8:27:eb:fe:bd:1d
 - MSRS_TDF_A5_A11: f8:b7:97:87:2c:df
 - MSRS_TDF_A2_S04: f8:b7:97:87:2c:de
+
 ```bash
 wpasupplicant_init()
   initialize()
