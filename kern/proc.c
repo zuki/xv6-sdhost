@@ -273,15 +273,16 @@ forkret(void)
 
         usb_init();
         bcm4343_init("4:/firmware");    // 末尾に/は付けない
-        disb();
+        isb();
         net_init();
-        disb();
+        isb();
         net_run();
-        disb();
+        isb();
         wpasupplicant_init("4:/wpa_supplicant.conf");
 #if NET_DRV != NET_INDEX_BCM4343
         struct proc *p = kthread_create("ether_reader", ether_reader, NULL, 1);
         trace("kthread ether created: pid=%d", p->pid);
+        isb();
         workqueue_init();
         p = kthread_create("recycle", recycle_proc, NULL, 1);
         trace("kthread recycle created: pid=%d", p->pid);
