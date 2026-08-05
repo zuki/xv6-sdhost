@@ -279,15 +279,13 @@ forkret(void)
         net_run();
         isb();
         wpasupplicant_init("4:/wpa_supplicant.conf");
-#if NET_DRV != NET_INDEX_BCM4343
-        struct proc *p = kthread_create("ether_reader", ether_reader, NULL, 1);
+        isb();
+        kthread_create("ether_reader", ether_reader, NULL, 1);
         trace("kthread ether created: pid=%d", p->pid);
         isb();
         workqueue_init();
-        p = kthread_create("recycle", recycle_proc, NULL, 1);
-        trace("kthread recycle created: pid=%d", p->pid);
-
-#endif
+        kthread_create("recycle", recycle_proc, NULL, 1);
+        isb();
     } else {
         release(&ptable.lock);
     }
@@ -707,7 +705,6 @@ static void wq_worker(void *arg)
     kthread_exit();
 }
 
-#if NET_DRV != NET_INDEX_BCM4343
 static void recycle_proc(void *arg)
 {
     struct proc *p;
@@ -731,7 +728,6 @@ static void recycle_proc(void *arg)
         release(&ptable.lock);
     }
 }
-#endif
 
 static void kthread_stub(void)
 {
@@ -818,11 +814,16 @@ struct proc *kthread_create(const char *name, void(*func)(void *),
 void ether_reader(void *param)
 {
     while(1) {
-#ifdef USING_RASPI
-        lan7800_net_handler();
-#else
-        usb_cdcether_net_handler();
-#endif
+        switch(NET_DRV) {
+            case NET_INDEX_BCM4343:
+                //bcm4343_net_handler();
+            case NET_INDEX_LAN7800:
+                lan7800_net_handler();
+            case NET_INDEX_CDC:
+                usb_cdcether_net_handler();
+            default:
+                ;
+        }
         yield();
     }
 }
