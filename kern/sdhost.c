@@ -925,6 +925,9 @@ sdhost_finish_command(struct bcm2835_host *host)
 
     trace("finish_command (0x%x)", read(SDCMD));
 
+    if (!host->cmd && !host->mrq)
+        trace("host: %p, host->cmd: %p, host->mrq: %p", host, host->cmd, host->mrq);
+        return;
     assert(!(!host->cmd || !host->mrq));
 
     /* はじめに素早くPollする */
@@ -1615,9 +1618,9 @@ static void bcm2835_host_dump(struct bcm2835_host *host)
     cprintf("clock:     0x%08x\n", host->clock);
     cprintf("max_clk:   0x%08x\n", host->max_clk);
     cprintf("sg_mitter: 0x%016llx\n", &host->sg_miter);
-        cprintf("  addr:     0x016x\n", host->sg_miter.addr);
-        cprintf("  length:   0x016x\n", host->sg_miter.length);
-        cprintf("  consumed: 0x016x\n", host->sg_miter.consumed);
+        cprintf("  addr:     0x%016llx\n", host->sg_miter.addr);
+        cprintf("  length:   0x%016llx\n", host->sg_miter.length);
+        cprintf("  consumed: 0x%016llx\n", host->sg_miter.consumed);
     cprintf("blocks:    0x%08x\n", host->blocks);
     cprintf("irq:       0x%04x\n", host->irq);
     cprintf("cmd_retry: 0x%08x\n", host->cmd_quick_poll_retries);
