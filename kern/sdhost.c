@@ -261,7 +261,7 @@ sdhost_request_sync(struct bcm2835_host *host, struct mmc_request *req)
 
     // Caller must hold host->lock.
     while (!req->done) {
-        host->sleep_fn(host->sleep_arg);
+        host->sleep_fn(host->sleep_arg);    // sleep(&card, &cardlock);
         disb();
     }
 }
@@ -1308,6 +1308,8 @@ sdhost_set_clock_inner(struct bcm2835_host *host, uint32_t clock)
     dsb();
 }
 
+static void bcm2835_host_dump(struct bcm2835_host *host);
+
 static void
 sdhost_request(struct bcm2835_host *host, struct mmc_host *mmc,
                struct mmc_request *mrq)
@@ -1333,9 +1335,22 @@ sdhost_request(struct bcm2835_host *host, struct mmc_host *mmc,
         sdhost_set_clock_inner(host, host->clock);
 
 #if 1
-    if (host->mrq != 0) {
+    if (host->mrq != NULL) {
+        debug("host: %p, host->mrq: %p", host, host->mrq);
+        bcm2835_host_dump(host);
+        //hexdump(host, sizeof(struct bcm2835_host), "host");
         //hexdump(host->mrq, sizeof(struct mmc_request), "host->mrq");
-        if(1)error("\n"
+#if 0
+        if (host->mrq->sbc)
+            hexdump(host->mrq->sbc, sizeof(struct mmc_command), "host->mrq->sbc");
+        if (host->mrq->cmd)
+            hexdump(host->mrq->cmd, sizeof(struct mmc_command), "host->mrq->cmd");
+        if (host->mrq->data)
+            hexdump(host->mrq->data, sizeof(struct mmc_data), "host->mrq->data");
+        if (host->mrq->stop)
+            hexdump(host->mrq->stop, sizeof(struct mmc_command), "host->mrq->stop");
+#endif
+        if(0)error("\n"
               "\thost->mrq: %p, done: 0x%x\n"
               "\thost->mrq->sbc %p opcode: 0x%x\n"
               "\thost->mrq->cmd %p opcode: 0x%x\n"
@@ -1346,7 +1361,7 @@ sdhost_request(struct bcm2835_host *host, struct mmc_host *mmc,
             host->mrq->cmd, (host->mrq->cmd ? host->mrq->cmd->opcode : -1),
             host->mrq->data, (host->mrq->data ? host->mrq->data->flags : -1),
             host->mrq->stop, (host->mrq->stop ? host->mrq->stop->opcode : -1));
-        if(1)error("mrq: %p\n"
+        if(0)error("mrq: %p\n"
               "\tmrq->sbc %p opcode: 0x%x\n"
               "\tmrq->cmd %p opcode: 0x%x\n"
               "\tmrq->data %p flag: 0x%x\n",
@@ -1573,4 +1588,73 @@ sdhost_probe(struct bcm2835_host *host)
   err:
     error("err %d", ret);
     return ret;
+}
+
+static void bcm2835_host_dump(struct bcm2835_host *host)
+{
+    cprintf("== host: %p ==\n", host);
+    cprintf("sleep_fn:  0x%016llx\n", host->sleep_fn);
+    cprintf("sleep_arg: 0x%016llx\n", host->sleep_arg);
+    cprintf("mmc:       0x%016llx\n", &host->mmc);
+        cprintf("  caps:       0x%08x\n", host->mmc.caps);
+        cprintf("  f_min:      0x%08x\n", host->mmc.f_min);
+        cprintf("  f_max:      0x%08x\n", host->mmc.f_max);
+        cprintf("  act_clock:  0x%08x\n", host->mmc.actual_clock);
+        cprintf("  max_busy:   0x%08x\n", host->mmc.max_busy_timeout);
+        cprintf("  max_segs:   0x%04x\n", host->mmc.max_segs);
+        cprintf("  max_segsize:0x%08x\n", host->mmc.max_seg_size);
+        cprintf("  max_reqsize:0x%08x\n", host->mmc.max_req_size);
+        cprintf("  max_bsize:  0x%08x\n", host->mmc.max_blk_size);
+        cprintf("  max_bcount: 0x%08x\n", host->mmc.max_blk_count);
+        cprintf("  ocr_avail:  0x%08x\n", host->mmc.ocr_avail);
+        cprintf("  ios: 0x%016llx\n", &host->mmc.ios);
+            cprintf("    clock: 0x%08x, bus: %02x, power: %02x, time: %02x, vol: %02x, type: %02x\n",
+                    host->mmc.ios.clock, host->mmc.ios.bus_width, host->mmc.ios.power_mode,
+                    host->mmc.ios.timing, host->mmc.ios.signal_voltage, host->mmc.ios.drv_type);
+    cprintf("pio_timeout:0x%08x\n", host->pio_timeout);
+    cprintf("clock:     0x%08x\n", host->clock);
+    cprintf("max_clk:   0x%08x\n", host->max_clk);
+    cprintf("sg_mitter: 0x%016llx\n", &host->sg_miter);
+        cprintf("  addr:     0x016x\n", host->sg_miter.addr);
+        cprintf("  length:   0x016x\n", host->sg_miter.length);
+        cprintf("  consumed: 0x016x\n", host->sg_miter.consumed);
+    cprintf("blocks:    0x%08x\n", host->blocks);
+    cprintf("irq:       0x%04x\n", host->irq);
+    cprintf("cmd_retry: 0x%08x\n", host->cmd_quick_poll_retries);
+    cprintf("ns_fifo:   0x%08x\n", host->ns_per_fifo_word);
+    cprintf("hcfg:      0x%08x\n", host->hcfg);
+    cprintf("cdiv:      0x%08x\n", host->cdiv);
+    cprintf("mrq:       0x%016llx\n", host->mrq);
+        cprintf("  sbc:  0x%016llx\n", host->mrq->sbc);
+        cprintf("  cmd:  0x%016llx\n", host->mrq->cmd);
+        cprintf("  data: 0x%016llx\n", host->mrq->data);
+        cprintf("  stop: 0x%016llx\n", host->mrq->stop);
+        cprintf("  done: 0x%08x\n", host->mrq->done);
+    cprintf("cmd:       0x%016llx\n", host->cmd);
+        cprintf("  opcode:  0x%08x\n", host->cmd->opcode);
+        cprintf("  arg:     0x%08x\n", host->cmd->arg);
+        cprintf("  flags:   0x%08x\n", host->cmd->flags);
+        cprintf("  resp:    0x%08x %08x %08x %08x\n", host->cmd->resp[0], host->cmd->resp[1],
+            host->cmd->resp[2], host->cmd->resp[3]);
+        cprintf("  retries: 0x%08x\n", host->cmd->retries);
+        cprintf("  error:   0x%08x\n", host->cmd->error);
+        cprintf("  data:    0x%16xx\n", host->cmd->data);
+    cprintf("data:      0x%016llx\n", host->data);
+        cprintf("  flags:    0x%08x\n", host->data->flags);
+        cprintf("  blksz:    0x%08x\n", host->data->blksz);
+        cprintf("  blocks:   0x%08x\n", host->data->blocks);
+        cprintf("  sg:       0x%016llx\n", host->data->sg);
+        cprintf("  sg_len:   0x%08x\n", host->data->sg_len);
+        cprintf("  bytes_tx: 0x%08x\n", host->data->bytes_xfered);
+        cprintf("  error:    0xd\n", host->data->error);
+        cprintf("  stop:     0x%16llx\n", host->data->stop);
+        cprintf("  mrq:      0x%16llx\n", host->data->mrq);
+    cprintf("data_comp: 0x%08x\n", host->data_complete);
+    cprintf("max_delay: 0x%08x\n", host->max_delay);
+    cprintf("stop_time: 0x%016llx\n", host->stop_time);
+    cprintf("dly_stop:  0x%016llx\n", host->delay_after_stop);
+    cprintf("dly_this:  0x%08x\n", host->delay_after_this_stop);
+    cprintf("u_ovclk:   0x%08x\n", host->user_overclock_50);
+    cprintf("ovclck50:  0x%08x\n", host->overclock_50);
+    cprintf("overclock: 0x%08x\n", host->overclock);
 }
