@@ -1580,6 +1580,8 @@ static void rproc(void *a)
                 bdc = 4 + (b->rp[p->doffset + 3] << 2);
                 if (BLEN(b) >= p->doffset + bdc + ETHERHDRSIZE) {
                     b->rp += p->doffset + bdc;  /* BDCヘッダーをスキップ */
+                    //if (*(uint16_t *)(b->rp + 12) == 0x0008)    // IPv4, networkオーダー
+                    //    dump("ether packet", b->rp, 14);
                     etheriq(edev, b, 1);        /* bの先頭はEthernetヘッダー : bcm434.cpp で定義 */
                     continue;
                 }
@@ -2120,7 +2122,7 @@ static void wlsetcountry(Ctlr *ctlr, const char *ccode)
     strcpy(params.country_ie, ccode);
     strcpy(params.country_code, ccode);
     params.revision = (uint) -1;
-    debug("ccode: %s, country: %s", ccode, params.country_code);
+    trace("ccode: %s, country: %s", ccode, params.country_code);
     wlsetvar(ctlr, "country", &params, sizeof params);
 }
 
@@ -2622,9 +2624,9 @@ static void etherbcmattach(Ether *edev)
         /* 3. sbを有効にする */
         sbenable(ctlr);
         /* 4. 受信処理を行うrproc()を実行するカーネルプロセスを作成する */
-        kthread_create("wifireader", rproc, edev, 32);
+        kthread_create("wifi_reader", rproc, edev, 32);
         /* 5. スキャン処理を行うlproc()を実行するカーネルプロセスを作成する */
-        kthread_create("wifitimer", lproc, edev, 32);
+        kthread_create("wifi_timer", lproc, edev, 32);
         /* 6. 規制ファイルが存在する場合はロードする */
         if (ctlr->regufile)
             reguload(ctlr, ctlr->regufile);     // brcmfmac43455-sdio.clm_blob
