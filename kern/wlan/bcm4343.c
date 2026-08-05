@@ -144,6 +144,11 @@ static int bcm4343_init_internal(struct bcm4343 *self)
     ether_device.attach(&ether_device);
     /* MACアドレスをセット */
     memmove(self->macaddr, ether_device.ea, MAC_ADDRESS_SIZE);
+    memmove(self->net_dev->addr, self->macaddr, MAC_ADDRESS_SIZE);
+    self->net_dev->alen = MAC_ADDRESS_SIZE;
+    trace("self->net_dev->addr: %02x:%02x:%02x:%02x:%02x:%02x",
+            self->net_dev->addr[0], self->net_dev->addr[1], self->net_dev->addr[2],
+            self->net_dev->addr[3], self->net_dev->addr[4], self->net_dev->addr[5]);
     /* 自分自身をnet_devのプライベートデータとして登録 */
     self->net_dev->priv = self;
 

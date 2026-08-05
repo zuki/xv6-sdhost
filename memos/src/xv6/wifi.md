@@ -4387,6 +4387,26 @@ data:      0xffff00000737ebb8
   mrq:      0xffff00000737eaf0
 ```
 
+- `ifconfig net3`でetherアドレスが表示されない
+- bcm4343_init_internal()でself->addrしかセットしていなかった。self->net_dev->addrにもセット
+
+```bash
+$ /bin/ifconfig net3
+net3: flags=1<UP> mtu 0
+  ether 0:0:0:0:0:0
+  inet 192.168.10.104 netmask 255.255.255.0 broadcast 192.168.10.255
+
+
+$ /bin/ifconfig net3
+net3: flags=1<UP> mtu 1500
+  ether 0:0:0:0:0:0
+  inet 192.168.10.104 netmask 255.255.255.0 broadcast 192.168.10.255
+
+$ /bin/ifconfig net3
+net3: flags=1<UP> mtu 1500
+  ether b8:27:eb:fe:bd:1d
+  inet 192.168.10.104 netmask 255.255.255.0 broadcast 192.168.10.255
+```
 ## macアドレス
 
 - raspi wlan:      b8:27:eb:fe:bd:1d
