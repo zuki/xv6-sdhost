@@ -4407,6 +4407,20 @@ net3: flags=1<UP> mtu 1500
   ether b8:27:eb:fe:bd:1d
   inet 192.168.10.104 netmask 255.255.255.0 broadcast 192.168.10.255
 ```
+
+- 以下のエラーの件は`sd_sleep()の修正で解決
+
+```bash
+[1]sd_postinit: sd_postinit ok
+
+[1]release: error: card is not locked
+[2]v6_set_super: v6_sb: size 1000 nblocks 960 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 39
+...
+[2]sd_postinit: sd_postinit ok
+
+[1]v6_set_super: v6_sb: size 1000 nblocks 960 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 39
+```
+
 ## macアドレス
 
 - raspi wlan:      b8:27:eb:fe:bd:1d

@@ -20,8 +20,13 @@ static int ptnum = 0;
 
 static void sd_sleep(void *chan)
 {
+    int locked = cardlock.locked;
     //info("[%d] pid=%c, chan=0x%p", cpuid(), thisproc()->pid, chan);
+    if (!locked)
+        acquire(&cardlock);
     sleep(chan, &cardlock);
+    if (!locked)
+        release(&cardlock);
 }
 
 struct driver sd_driver = {
