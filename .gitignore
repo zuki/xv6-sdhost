@@ -21,6 +21,8 @@ mkfs/mkfs
 
 memos/src/xv6/*.log
 memos/src/xv6/cmp_circle_xv6net_network.md
+memos/src/xv6/softintr.md
+memos/src/google/*
 
 rfc793.txt
 
