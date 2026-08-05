@@ -281,9 +281,9 @@ forkret(void)
         wpasupplicant_init("4:/wpa_supplicant.conf");
         isb();
         kthread_create("ether_reader", ether_reader, NULL, 1);
-        trace("kthread ether created: pid=%d", p->pid);
         isb();
         workqueue_init();
+        isb();
         kthread_create("recycle", recycle_proc, NULL, 1);
         isb();
     } else {
