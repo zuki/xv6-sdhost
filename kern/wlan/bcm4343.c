@@ -88,6 +88,7 @@ int bcm4343_init(const char *firm_path)
     net_dev->ops = &bcm4343_ops;
     net_dev->index = NET_INDEX_BCM4343;
     net_dev->type = NET_DEVICE_TYPE_WLAN;
+    net_dev->mtu = ETHER_PAYLOAD_SIZE_MAX;
     snprintf(net_dev->name, sizeof(net_dev->name), "net%d", net_dev->index);
     net_dev->priv = bcm4343;
 
