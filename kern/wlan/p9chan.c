@@ -47,7 +47,7 @@ void cclose(Chan *c)
     f_close (&c->file);
     c->open = 0;
     kmfree(c);
-    if(0)print(" ok\n");
+    if(0)print("cclose ok\n");
 }
 
 // チャンネルcをオフセットoffsetから長さlenだけbufに読み込み、

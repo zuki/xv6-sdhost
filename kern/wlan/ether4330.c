@@ -1090,6 +1090,7 @@ static int upload(Ctlr *ctl, char *file, int isconfig)
             break;
         off += n;
     }
+
     if (Firmwarecmp) {
         if (FWDEBUG) print(" compare... ");
         if (!isconfig)
@@ -1389,7 +1390,7 @@ static void intwait(Ctlr *ctlr, int wait)
             mbox = cfgreadl(Fn1, ctlr->sdregs + Hostmboxdata);
             cfgwritel(Fn1, ctlr->sdregs + Sbmbox, 2);    /* ack */
             if (mbox & 0x8)
-                print("ether4330: firmware ready\n");
+                if (0) print("ether4330: firmware ready\n");
         }
         /* FrameInt割り込みがあれば終了 */
         if (ints & FrameInt)
