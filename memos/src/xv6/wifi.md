@@ -4421,6 +4421,455 @@ net3: flags=1<UP> mtu 1500
 [1]v6_set_super: v6_sb: size 1000 nblocks 960 ninodes 200 nlog 30 logstart 2 inodestart 32 bmapstart 39
 ```
 
+- 対象データを抽出
+- ブロックサイズ512バイト、ブロック数8、バッファ長4096なのに、コマンドが17(READ_SINGLE_BLOCK)になっているのが原因か?
+- sg_mitterを要調査
+
+```bash
+[0]emmc_issue_command_int: cmd: 0xffff00000737eb90, opcdde: 17, arg: 0x21002
+[2]emmc_do_data_command: blocks: 8, buf_size: 0x1000, block_size: 0x200
+[0]emmc_issue_command_int: cmd.data: 0xffff00000737ebc8, blksz: 0x200, blocks: 0x8, sg: 0xffff0000073cad80, sg_len: 0x1000
+cmd:       0xffff00000737eb90
+  opcode:  0x00000011
+  arg:     0x00021002
+  flags:   0x00000005
+  resp:    0x00000000 00000000 00000000 00000000
+  retries: 0x00000000
+  error:   0x00000000
+  data:    0xffff00000737ebc8
+data:      0xffff00000737ebc8
+  flags:    0x00000001
+  blksz:    0x00000200
+  blocks:   0x00000008
+  sg:       0xffff0000073cad80
+  sg_len:   0x00001000
+  bytes_tx: 0x00000000
+  error:    0x00000000
+  stop:     0x0000000000000000
+  mrq:      0xffff00000737eb00
+[0]sdhost_request: [0] host: 0xffff000000236b38, host->mrq: 0xffff0000073fe700
+[0] == host: 0xffff000000236b38 ==
+sleep_fn:  0xffff00000008acc0
+sleep_arg: 0xffff000000236b30
+mmc:       0xffff000000236b48
+  caps:       0x0000007f
+  f_min:      0x0001dd11
+  f_max:      0x0ee6b280
+  act_clock:  0x017d7840
+  max_busy:   0x0000431b
+  max_segs:   0x0080
+  max_segsize:0x00080000
+  max_reqsize:0x00080000
+  max_bsize:  0x00000200
+  max_bcount: 0x0000ffff
+  ocr_avail:  0x00300000
+  ios: 0xffff000000236b74
+    clock: 0x017d7840, bus: 01, power: 00, time: 00, vol: 00, type: 00
+pio_timeout:0x0007a120
+clock:     0x017d7840
+max_clk:   0x0ee6b280
+sg_mitter: 0xffff000000236b90
+  addr:     0xffff0000073da000
+  length:   0x0000000000001000
+  consumed: 0x0000000000000000
+blocks:    0x00000008
+irq:       0x0038
+cmd_retry: 0x00000003
+ns_fifo:   0x00000140
+hcfg:      0x0000041e
+cdiv:      0x00000000
+mrq:       0xffff0000073fe700
+  sbc:  0x0000000000000000
+  cmd:  0xffff0000073fe790
+  data: 0xffff0000073fe7c8
+  stop: 0xffff0000073fe730
+  done: 0x00000000
+cmd:       0x0000000000000000
+  opcode:  0x58000540
+  arg:     0xb900001f
+  flags:   0x52b00001
+  resp:    0xb9000801 d539b040 d2800441 aa010000
+  retries: 0xd519b040
+  error:   0x58000480
+  data:    0xd2867fe0d51ce07f
+data:      0xffff0000073fe7c8
+  flags:    0x00000001
+  blksz:    0x00000200
+  blocks:   0x00000008
+  sg:       0xffff0000073da000
+  sg_len:   0x00001000
+  bytes_tx: 0x00000000
+  error:    0x00000000
+  stop:     0xffff0000073fe730
+  mrq:      0xffff0000073fe700
+data_comp: 0x00000000
+max_delay: 0x00000001
+stop_time: 0x0000000000000000
+dly_stop:  0x0000000000000000
+dly_this:  0x00000000
+u_ovclk:   0x00000000
+ovclck50:  0x00000000
+overclock: 0x00000000
+kern/sdhost.c:1389: assertion failed.
+kern/drivers/console.c:264: kernel panic at cpu 0.
+```
+
+```bash
+[1]emmc_do_data_command: issue 17 with bno 0x21002
+[1]emmc_issue_command: issue 17 with arg 0x21002
+[2]emmc_do_data_command: issue 17 with bno 0x21002
+[2]emmc_issue_command: issue 17 with arg 0x21002
+[1]emmc_do_dattherm33nd:firmwa 17reaty
+no 0x21002
+// [1]emmc_do_data_command: issue 17 with bno 0x21002
+// ether4330: firmware ready                                // ether4330.c#L1393
+[1]emmc_issue_command: issue 17 with arg 0x21002
+ether4330: addr b8:27:eb:fe:bd:1d
+[2]net_device_register: dev=net3, type=3 (WLAN)
+[2]net_protocol_register: type=0x0800 (IP)
+[2]net_protocol_register: type=0x0806 (ARP)
+[2]ip_protocol_register: type=1 (ICMP)
+[2]ip_protocol_register: type=17 (UDP)
+[2]ip_protocol_register: type=6 (TCP)
+[2]net_init: net_init ok
+[2]netrun: open net3
+[2]net_device_open: dev=net3, state=up
+[2]netrun: open net1
+[2]net_device_open: dev=net1, state=up
+[2]netrun: running...
+[3]emmc_do_data_command: issue 17 with bno 0x21002                          // cpu3 : fatfsをread
+[2]emmc_do_data_command: blocks: 8, buf_size: 0x1000, block_size: 0x200
+[3]emmc_issue_command: issue 17 with arg 0x21002
+[2]emmc_do_data_command: issue 18 with bno 0x40940                          // cpu2 : v6をread
+[2]emmc_issue_command: issue 18 with arg 0x40940
+[2]sdhost_request: [2] host: 0xffff000000236b38, host->mrq: 0xffff00000737eaf0
+[2] == host: 0xffff000000236b38 ==
+sleep_fn:  0xffff00000008acc0
+sleep_arg: 0xffff000000236b30
+mmc:       0xffff000000236b48
+  caps:       0x0000007f
+  f_min:      0x0001dd11
+  f_max:      0x0ee6b280
+  act_clock:  0x017d7840
+  max_busy:   0x0000431b
+  max_segs:   0x0080
+  max_segsize:0x00080000
+  max_reqsize:0x00080000
+  max_bsize:  0x00000200
+  max_bcount: 0x0000ffff
+  ocr_avail:  0x00300000
+  ios: 0xffff000000236b74
+    clock: 0x017d7840, bus: 01, power: 00, time: 00, vol: 00, type: 00
+pio_timeout:0x0007a120
+clock:     0x017d7840
+max_clk:   0x0ee6b280
+sg_mitter: 0xffff000000236b90
+  addr:     0xffff0000073da000
+  length:   0x0000000000001000
+  consumed: 0x0000000000000000
+blocks:    0x00000008
+irq:       0x0038
+cmd_retry: 0x00000003
+ns_fifo:   0x00000140
+hcfg:      0x0000041e
+cdiv:      0x00000000
+mrq:       0xffff00000737eaf0
+  sbc:  0x0000000000000000
+  cmd:  0xffff00000737eb80
+  data: 0xffff00000737ebb8
+  stop: 0x0000000000000000
+  done: 0x00000000
+cmd:       0x0000000000000000
+  opcode:  0xd2801ba8
+  arg:     0x100000e0
+  flags:   0xd2800001
+  resp:    0xd2800002 d4000001 d2800f88 d4000001
+  retries: 0x17fffffe
+  error:   0x6e69622f
+  data:    0xd503201f00000074
+data:      0xffff00000737ebb8
+  flags:    0x00000001
+  blksz:    0x00000200
+  blocks:   0x00000008
+  sg:       0xffff0000073da000
+  sg_len:   0x00001000
+  bytes_tx: 0x00000000
+  error:    0x00000000
+  stop:     0x0000000000000000
+  mrq:      0xffff00000737eaf0
+data_comp: 0x00000000
+max_delay: 0x00000001
+stop_time: 0x0000000000000000
+dly_stop:  0x0000000000000000
+dly_this:  0x00000000
+u_ovclk:   0x00000000
+ovclck50:  0x00000000
+overclock: 0x00000000
+kern/sdhost.c:1389: assertion failed.
+kern/drivers/console.c:264: kernel panic at cpu 2.
+```
+
+- 2つのcpuの処理が入れ子になっている
+- 2つの処理のcmdとcmd.data, sgが同じアドレスになっている
+
+
+```bash
+[1]emmc_do_data_command: issue 17 with bno 0x21002
+[2]emmc_do_data_command: blocks: 8, buf_size: 0x1000, block_size: 0x200
+[1]emmc_issue_command: issue 17 with arg 0x21002
+[2]emmc_do_data_command: issue 18 with bno 0x40940
+[1]emmc_issue_command_int: cmd: 0xffff00000737eb80, opcdde: 17, arg: 0x21002, blocks: 8
+[2]emmc_issue_command: issue 18 with arg 0x40940
+[1]emmc_issue_command_int: cmd.data: 0xffff00000737ebb8, blksz: 0x200, blocks: 0x8, sg: 0xffff0000073da000, sg_len: 0x1000
+[2]emmc_issue_command_int: cmd: 0xffff0000073fe780, opcdde: 18, arg: 0x40940, blocks: 8
+[2]emmc_issue_command_int: cmd.data: 0xffff0000073fe7b8, blksz: 0x200, blocks: 0x8, sg: 0xffff0000073da000, sg_len: 0x1000
+[2]sdhost_request: [2] host: 0xffff000000236b38, host->mrq: 0xffff00000737eae0
+
+// cpu毎にまとめる : bno=0x21002 はfatfs のルートディレクトリ
+[1]emmc_do_data_command: issue 17 with bno 0x21002
+[1]emmc_issue_command: issue 17 with arg 0x21002
+[1]emmc_issue_command_int: cmd: 0xffff00000737eb80, opcdde: 17, arg: 0x21002, blocks: 8
+[1]emmc_issue_command_int: cmd.data: 0xffff00000737ebb8, blksz: 0x200, blocks: 0x8, sg: 0xffff0000073da000, sg_len: 0x1000
+
+//               : bno=0x40940 はv6のルートディレクトリ
+[2]emmc_do_data_command: blocks: 8, buf_size: 0x1000, block_size: 0x200
+[2]emmc_do_data_command: issue 18 with bno 0x40940
+[2]emmc_issue_command: issue 18 with arg 0x40940
+[2]emmc_issue_command_int: cmd: 0xffff0000073fe780, opcdde: 18, arg: 0x40940, blocks: 8
+[2]emmc_issue_command_int: cmd.data: 0xffff0000073fe7b8, blksz: 0x200, blocks: 0x8, sg: 0xffff0000073da000, sg_len: 0x1000
+
+[2]sdhost_request: [2] host: 0xffff000000236b38, host->mrq: 0xffff00000737eae0
+mrq:       0xffff00000737eae0
+  sbc:  0x0000000000000000
+  cmd:  0xffff00000737eb80
+  data: 0xffff00000737ebb8
+  stop: 0x0000000000000000
+  done: 0x00000000
+cmd:       0x0000000000000000
+  opcode:  0xd2801ba8
+  arg:     0x100000e0
+  flags:   0xd2800001
+  resp:    0xd2800002 d4000001 d2800f88 d4000001
+  retries: 0x17fffffe
+  error:   0x6e69622f
+  data:    0xd503201f00000074
+data:      0xffff00000737ebb8
+  flags:    0x00000001
+  blksz:    0x00000200
+  blocks:   0x00000008
+  sg:       0xffff0000073da000
+  sg_len:   0x00001000
+  bytes_tx: 0x00000000
+  error:    0x00000000
+  stop:     0x0000000000000000
+  mrq:      0xffff00000737eae0
+```
+
+- cmd, cmd.dataはemmc_issue_command_int()で実態変数として定義されていたのでkmazalloc()で
+  ポインタ変数に変更した
+- デバッグ出力がわからない
+
+```bash
+[2]sdhost_request: [2] host: 0xffff000000236b38, host->mrq: 0x0
+[2] =mchdst: txffffm000: 236u3  7
+ish enof0: 100f
+[0]0000_8scu1
+colmapdari:s0ef1f 0000 arg b12
+02
+: 1 e  c_ifffe_00m0a236i4t
+ mda 0x fff0 000700007ff
+  fksax117    g: 0001100,
+[1] mm0ee6b2e0co  ant_cntck:md0>01td: 0x
+fff0ax_busy9c  0x0l00z310
+2  , xlseks:   1x0sg:
+0 fmaf_s000ize:0x0,0sg_00
+ 0x20_reqsize:0x00080000
+```
+
+- そもそもこれらの関数はemmc_read()を起点にlockしてから実行しているはずと調べてたらsd_read()起点の
+  場合、lockしていなかった。
+
+```bash
+[2]netrun: running...        // ここでストール
+```
+
+- sd_intr()内のロックを削除した
+- sdhost_finish_data()のL874のassertionエラーが発生
+- host->dataがNULLの場合は何もせずreturnとした
+- 元のassertionエラーに戻った。
+
+```bash
+[1]net_device_register: dev=net1, type=2 (ETHERNET)
+[1]usb_init: usb_init ok
+emmc control 0x0 0x0 0x0
+ether4330: chip 0x4345 rev 6 type 1
+[2]emmc_do_data_command: issue 17 with bno 0x21002
+[2]emmc_issue_command: issue 17 with arg 0x21002
+[2]emmc_issue_command_int: cmd: 0xffff0000073fe720, opcdde: 17, arg: 0x21002, blocks: 1
+[2]emmc_issue_command_int: cmd.data: 0xffff0000073fe788, blksz: 0x200, blocks: 0x1, sg: 0xffff0000073d6580, sg_len: 0x200
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0  // これがL874 assert
+[2]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[1]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[3]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[3]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[1]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[1]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[3]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[1]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[2]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[2]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[2]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[1]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[2]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[2]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[3]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[3]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[2]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[3]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[1]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[3]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[2]emmc_do_data_command: error sending CMD17
+[3]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[1]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[3]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[1]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[1]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[2]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[1]emmc_do_data_command: error sending CMD17
+[1]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[2]emmc_do_data_command: error sending CMD17
+[0]sdhost_finish_data: host: 0xffff000000236b38, mrq: 0x0, cmd: 0x0, data: 0x0
+[3]emmc_do_data_command: error sending CMD17
+[1]emmc_do_data_command: issue 17 with bno 0x21002
+[1]emmc_issue_command: issue 17 with arg 0x21002
+[1]emmc_issue_command_int: cmd: 0xffff0000073fe720, opcdde: 17, arg: 0x21002, blocks: 1
+[1]emmc_issue_command_int: cmd.data: 0xffff0000073fe788, blksz: 0x200, blocks: 0x1, sg: 0xffff0000073d4f30, sg_len: 0x200
+[2]emmc_do_data_command: issue 17 with bno 0x21002
+[2]emmc_issue_command: issue 17 with arg 0x21002
+[2]emmc_issue_command_int: cmd: 0xffff0000073fe720, opcdde: 17, arg: 0x21002, blocks: 1
+[2]emmc_issue_command_int: cmd.data: 0xffff0000073fe788, blksz: 0x200, blocks: 0x1, sg: 0xffff0000073d42d0, sg_len: 0x200
+ether4330: addr b8:27:eb:fe:bd:1d
+[0]net_device_register: dev=net3, type=3 (WLAN)
+[0]net_protocol_register: type=0x0800 (IP)
+[0]net_protocol_register: type=0x0806 (ARP)
+[0]ip_protocol_register: type=1 (ICMP)
+[0]ip_protocol_register: type=17 (UDP)
+[0]ip_protocol_register: type=6 (TCP)
+[0]net_init: net_init ok
+[0]netrun: open net3
+[0]net_device_open: dev=net3, state=up
+[0]netrun: open net1
+[0]net_device_open: dev=net1, state=up
+[0]netrun: running...
+[3]emmc_do_data_command: issue 17 with bno 0x21002
+[3]emmc_issue_command: issue 17 with arg 0x21002
+[3]emmc_issue_command_int: cmd: 0xffff00000737eb50, opcdde: 17, arg: 0x21002, blocks: 1
+[3]emmc_issue_command_int: cmd.data: 0xffff00000737ebb8, blksz: 0x200, blocks: 0x1, sg: 0xffff0000073cad80, sg_len: 0x200
+[0]sdhost_request: [0] host: 0xffff000000236b38, host->mrq: 0xffff00000737eab0  // 上はcpu3, この行はcpu0
+[0] == host: 0xffff000000236b38 ==
+sleep_fn:  0xffff00000008acb0
+sleep_arg: 0xffff000000236b30
+mmc:       0xffff000000236b48
+  caps:       0x0000007f
+  f_min:      0x0001dd11
+  f_max:      0x0ee6b280
+  act_clock:  0x017d7840
+  max_busy:   0x0000431b
+  max_segs:   0x0080
+  max_segsize:0x00080000
+  max_reqsize:0x00080000
+  max_bsize:  0x00000200
+  max_bcount: 0x0000ffff
+  ocr_avail:  0x00300000
+  ios: 0xffff000000236b74
+    clock: 0x017d7840, bus: 01, power: 00, time: 00, vol: 00, type: 00
+pio_timeout:0x0007a120
+clock:     0x017d7840
+max_clk:   0x0ee6b280
+sg_mitter: 0xffff000000236b90
+  addr:     0xffff0000073cad80
+  length:   0x0000000000000200
+  consumed: 0x0000000000000000
+blocks:    0x00000001
+irq:       0x0038
+cmd_retry: 0x00000003
+ns_fifo:   0x00000140
+hcfg:      0x0000041e
+cdiv:      0x00000000
+mrq:       0xffff00000737eab0
+  sbc:  0x0000000000000000
+  cmd:  0xffff00000737eb80
+  data: 0xffff00000737ebb8
+  stop: 0x0000000000000000
+  done: 0x00000000
+cmd:       0x0000000000000000
+  opcode:  0xd2801ba8
+  arg:     0x100000e0
+  flags:   0xd2800001
+  resp:    0xd2800002 d4000001 d2800f88 d4000001
+  retries: 0x17fffffe
+  error:   0x6e69622f
+  data:    0xd503201f00000074
+data:      0xffff00000737ebb8
+  flags:    0x00000001
+  blksz:    0x00000200
+  blocks:   0x00000001
+  sg:       0xffff0000073cad80
+  sg_len:   0x00000200
+  bytes_tx: 0x00000000
+  error:    0x00000000
+  stop:     0x0000000000000000
+  mrq:      0xffff00000737eab0
+data_comp: 0x00000000
+max_delay: 0x00000001
+stop_time: 0x0000000000000000
+dly_stop:  0x0000000000000000
+dly_this:  0x00000000
+u_ovclk:   0x00000000
+ovclck50:  0x00000000
+overclock: 0x00000000
+kern/sdhost.c:1395: assertion failed.
+```
+
+- struct bcm2835_hostにlockフィールドを追加してsdhost_request_sync()の呼び出し前にロック
+- cardlockとデッドロックか?
+
+```bash
+[1]emmc_do_data_command: issue 17 with bno 0x21002
+[1]emmc_issue_command: issue 17 with arg 0x21002
+[1]emmc_issue_command_int: cmd: 0xffff0000073acec0, opcdde: 17, arg: 0x21002, blocks: 1
+[1]emmc_issue_command_int: cmd->data: 0xffff0000073c9cb0, blksz: 0x200, blocks: 0x1, sg: 0xffff0000073acf00, sg_len: 0x200
+[1]sdhost_send_command: send_command 0x11 arg 0x21002 (flags 0x5) - read 1*512
+01234567 ok
+[1]sdhost_request: send_command ok
+[1]sdhost_request: call finish_command  // sdhost_finish_commadn の先でストール
+```
+
 ## macアドレス
 
 - raspi wlan:      b8:27:eb:fe:bd:1d
