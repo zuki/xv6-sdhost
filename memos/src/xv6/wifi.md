@@ -4870,6 +4870,228 @@ kern/sdhost.c:1395: assertion failed.
 [1]sdhost_request: call finish_command  // sdhost_finish_commadn の先でストール
 ```
 
+- 一旦、もとに戻す
+
+```bash
+[2]netrun: running...
+[1]emmc_do_data_command: issue 17 with bno 0x21002
+[1]emmc_issue_command: issue 17 with arg 0x21002
+[1]emmc_issue_command_int: cmd->data: 0xffff0000073c9cb0, blksz: 0x200, blocks: 0x1, sg: 0xffff0000073acf00, sg_len: 0x200
+cmd:       0xffff0000073acec0
+  opcode:  0x00000011
+  arg:     0x00021002
+  flags:   0x00000005
+  resp:    0x00000000 00000000 00000000 00000000
+  retries: 0x00000000
+  error:   0x00000000
+  data:    0xffff0000073c9cb0
+data:      0xffff0000073c9cb0
+  flags:    0x00000001
+  blksz:    0x00000200
+  blocks:   0x00000001
+  sg:       0xffff0000073acf00
+  sg_len:   0x00000200
+  bytes_tx: 0x00000000
+  error:    0x00000000
+  stop:     0x0000000000000000
+  mrq:      0xffff00000733eb40
+[1]sdhost_command: call request_sync with host: 0xffff000000236ab0, req: 0xffff00000733eb40
+[1]sdhost_request_sync: host->mmc: 0xffff000000236ac0, req: 0xffff00000733eb40
+[2]sdhost_request: [2] host: 0xffff000000236ab0, host->mrq: 0xffff00000733eb40
+[2] == host: 0xffff000000236ab0 ==
+sleep_fn:  0xffff00000008abb0
+sleep_arg: 0xffff000000236ab0
+mmc:       0xffff000000236ac0
+  caps:       0x0000007f
+  f_min:      0x0001dd11
+  f_max:      0x0ee6b280
+  act_clock:  0x017d7840
+  max_busy:   0x0000431b
+  max_segs:   0x0080
+  max_segsize:0x00080000
+  max_reqsize:0x00080000
+  max_bsize:  0x00000200
+  max_bcount: 0x0000ffff
+  ocr_avail:  0x00300000
+  ios: 0xffff000000236aec
+    clock: 0x017d7840, bus: 01, power: 00, time: 00, vol: 00, type: 00
+pio_timeout:0x0007a120
+clock:     0x017d7840
+max_clk:   0x0ee6b280
+sg_mitter: 0xffff000000236b08
+  addr:     0xffff0000073acf00
+  length:   0x0000000000000200
+  consumed: 0x0000000000000000
+blocks:    0x00000001
+irq:       0x0038                   // SDHSTS_CRC16_ERROR | SDHSTS_CRC7_ERROR | SDHSTS_FIFO_ERROR
+cmd_retry: 0x00000004               // 4回リトライ
+ns_fifo:   0x00000140               //
+hcfg:      0x0000041e               //
+cdiv:      0x00000000
+mrq:       0xffff00000733eb40
+  sbc:  0x0000000000000000
+  cmd:  0xffff0000073acec0
+  data: 0xffff0000073c9cb0
+  stop: 0x0000000000000000
+  done: 0x00000000
+cmd:       0x0000000000000000
+  opcode:  0xd2801ba8
+  arg:     0x100000e0
+  flags:   0xd2800001
+  resp:    0xd2800002 d4000001 d2800f88 d4000001
+  retries: 0x17fffffe
+  error:   0x6e69622f
+  data:    0xd503201f00000074
+data:      0xffff0000073c9cb0
+  flags:    0x00000001
+  blksz:    0x00000200
+  blocks:   0x00000001
+  sg:       0xffff0000073acf00
+  sg_len:   0x00000200
+  bytes_tx: 0x00000000
+  error:    0x00000000
+  stop:     0x0000000000000000
+  mrq:      0xffff00000733eb40
+data_comp: 0x00000000
+max_delay: 0x00000001
+stop_time: 0x0000000000000000
+dly_stop:  0x0000000000000000
+dly_this:  0x00000000
+u_ovclk:   0x00000000
+ovclck50:  0x00000000
+overclock: 0x00000000
+kern/sdhost.c:1430: assertion failed.
+kern/drivers/console.c:264: kernel panic at cpu 2.
+```
+
+- sleep, wakeupの統計 (work/20260813am.log)
+
+```bash
+ag --no-numbers "sd_sleep|sd_intr|mmc_request_done" sleep_wakeup.txt | cut -b 4- | sort | uniq -c
+   1340 mmc_request_done: req_done wakeups chan: 0xffff000000236ab0
+      1 mmc_request_done: req: 0xffff0000073fe710 is done
+      5 mmc_request_done: req: 0xffff0000073fea00 is done
+    739 sd_intr: sd_intr wakeups chan: 0xffff000000236ab0
+      4 sd_sleep: [0] pid=1, chan=0xffff000000236ab0
+    217 sd_sleep: [1] pid=1, chan=0xffff000000236ab0
+    232 sd_sleep: [2] pid=1, chan=0xffff000000236ab0
+    224 sd_sleep: [3] pid=1, chan=0xffff000000236ab0
+```
+
+- sd_intr()内とmmc_request_done()内でwakeup()
+
+```bash
+sd_sleep: [2] pid=1, chan=0xffff000000236ab0
+mmc_request_done: req_done wakeups chan: 0xffff000000236ab0
+sd_intr: sd_intr wakeups chan: 0xffff000000236ab0
+mmc_request_done: req_done wakeups chan: 0xffff000000236ab0
+sd_sleep: [3] pid=1, chan=0xffff000000236ab0
+mmc_request_done: req_done wakeups chan: 0xffff000000236ab0
+sd_intr: sd_intr wakeups chan: 0xffff000000236ab0
+mmc_request_done: req_done wakeups chan: 0xffff000000236ab0
+sd_sleep: [2] pid=1, chan=0xffff000000236ab0
+mmc_request_done: req_done wakeups chan: 0xffff000000236ab0
+sd_intr: sd_intr wakeups chan: 0xffff000000236ab0
+mmc_request_done: req_done wakeups chan: 0xffff000000236ab0
+sd_intr: sd_intr wakeups chan: 0xffff000000236ab0
+sd_intr: sd_intr wakeups chan: 0xffff000000236ab0
+sd_sleep: [3] pid=1, chan=0xffff000000236ab0
+```
+
+- sd_intr()内でのみwakeup()
+
+```bash
+[1]net_device_register: dev=net1, type=2 (ETHERNET)
+[1]usb_init: usb_init ok
+emmc control 0x0 0x0 0x0
+ether4330: chip 0x4345 rev 6 type 1
+[1]emmc_do_data_command: issue 17 with bno 0x21002
+[1]emmc_issue_command: issue 17 with arg 0x21002
+[1]emmc_issue_command_int: cmd->data: 0xffff0000073de930, blksz: 0x200, blocks: 0x1, sg: 0xffff0000073dddd0, sg_len: 0x200
+[1]sdhost_command: call request_sync with host: 0xffff000000236ab0, req: 0xffff0000073fe710
+[1]sdhost_request_sync: host->mmc: 0xffff000000236ab0, req: 0xffff0000073fe710
+[1]sd_sleep: [1] pid=1, chan=0xffff000000236ab0
+[0]mmc_request_done: req: 0xffff0000073fe710 is done
+[0]sd_intr: sd_intr wakeups chan: 0xffff000000236ab0
+[3]sd_sleep: [3] pid=1, chan=0xffff000000236ab0
+[0]sd_intr: sd_intr wakeups chan: 0xffff000000236ab0
+
+...
+
+[1]sd_sleep: [1] pid=1, chan=0xffff000000236ab0
+[3]sd_intr: sd_intr wakeups chan: 0xffff000000236ab0
+[0]sd_intr: sd_intr wakeups chan: 0xffff000000236ab0
+[3]sd_intr: sd_intr wakeups chan: 0xffff000000236ab0
+[2]sd_sleep: [2] pid=1, chan=0xffff000000236ab0
+```
+
+- mmc_request_done()内でのみwakeup()
+
+```bash
+[3]sd_sleep: [3] pid=1, chan=0xffff000000236ab0
+[0]mmc_request_done: req_done wakeups chan: 0xffff000000236ab0
+[2]mmc_request_done: req_done wakeups chan: 0xffff000000236ab0
+[2]sd_sleep: [2] pid=1, chan=0xffff000000236ab0
+[0]mmc_request_done: req_done wakeups chan: 0xffff000000236ab0
+ether4330: addr b8:27:eb:fe:bd:1d
+[3]net_device_register: dev=net3, type=3 (WLAN)
+[3]net_protocol_register: type=0x0800 (IP)
+[3]net_protocol_register: type=0x0806 (ARP)
+[3]ip_protocol_register: type=1 (ICMP)
+[3]ip_protocol_register: type=17 (UDP)
+[3]ip_protocol_register: type=6 (TCP)
+[3]net_init: net_init ok
+[3]netrun: open net3
+[3]net_device_open: dev=net3, state=up
+[3]netrun: open net1
+[3]net_device_open: dev=net1, state=up
+[3]netrun: running...
+[0]mmc_request_done: req_done wakeups chan: 0xffff000000236ab0
+[0]emmc_do_data_command: issue 17 with bno 0x21002
+[0]emmc_issue_command: issue 17 with arg 0x21002
+[0]emmc_issue_command_int: cmd->data: 0xffff0000073c9c40, blksz: 0x200, blocks: 0x1, sg: 0xffff0000073acf00, sg_len: 0x200
+cmd:       0xffff0000073acec0
+  opcode:  0x00000011
+  arg:     0x00021002
+  flags:   0x00000005
+  resp:    0x00000000 00000000 00000000 00000000
+  retries: 0x00000000
+  error:   0x00000000
+  data:    0xffff0000073c9c40
+data:      0xffff0000073c9c40
+  flags:    0x00000001
+  blksz:    0x00000200
+  blocks:   0x00000001
+  sg:       0xffff0000073acf00
+  sg_len:   0x00000200
+  bytes_tx: 0x00000000
+  error:    0x00000000
+  stop:     0x0000000000000000
+  mrq:      0xffff00000733eb40
+[0]sdhost_command: call request_sync with host: 0xffff000000236ab0, req: 0xffff00000733eb40
+[0]sdhost_request_sync: host->mmc: 0xffff000000236ab0, req: 0xffff00000733eb40
+[0]sd_sleep: [0] pid=8, chan=0xffff000000236ab0         // pid=8 でsleepしている
+```
+
+-
+
+```bash
+[3]netrun: running...
+[0]wpa_supplicant_main: start
+[3]sdhost_finish_command: c
+[3]sdhost_finish_command: finish
+[3]emmc_do_data_command: issue 18 with bno 0x40940
+[3]emmc_issue_command: issue 18 with arg 0x40940
+[3]emmc_issue_command_int: cmd->data: 0xffff0000073c9d00, blksz: 0x200, blocks: 0x8, sg: 0xffff0000073d6000, sg_len: 0x1000
+[3]sdhost_command: call request_sync with host: 0xffff000000236b30, req: 0xffff0000073fe740
+[3]sdhost_request_sync: host->mmc: 0xffff000000236b30, req: 0xffff0000073fe740
+[3]sdhost_request: host: 0xffff000000236b30, host->mrq: 0x0, mrq->opcode: 18, arg: 0x40940
+[3]sdhost_send_command: send_command 0x12 arg 0x40940 (flags 0x5) - read 8*512
+[3]sdhost_send_command: finish
+[3]sdhost_finish_command: e         // e -> finish の場合、まだコマンドが終了していないのでここで待つ必要がある?
+[3]sdhost_finish_command: finish
+```
+
 ## macアドレス
 
 - raspi wlan:      b8:27:eb:fe:bd:1d
