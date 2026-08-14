@@ -32,6 +32,8 @@
 #include <string.h>
 #include <console.h>
 #include <irq.h>
+#include <spinlock.h>
+#include <proc.h>
 
 /* SDHOST Controller (SD Card) */
 #define ARM_SDHOST_BASE            (MMIO_BASE + 0x202000)
@@ -168,6 +170,11 @@ static void sdhost_set_ios(struct bcm2835_host *host, struct mmc_ios *ios);
 static void sdhost_tasklet_finish(struct bcm2835_host *host);
 static int sdhost_probe(struct bcm2835_host *host);
 
+static void bcm2835_host_dump(struct bcm2835_host *host);
+static void bcm2835_cmd_dump(struct mmc_command *cmd);
+static void bcm2835_data_dump(struct mmc_data *data);
+static void bcm2835_request_dump(struct mmc_request *mrq);
+
 int
 sdhost_init(struct bcm2835_host *host, void (*sleep_fn)(void *),
             void *sleep_arg)
@@ -176,6 +183,7 @@ sdhost_init(struct bcm2835_host *host, void (*sleep_fn)(void *),
     int ret = sdhost_probe(host);
     host->sleep_fn = sleep_fn;
     host->sleep_arg = sleep_arg;
+    initlock(&host->lock, "bcm2835");
     if (ret != 0)
         return 0;
     return 1;
@@ -184,9 +192,7 @@ sdhost_init(struct bcm2835_host *host, void (*sleep_fn)(void *),
 void
 sdhost_intr(struct bcm2835_host *host)
 {
-    trace("begin");
     sdhost_irq_handler(host);
-    trace("end");
 }
 
 void
@@ -900,11 +906,12 @@ sdhost_transfer_complete(struct bcm2835_host *host)
     if (host->mrq->stop && (data->error || !host->use_sbc)) {
         if (sdhost_send_command(host, host->mrq->stop)) {
             /* No busy, so poll for completion */
-            if (!host->use_busy)
+            if (!host->use_busy) {
                 sdhost_finish_command(host);
-
-            if (host->delay_after_this_stop)
+            }
+            if (host->delay_after_this_stop) {
                 host->stop_time = timestamp() * (1000000U / CLOCKHZ);
+            }
         }
     } else {
         sdhost_wait_transfer_complete(host);
@@ -922,19 +929,19 @@ static void
 sdhost_finish_command(struct bcm2835_host *host)
 {
     uint32_t sdcmd;
-
     trace("finish_command (0x%x)", read(SDCMD));
-
+#if 0
     if (!host->cmd && !host->mrq)
         trace("host: %p, host->cmd: %p, host->mrq: %p", host, host->cmd, host->mrq);
         return;
+#endif
     assert(!(!host->cmd || !host->mrq));
 
     /* はじめに素早くPollする */
 
     uint32_t retries = host->cmd_quick_poll_retries;
     if (!retries) {
-        /* 10usを計測して、1usかかるポーリングがいくつあるかを算出する */
+        /* 10us計測して、1usかかるポーリングがいくつあるかを算出する */
         int us_diff;
 
         retries = 1;
@@ -954,11 +961,11 @@ sdhost_finish_command(struct bcm2835_host *host)
 
         host->cmd_quick_poll_retries =
             ((retries * us_diff + 9) * CMD_DALLY_US) / 10 + 1;
+        trace("cmd_quick_poll_retries = %d", host->cmd_quick_poll_retries);
         retries = 1;            // We've already waited long enough this time
     }
 
-    for (sdcmd = read(SDCMD);
-         (sdcmd & SDCMD_NEW_FLAG) && retries; retries--) {
+    for (sdcmd = read(SDCMD); (sdcmd & SDCMD_NEW_FLAG) && retries; retries--) {
         dsb();
         sdcmd = read(SDCMD);
     }
@@ -1104,8 +1111,9 @@ sdhost_busy_irq(struct bcm2835_host *host, uint32_t intmask)
         // if (host->debug) {
         //      dumpregs();
         // }
-    } else
+    } else {
         sdhost_finish_command(host);
+    }
 }
 
 
@@ -1113,11 +1121,10 @@ static void
 sdhost_data_irq(struct bcm2835_host *host, uint32_t intmask)
 {
     /*
-     * There are no dedicated data/space available interrupt
-     * status bits, so it is necessary to use the single shared
-     * data/space available FIFO status bits. It is therefore not
-     * an error to get here when there is no data transfer in
-     * progress.
+     * データ／スペース利用可能状態を示す専用の割り込みステータスビットは
+     * 存在しないため、1つの共有データ／スペース利用可能FIFOステータス
+     * ビットを使用する必要がある。したがって、データ転送が行われていない
+     * 状態でここに来ることはエラーではない。
      */
     if (!host->data)
         return;
@@ -1197,9 +1204,9 @@ sdhost_irq_handler(struct bcm2835_host *host)
         sdhost_busy_irq(host, intmask);
     }
 
-    /* There is no true data interrupt status bit, so it is
-       necessary to qualify the data flag with the interrupt
-       enable bit */
+    /* 真のデータ割り込みステータスビットは存在しないため、
+     * データフラグと割り込み有効ビットを組み合わせて解釈する
+     * 必要がある。 */
     if ((intmask & SDHSTS_DATA_FLAG) && (host->hcfg & SDHCFG_DATA_IRPT_EN)) {
         sdhost_data_irq(host, intmask);
     }
@@ -1311,8 +1318,6 @@ sdhost_set_clock_inner(struct bcm2835_host *host, uint32_t clock)
     dsb();
 }
 
-static void bcm2835_host_dump(struct bcm2835_host *host);
-
 static void
 sdhost_request(struct bcm2835_host *host, struct mmc_host *mmc,
                struct mmc_request *mrq)
@@ -1337,44 +1342,18 @@ sdhost_request(struct bcm2835_host *host, struct mmc_host *mmc,
     if (host->reset_clock)
         sdhost_set_clock_inner(host, host->clock);
 
+    if (mrq->cmd->arg == 0x21002 || mrq->cmd->arg == 0x40940)
+        debug("host: %p, host->mrq: %p, mrq->opcode: %d, arg: 0x%x",
+            host, host->mrq, mrq->cmd->opcode, mrq->cmd->arg);
+
+    //acquire(&host->lock);
+
 #if 1
     if (host->mrq != NULL) {
-        debug("host: %p, host->mrq: %p", host, host->mrq);
+        trace("[%d] host: %p, host->mrq: %p", cpuid(), host, host->mrq);
         bcm2835_host_dump(host);
-        //hexdump(host, sizeof(struct bcm2835_host), "host");
-        //hexdump(host->mrq, sizeof(struct mmc_request), "host->mrq");
-#if 0
-        if (host->mrq->sbc)
-            hexdump(host->mrq->sbc, sizeof(struct mmc_command), "host->mrq->sbc");
-        if (host->mrq->cmd)
-            hexdump(host->mrq->cmd, sizeof(struct mmc_command), "host->mrq->cmd");
-        if (host->mrq->data)
-            hexdump(host->mrq->data, sizeof(struct mmc_data), "host->mrq->data");
-        if (host->mrq->stop)
-            hexdump(host->mrq->stop, sizeof(struct mmc_command), "host->mrq->stop");
-#endif
-        if(0)error("\n"
-              "\thost->mrq: %p, done: 0x%x\n"
-              "\thost->mrq->sbc %p opcode: 0x%x\n"
-              "\thost->mrq->cmd %p opcode: 0x%x\n"
-              "\thost->mrq->data %p flag: 0x%x\n",
-              "\thost->mrq->stop %p opcode: 0x%x\n",
-            host->mrq, host->mrq->done,
-            host->mrq->sbc, (host->mrq->sbc ? host->mrq->sbc->opcode : -1),
-            host->mrq->cmd, (host->mrq->cmd ? host->mrq->cmd->opcode : -1),
-            host->mrq->data, (host->mrq->data ? host->mrq->data->flags : -1),
-            host->mrq->stop, (host->mrq->stop ? host->mrq->stop->opcode : -1));
-        if(0)error("mrq: %p\n"
-              "\tmrq->sbc %p opcode: 0x%x\n"
-              "\tmrq->cmd %p opcode: 0x%x\n"
-              "\tmrq->data %p flag: 0x%x\n",
-              "\tmrq->stop %p opcode: 0x%x\n",
-            mrq,
-            mrq->sbc, (mrq->sbc ? mrq->sbc->opcode : -1),
-            mrq->cmd, (mrq->cmd ? mrq->cmd->opcode : -1),
-            mrq->data, (mrq->data ? mrq->data->flags : -1),
-            mrq->stop, (mrq->stop ? mrq->stop->opcode : -1));
         mmc_request_done(mmc, mrq);
+        dsb();
     }
 #endif
     assert(host->mrq == 0);
@@ -1593,9 +1572,53 @@ sdhost_probe(struct bcm2835_host *host)
     return ret;
 }
 
+static void bcm2835_request_dump(struct mmc_request *mrq)
+{
+    cprintf("mrq:       0x%016llx\n", mrq);
+    if (mrq) {
+        cprintf("  sbc:  0x%016llx\n", mrq->sbc);
+        cprintf("  cmd:  0x%016llx\n", mrq->cmd);
+        cprintf("  data: 0x%016llx\n", mrq->data);
+        cprintf("  stop: 0x%016llx\n", mrq->stop);
+        cprintf("  done: 0x%08x\n", mrq->done);
+    }
+}
+
+static void bcm2835_cmd_dump(struct mmc_command *cmd)
+{
+    cprintf("cmd:       0x%016llx\n", cmd);
+    if (cmd) {
+        cprintf("  opcode:  0x%08x\n", cmd->opcode);
+        cprintf("  arg:     0x%08x\n", cmd->arg);
+        cprintf("  flags:   0x%08x\n", cmd->flags);
+        cprintf("  resp:    0x%08x %08x %08x %08x\n", cmd->resp[0], cmd->resp[1],
+            cmd->resp[2], cmd->resp[3]);
+        cprintf("  retries: 0x%08x\n", cmd->retries);
+        cprintf("  error:   0x%08x\n", cmd->error);
+        cprintf("  data:    0x%016llx\n", cmd->data);
+    }
+
+}
+
+static void bcm2835_data_dump(struct mmc_data *data)
+{
+    cprintf("data:      0x%016llx\n", data);
+    if (data) {
+        cprintf("  flags:    0x%08x\n", data->flags);
+        cprintf("  blksz:    0x%08x\n", data->blksz);
+        cprintf("  blocks:   0x%08x\n", data->blocks);
+        cprintf("  sg:       0x%016llx\n", data->sg);
+        cprintf("  sg_len:   0x%08x\n", data->sg_len);
+        cprintf("  bytes_tx: 0x%08x\n", data->bytes_xfered);
+        cprintf("  error:    0x%08x\n", data->error);
+        cprintf("  stop:     0x%016llx\n", data->stop);
+        cprintf("  mrq:      0x%016llx\n", data->mrq);
+    }
+}
+
 static void bcm2835_host_dump(struct bcm2835_host *host)
 {
-    cprintf("== host: %p ==\n", host);
+    cprintf("[%d] == host: %p ==\n", cpuid(), host);
     cprintf("sleep_fn:  0x%016llx\n", host->sleep_fn);
     cprintf("sleep_arg: 0x%016llx\n", host->sleep_arg);
     cprintf("mmc:       0x%016llx\n", &host->mmc);
@@ -1627,31 +1650,9 @@ static void bcm2835_host_dump(struct bcm2835_host *host)
     cprintf("ns_fifo:   0x%08x\n", host->ns_per_fifo_word);
     cprintf("hcfg:      0x%08x\n", host->hcfg);
     cprintf("cdiv:      0x%08x\n", host->cdiv);
-    cprintf("mrq:       0x%016llx\n", host->mrq);
-        cprintf("  sbc:  0x%016llx\n", host->mrq->sbc);
-        cprintf("  cmd:  0x%016llx\n", host->mrq->cmd);
-        cprintf("  data: 0x%016llx\n", host->mrq->data);
-        cprintf("  stop: 0x%016llx\n", host->mrq->stop);
-        cprintf("  done: 0x%08x\n", host->mrq->done);
-    cprintf("cmd:       0x%016llx\n", host->cmd);
-        cprintf("  opcode:  0x%08x\n", host->cmd->opcode);
-        cprintf("  arg:     0x%08x\n", host->cmd->arg);
-        cprintf("  flags:   0x%08x\n", host->cmd->flags);
-        cprintf("  resp:    0x%08x %08x %08x %08x\n", host->cmd->resp[0], host->cmd->resp[1],
-            host->cmd->resp[2], host->cmd->resp[3]);
-        cprintf("  retries: 0x%08x\n", host->cmd->retries);
-        cprintf("  error:   0x%08x\n", host->cmd->error);
-        cprintf("  data:    0x%16xx\n", host->cmd->data);
-    cprintf("data:      0x%016llx\n", host->data);
-        cprintf("  flags:    0x%08x\n", host->data->flags);
-        cprintf("  blksz:    0x%08x\n", host->data->blksz);
-        cprintf("  blocks:   0x%08x\n", host->data->blocks);
-        cprintf("  sg:       0x%016llx\n", host->data->sg);
-        cprintf("  sg_len:   0x%08x\n", host->data->sg_len);
-        cprintf("  bytes_tx: 0x%08x\n", host->data->bytes_xfered);
-        cprintf("  error:    0xd\n", host->data->error);
-        cprintf("  stop:     0x%16llx\n", host->data->stop);
-        cprintf("  mrq:      0x%16llx\n", host->data->mrq);
+    bcm2835_request_dump(host->mrq);
+    bcm2835_cmd_dump(host->cmd);
+    bcm2835_data_dump(host->data);
     cprintf("data_comp: 0x%08x\n", host->data_complete);
     cprintf("max_delay: 0x%08x\n", host->max_delay);
     cprintf("stop_time: 0x%016llx\n", host->stop_time);
