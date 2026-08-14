@@ -3,6 +3,7 @@
 
 #include <types.h>
 #include <linux/errno.h>
+#include <spinlock.h>
 
 #if RASPI == 3
 // FIXME: Use sdhost and reserve sdhci for wifi.
@@ -80,7 +81,9 @@ struct mmc_command
 #define SD_IO_SEND_OP_COND          5
 #define MMC_STOP_TRANSMISSION       12
 #define MMC_SEND_STATUS             13
+#define MMC_READ_SINGLE_BLOCK       17
 #define MMC_READ_MULTIPLE_BLOCK     18
+#define MMC_WRITE_BLOCK             24
 #define MMC_WRITE_MULTIPLE_BLOCK    25
 #define SD_APP_OP_COND              41
     uint32_t        arg;
@@ -114,9 +117,9 @@ struct mmc_request
 
 struct bcm2835_host
 {
+    struct mmc_host mmc;
     void (*sleep_fn)(void *);       /* Callback function when waiting for interrupt. */
     void *sleep_arg;                /* Argument passed with sleep_fn. */
-    struct mmc_host mmc;
     uint32_t        pio_timeout;    /* In CLOCKHZ ticks */
     uint32_t        clock;          /* Current clock speed */
     uint32_t        max_clk;        /* Max possible freq */
@@ -156,6 +159,8 @@ struct bcm2835_host
     uint32_t user_overclock_50; /* User's preferred frequency to use when 50MHz is requested (in MHz) */
     uint32_t overclock_50;      /* frequency to use when 50MHz is requested (in MHz) */
     uint32_t overclock;         /* Current frequency if overclocked, else zero */
+
+    struct spinlock lock;
 
 //     uint32_t            sectors;    /* Cached card size in sectors */
 };
