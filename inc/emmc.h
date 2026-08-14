@@ -2,6 +2,7 @@
 #define INC_EMMC_H
 
 #include <sdhost.h>
+#include <spinlock.h>
 
 struct tscr // SD configuration register
 {
@@ -11,9 +12,9 @@ struct tscr // SD configuration register
 };
 
 struct emmc {
-    uint64_t ull_offset;
-
     struct bcm2835_host host;
+
+    uint64_t ull_offset;
 
 	// was: struct emmc_block_dev
 	uint32_t device_id[4];
