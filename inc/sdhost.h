@@ -142,25 +142,24 @@ struct bcm2835_host
     uint32_t hcfg;
     uint32_t cdiv;
 
-    struct mmc_request  *mrq;   /* Current request */
-    struct mmc_command  *cmd;   /* Current command */
-    struct mmc_data     *data;  /* Current data request */
-    unsigned data_complete:1;   /* Data finished before cmd */
-    unsigned use_busy:1;        /* Wait for busy interrupt */
-    unsigned use_sbc:1;         /* Send CMD23 */
-    unsigned debug:1;        /* Enable debug output */
-    unsigned firmware_sets_cdiv:1;    /* Let the firmware manage the clock */
-    unsigned reset_clock:1;        /* Reset the clock fore the next request */
+    struct mmc_request  *mrq;       /* Current request */
+    struct mmc_command  *cmd;       /* Current command */
+    struct mmc_data     *data;      /* Current data request */
+    unsigned data_complete:1;       /* Data finished before cmd */
+    unsigned use_busy:1;            /* Wait for busy interrupt */
+    unsigned use_sbc:1;             /* Send CMD23 */
+    unsigned debug:1;               /* Enable debug output */
+    unsigned firmware_sets_cdiv:1;  /* Let the firmware manage the clock */
+    unsigned reset_clock:1;         /* Reset the clock fore the next request */
+    unsigned busy:1;                /* ホスト使用中か */
 
-    int      max_delay;         /* maximum length of time spent waiting */
-    uint64_t stop_time;         /* when the last stop was issued */
+    int      max_delay;             /* maximum length of time spent waiting */
+    uint64_t stop_time;             /* when the last stop was issued */
     uint64_t delay_after_stop;      /* minimum time between stop and subsequent data transfer */
     uint64_t delay_after_this_stop; /* minimum time between this stop and subsequent data transfer */
-    uint32_t user_overclock_50; /* User's preferred frequency to use when 50MHz is requested (in MHz) */
-    uint32_t overclock_50;      /* frequency to use when 50MHz is requested (in MHz) */
-    uint32_t overclock;         /* Current frequency if overclocked, else zero */
-
-    struct spinlock lock;
+    uint32_t user_overclock_50;     /* User's preferred frequency to use when 50MHz is requested (in MHz) */
+    uint32_t overclock_50;          /* frequency to use when 50MHz is requested (in MHz) */
+    uint32_t overclock;             /* Current frequency if overclocked, else zero */
 
 //     uint32_t            sectors;    /* Cached card size in sectors */
 };

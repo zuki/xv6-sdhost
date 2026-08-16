@@ -5092,6 +5092,111 @@ data:      0xffff0000073c9c40
 [3]sdhost_finish_command: finish
 ```
 
+- もう一度戻す
+
+```bash
+[0]sdhost_request: host: 0xffff000000236b30, host->mrq: 0x0, mrq: 0xffff00000737eaf0
+     mrq->cmd: 0xffff00000737eb80 (opcode: 17, arg: 0x21002)
+     mrq->data: 0xffff00000737ebb8 (blocks: 1)
+[2]sdhost_request: host: 0xffff000000236b30, host->mrq: 0xffff00000737eaf0, mrq: 0xffff0000073fe6f0
+     mrq->cmd: 0xffff0000073fe780 (opcode: 18, arg: 0x40940)
+     mrq->data: 0xffff0000073fe7b8 (blocks: 8)
+[2] == host: 0xffff000000236b30 ==
+sleep_fn:  0xffff00000008acc0
+sleep_arg: 0xffff000000236b30
+mmc:       0xffff000000236b30
+  caps:       0x0000007f
+  f_min:      0x0001dd11
+  f_max:      0x0ee6b280
+  act_clock:  0x017d7840
+  max_busy:   0x0000431b
+  max_segs:   0x0080
+  max_segsize:0x00080000
+  max_reqsize:0x00080000
+  max_bsize:  0x00000200
+  max_bcount: 0x0000ffff
+  ocr_avail:  0x00300000
+  ios: 0xffff000000236b5c
+    clock: 0x017d7840, bus: 01, power: 00, time: 00, vol: 00, type: 00
+pio_timeout:0x0007a120
+clock:     0x017d7840
+max_clk:   0x0ee6b280
+sg_mitter: 0xffff000000236b88
+  addr:     0xffff0000073cad80
+  length:   0x0000000000000200
+  consumed: 0x0000000000000000
+blocks:    0x00000001
+irq:       0x0038
+cmd_retry: 0x00000004
+ns_fifo:   0x00000140
+hcfg:      0x0000041e
+cdiv:      0x00000000
+mrq:       0xffff00000737eaf0
+  sbc:  0x0000000000000000
+  cmd:  0xffff00000737eb80
+  data: 0xffff00000737ebb8
+  stop: 0x0000000000000000
+  done: 0x00000000
+cmd:       0x0000000000000000
+data:      0xffff00000737ebb8
+  flags:    0x00000001
+  blksz:    0x00000200
+  blocks:   0x00000001
+  sg:       0xffff0000073cad80
+  sg_len:   0x00000200
+  bytes_tx: 0x00000000
+  error:    0x00000000
+  stop:     0x0000000000000000
+  mrq:      0xffff00000737eaf0
+data_comp: 0x00000000
+max_delay: 0x00000001
+stop_time: 0x0000000000000000
+dly_stop:  0x0000000000000000
+dly_this:  0x00000000
+u_ovclk:   0x00000000
+ovclck50:  0x00000000
+overclock: 0x00000000
+kern/sdhost.c:1360: assertion failed.
+kern/drivers/console.c:264: kernel panic at cpu 2.
+
+```
+
+## host->busy フラグを導入
+
+- google AIモードの教示により新たにフラグを設け、host->lock代わりに使用
+- host->budyでsleepすればよかったようだ
+- ただし、wpa_supplicantによる接続でエラー発生。これについては以下の2点が指摘された
+    1. 割り込み（IRQ）の優先度または取りこぼし:
+    2. クロック・電源の干渉（BCM2835特有の挙動）
+
+```bash
+[2]netrun: running...
+[3]sdhost_request: host: 0xffff000000236b30, host->mrq: 0x0, mrq: 0xffff00000737eaf0
+     mrq->cmd: 0xffff00000737eb80 (opcode: 17, arg: 0x21002)
+     mrq->data: 0xffff00000737ebb8 (blocks: 1)
+[3]sdhost_request: host: 0xffff000000236b30, host->mrq: 0x0, mrq: 0xffff0000073fe6f0
+     mrq->cmd: 0xffff0000073fe780 (opcode: 18, arg: 0x40940)
+     mrq->data: 0xffff0000073fe7b8 (blocks: 8)
+[3]sdhost_request: host: 0xffff000000236b30, host->mrq: 0x0, mrq: 0xffff0000073fe6f0
+     mrq->cmd: 0xffff0000073fe780 (opcode: 18, arg: 0x40940)
+     mrq->data: 0xffff0000073fe7b8 (blocks: 8)
+[1]sdhost_request: host: 0xffff000000236b30, host->mrq: 0x0, mrq: 0xffff0000073fe6f0
+     mrq->cmd: 0xffff0000073fe780 (opcode: 18, arg: 0x40940)
+     mrq->data: 0xffff0000073fe7b8 (blocks: 8)
+Setting country code to 'JP'
+channel: 0
+bssid: 00:00:00:00:00:00
+essid:
+crypt: off
+oq: 0
+txwin: 59
+txseq: 19
+status: unassociated
+[0]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.104 dev=net3
+[0]ip_iface_register: registered: dev=net3, unicast=192.168.10.104, netmask=255.255.255.0, broadcast=192.168.10.255
+[0]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.104 dev=net3
+```
+
 ## macアドレス
 
 - raspi wlan:      b8:27:eb:fe:bd:1d
@@ -5132,6 +5237,148 @@ wpasupplicant_init()
                                                       assert(host->mrq == 0) // ここでアサーションエラー
 ```
 
+# cflow
 
+## sdhost.c
 
+```bash
+$ cflow --tree --brief sdhost.c
++-sdhost_command() <int sdhost_command (struct bcm2835_host *host, struct mmc_command *cmd, uint32_t nretries) at sdhost.c:215>
+  +-memset()
+  +-mmc_prepare_request() <int mmc_prepare_request (struct mmc_host *mmc, struct mmc_request *req) at sdhost.c:276>
+  \-sdhost_request_sync() <void sdhost_request_sync (struct bcm2835_host *host, struct mmc_request *req) at sdhost.c:261>
+    +-sdhost_request() <void sdhost_request (struct bcm2835_host *host, struct mmc_host *mmc, struct mmc_request *mrq) at sdhost.c:1323>
+    | +-mmc_request_done() <void mmc_request_done (struct mmc_host *mmc, struct mmc_request *req) at sdhost.c:310>
+    | | +-dsb()
+    | | \-wakeup()
+    | +-sdhost_set_clock_inner() <void sdhost_set_clock_inner (struct bcm2835_host *host, uint32_t clock) at sdhost.c:1218>
+    | | +-mbox_set_sdhost_clock()
+    | | +-write() <void write (uint32_t val, int reg) at sdhost.c:354>
+    | | | \-put32()
+    | +-bcm2835_host_dump() <void bcm2835_host_dump (struct bcm2835_host *host) at sdhost.c:1620>
+    | | +-bcm2835_request_dump() <void bcm2835_request_dump (struct mmc_request *mrq) at sdhost.c:1576>
+    | | +-bcm2835_cmd_dump() <void bcm2835_cmd_dump (struct mmc_command *cmd) at sdhost.c:1588>
+    | | \-bcm2835_data_dump() <void bcm2835_data_dump (struct mmc_data *data) at sdhost.c:1604>
+    | +-read() <uint32_t read (int reg) at sdhost.c:360>
+    | | \-get32()
+    | +-sdhost_tasklet_finish() <void sdhost_tasklet_finish (struct bcm2835_host *host) at sdhost.c:1421>
+    | | \-mmc_request_done() <void mmc_request_done (struct mmc_host *mmc, struct mmc_request *req) at sdhost.c:310> [see 11]
+    | +-sdhost_send_command() <int sdhost_send_command (struct bcm2835_host *host, struct mmc_command *cmd) at sdhost.c:746>
+    | | +-read() <uint32_t read (int reg) at sdhost.c:360> [see 40]
+    | | +-sdhost_tasklet_finish() <void sdhost_tasklet_finish (struct bcm2835_host *host) at sdhost.c:1421> [see 43]
+    | | +-delayus()
+    | | +-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+    | | +-sdhost_prepare_data() <void sdhost_prepare_data (struct bcm2835_host *host, struct mmc_command *cmd) at sdhost.c:691>
+    | | | +-sg_miter_start() <void sg_miter_start (struct sg_mapping_iter *sg_miter, void *sg, uint32_t sg_len, uint32_t flags) at sdhost.c:320>
+    | | | +-sdhost_set_transfer_irqs() <void sdhost_set_transfer_irqs (struct bcm2835_host *host) at sdhost.c:678>
+    | | | | \-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+    | | | \-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+    | | \-timestamp()
+    | \-sdhost_finish_command() <void sdhost_finish_command (struct bcm2835_host *host) at sdhost.c:930> (R)
+    |   +-read() <uint32_t read (int reg) at sdhost.c:360> [see 40]
+    |   +-timestamp()
+    |   +-delayus()
+    |   +-sdhost_tasklet_finish() <void sdhost_tasklet_finish (struct bcm2835_host *host) at sdhost.c:1421> [see 43]
+    |   +-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+    |   +-sdhost_send_command() <int sdhost_send_command (struct bcm2835_host *host, struct mmc_command *cmd) at sdhost.c:746> [see 49]
+    |   +-sdhost_finish_command() <void sdhost_finish_command (struct bcm2835_host *host) at sdhost.c:930> (recursive: see 65) [see 65]
+    |   \-sdhost_transfer_complete() <void sdhost_transfer_complete (struct bcm2835_host *host) at sdhost.c:890> (R)
+    |     +-sdhost_send_command() <int sdhost_send_command (struct bcm2835_host *host, struct mmc_command *cmd) at sdhost.c:746> [see 49]
+    |     +-sdhost_finish_command() <void sdhost_finish_command (struct bcm2835_host *host) at sdhost.c:930> (recursive: see 65) [see 65]
+    |     +-sdhost_wait_transfer_complete() <void sdhost_wait_transfer_complete (struct bcm2835_host *host) at sdhost.c:467>
+    |     | +-read() <uint32_t read (int reg) at sdhost.c:360> [see 40]
+    |     | +-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+    |     \-sdhost_tasklet_finish() <void sdhost_tasklet_finish (struct bcm2835_host *host) at sdhost.c:1421> [see 43]
++-sdhost_init() <int sdhost_init (struct bcm2835_host *host, void (*sleep_fn) (void *), void *sleep_arg) at sdhost.c:179>
+  +-sdhost_init_gpio() <void sdhost_init_gpio () at sdhost.c:366>
+  +-sdhost_probe() <int sdhost_probe (struct bcm2835_host *host) at sdhost.c:1519>
+  | +-memset()
+  | +-mbox_get_clock_rate()
+  | +-mbox_set_sdhost_clock()
+  | \-sdhost_add_host() <int sdhost_add_host (struct bcm2835_host *host) at sdhost.c:1475>
+  |   +-sdhost_init_inner() <void sdhost_init_inner (struct bcm2835_host *host, int soft) at sdhost.c:450>
+  |   | +-sdhost_reset_internal() <void sdhost_reset_internal (struct bcm2835_host *host) at sdhost.c:411>
+  |   | | +-sdhost_set_power() <void sdhost_set_power (int on) at sdhost.c:405>
+  |   | | | \-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+  |   | | +-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+  |   | | +-read() <uint32_t read (int reg) at sdhost.c:360> [see 40]
+  |   | | +-delayus()
+  |   | \-sdhost_set_ios() <void sdhost_set_ios (struct bcm2835_host *host, struct mmc_ios *ios) at sdhost.c:1395>
+  |   |   +-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+  |   |   \-sdhost_set_clock_inner() <void sdhost_set_clock_inner (struct bcm2835_host *host, uint32_t clock) at sdhost.c:1218> [see 16]
+  |   \-dsb()
+  \-initlock()
++-sdhost_intr() <void sdhost_intr (struct bcm2835_host *host) at sdhost.c:193>
+  \-sdhost_irq_handler() <void sdhost_irq_handler (struct bcm2835_host *host) at sdhost.c:1193>
+    +-read() <uint32_t read (int reg) at sdhost.c:360> [see 40]
+    +-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+    +-sdhost_block_irq() <void sdhost_block_irq (struct bcm2835_host *host, uint32_t intmask) at sdhost.c:1163>
+    | +-sdhost_finish_data() <void sdhost_finish_data (struct bcm2835_host *host) at sdhost.c:862>
+    | | +-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+    | | +-read() <uint32_t read (int reg) at sdhost.c:360> [see 40]
+    | | \-sdhost_transfer_complete() <void sdhost_transfer_complete (struct bcm2835_host *host) at sdhost.c:890> (R) [see 79]
+    | \-sdhost_transfer_pio() <void sdhost_transfer_pio (struct bcm2835_host *host) at sdhost.c:654>
+    |   +-assert()
+    |   +-sdhost_read_block_pio() <void sdhost_read_block_pio (struct bcm2835_host *host) at sdhost.c:503>
+    |   | +-timestamp()
+    |   | +-sg_miter_next() <int sg_miter_next (struct sg_mapping_iter *sg_miter) at sdhost.c:333>
+    |   | +-MIN()
+    |   | +-read() <uint32_t read (int reg) at sdhost.c:360> [see 40]
+    |   | +-delayus()
+    |   | \-sg_miter_stop() <void sg_miter_stop (struct sg_mapping_iter *sg_miter) at sdhost.c:349>
+    |   +-sdhost_write_block_pio() <void sdhost_write_block_pio (struct bcm2835_host *host) at sdhost.c:579>
+    |   | +-timestamp()
+    |   | +-sg_miter_next() <int sg_miter_next (struct sg_mapping_iter *sg_miter) at sdhost.c:333> [see 135]
+    |   | +-MIN()
+    |   | +-read() <uint32_t read (int reg) at sdhost.c:360> [see 40]
+    |   | +-delayus()
+    |   | +-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+    |   | \-sg_miter_stop() <void sg_miter_stop (struct sg_mapping_iter *sg_miter) at sdhost.c:349>
+    |   +-read() <uint32_t read (int reg) at sdhost.c:360> [see 40]
+    +-sdhost_busy_irq() <void sdhost_busy_irq (struct bcm2835_host *host, uint32_t intmask) at sdhost.c:1076>
+    | \-sdhost_finish_command() <void sdhost_finish_command (struct bcm2835_host *host) at sdhost.c:930> (R) [see 65]
+    +-sdhost_data_irq() <void sdhost_data_irq (struct bcm2835_host *host, uint32_t intmask) at sdhost.c:1122>
+    | +-sdhost_finish_data() <void sdhost_finish_data (struct bcm2835_host *host) at sdhost.c:862> [see 125]
+    | +-write() <void write (uint32_t val, int reg) at sdhost.c:354> [see 20]
+    | \-sdhost_transfer_pio() <void sdhost_transfer_pio (struct bcm2835_host *host) at sdhost.c:654> [see 131]
++-sdhost_reset() <void sdhost_reset (struct bcm2835_host *host) at sdhost.c:443>
+  \-sdhost_reset_internal() <void sdhost_reset_internal (struct bcm2835_host *host) at sdhost.c:411> [see 104]
++-sdhost_set_bus_width() <void sdhost_set_bus_width (struct bcm2835_host *host, uint32_t nbits) at sdhost.c:206>
+  \-sdhost_set_ios() <void sdhost_set_ios (struct bcm2835_host *host, struct mmc_ios *ios) at sdhost.c:1395> [see 111]
++-sdhost_set_clock() <void sdhost_set_clock (struct bcm2835_host *host, uint32_t clock) at sdhost.c:199>
+  \-sdhost_set_ios() <void sdhost_set_ios (struct bcm2835_host *host, struct mmc_ios *ios) at sdhost.c:1395> [see 111]
+```
 
+## emmc.c
+
+```bash
+$ cflow --tree --brief emmc.c
++-emmc_init() <int emmc_init (struct emmc *self, void (*sleep_fn) (void *), void *sleep_arg) at emmc.c:354>
+  +-sdhost_init()
+  \-emmc_card_init() <int emmc_card_init (struct emmc *self) at emmc.c:484>
++-emmc_intr() <void emmc_intr (struct emmc *self) at emmc.c:346>
+  \-sdhost_intr()
++-emmc_read() <size_t emmc_read (struct emmc *self, void *buf, size_t cnt) at emmc.c:367>
+  \-emmc_do_read() <size_t emmc_do_read (struct emmc *self, uint8_t *buf, size_t buf_size, uint32_t block_no) at emmc.c:646>
+    +-emmc_ensure_data_mode() <int emmc_ensure_data_mode (struct emmc *self) at emmc.c:504>
+    | +-emmc_card_reset() <int emmc_card_reset (struct emmc *self) at emmc.c:685>
+    | | +-sdhost_set_clock()
+    | | +-emmc_issue_command() <int emmc_issue_command (struct emmc *self, uint32_t cmd, uint32_t arg, int timeout) at emmc.c:980>
+    | | | +-SD_CMD_RESERVED()
+    | | | \-emmc_issue_command_int() <void emmc_issue_command_int (struct emmc *self, uint32_t reg, uint32_t arg, int timeout) at emmc.c:403>
+    | | |   +-memset()
+    | | |   +-sdhost_command()
+    | | +-TIMEOUT()
+    | | +-FAIL()
+    | | +-ACMD()
+    | | +-delayus()
+    | | +-be2le32() <inline uint32_t be2le32 (uint32_t x) at emmc.c:337>
+    | | +-sdhost_set_bus_width()
+    | +-emmc_issue_command() <int emmc_issue_command (struct emmc *self, uint32_t cmd, uint32_t arg, int timeout) at emmc.c:980> [see 13]
+    \-emmc_do_data_command() <int emmc_do_data_command (struct emmc *self, int is_write, uint8_t *buf, size_t buf_size, uint32_t block_no) at emmc.c:578>
+      +-emmc_issue_command() <int emmc_issue_command (struct emmc *self, uint32_t cmd, uint32_t arg, int timeout) at emmc.c:980> [see 13]
++-emmc_seek() <uint64_t emmc_seek (struct emmc *self, uint64_t off) at emmc.c:396>
++-emmc_write() <size_t emmc_write (struct emmc *self, const void *buf, size_t cnt) at emmc.c:382>
+  \-emmc_do_write() <size_t emmc_do_write (struct emmc *self, const uint8_t *buf, size_t buf_size, uint32_t block_no) at emmc.c:665>
+    \-emmc_do_data_command() <int emmc_do_data_command (struct emmc *self, int is_write, uint8_t *buf, size_t buf_size, uint32_t block
+```

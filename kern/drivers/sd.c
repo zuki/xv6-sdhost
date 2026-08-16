@@ -200,13 +200,16 @@ int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
 
     boolean sector = (size == SECTOR_SIZE);
 
+    acquire(&cardlock);
     if (sector) {
         bno = (fs_lba(minor) + offset) * SECTOR_SIZE;
         trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
         // seekはバイト単位
         emmc_seek(&card, bno);
-        if (emmc_read(&card, buffer, SECTOR_SIZE) != SECTOR_SIZE)
+        if (emmc_read(&card, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
+            release(&cardlock);
             return -EIO;
+        }
     } else {
         if ((offset + (size / BSIZE)) > ptinfo[minor].nsecs)
             size = ptinfo[minor].nsecs - offset;
@@ -215,12 +218,14 @@ int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
         // seekはバイト単位
         emmc_seek(&card, bno);
         for (int count = 0; count < (size / BSIZE); count++) {
-            if (emmc_read(&card, buffer, BSIZE) != BSIZE)
+            if (emmc_read(&card, buffer, BSIZE) != BSIZE) {
+                release(&cardlock);
                 return -EIO;
+            }
             buffer = buffer + BSIZE;
         }
     }
-
+    release(&cardlock);
     return size;
 }
 

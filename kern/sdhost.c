@@ -5,7 +5,7 @@
  *              Copyright (C) 2015-2016 Raspberry Pi (Trading) Ltd.
  *
  * Based on
- *  mmc-bcm2835.c by Gellert Weisz
+ *  mmc-bcm2835.c by Gellert Weisz  : drivers/mmc/host/bcm2835.c
  * which is, in turn, based on
  *  sdhci-bcm2708.c by Broadcom
  *  sdhci-bcm2835.c by Stephen Warren and Oleksandr Tymoshenko
@@ -175,6 +175,7 @@ static void bcm2835_cmd_dump(struct mmc_command *cmd);
 static void bcm2835_data_dump(struct mmc_data *data);
 static void bcm2835_request_dump(struct mmc_request *mrq);
 
+// sdhostの初期化: 成功したら1を返すのに注意
 int
 sdhost_init(struct bcm2835_host *host, void (*sleep_fn)(void *),
             void *sleep_arg)
@@ -183,7 +184,6 @@ sdhost_init(struct bcm2835_host *host, void (*sleep_fn)(void *),
     int ret = sdhost_probe(host);
     host->sleep_fn = sleep_fn;
     host->sleep_arg = sleep_arg;
-    initlock(&host->lock, "bcm2835");
     if (ret != 0)
         return 0;
     return 1;
@@ -263,13 +263,26 @@ sdhost_request_sync(struct bcm2835_host *host, struct mmc_request *req)
     assert(req != 0);
     req->done = 0;
 
+    while (host->busy) {
+        host->sleep_fn(host->sleep_arg);
+        dsb();
+    }
+
+    host->busy = 1;
+    dsb();
+
     sdhost_request(host, &host->mmc, req);
 
-    // Caller must hold host->lock.
     while (!req->done) {
         host->sleep_fn(host->sleep_arg);    // sleep(&card, &cardlock);
-        disb();
+        dsb();
     }
+
+    host->mrq = 0;
+    host->busy = 0;
+    dsb();
+
+    wakeup(host->sleep_arg);
 }
 
 static int
@@ -312,7 +325,8 @@ mmc_request_done(struct mmc_host *mmc, struct mmc_request *req)
     assert(req != 0);
     req->done = 1;
     trace("request done");
-    disb();
+    dsb();
+    wakeup(((struct bcm2835_host *)mmc)->sleep_arg);
 }
 
 static void
@@ -361,6 +375,7 @@ read(int reg)
     return get32(ARM_SDHOST_BASE + reg);
 }
 
+// pin 48:53をSDHostとして使用するための初期化
 static void
 sdhost_init_gpio()
 {
@@ -1192,7 +1207,7 @@ static void
 sdhost_irq_handler(struct bcm2835_host *host)
 {
     uint32_t intmask = read(SDHSTS);
-
+    // 割り込みフラグのクリア
     write(SDHSTS_BUSY_IRPT | SDHSTS_BLOCK_IRPT
           | SDHSTS_SDIO_IRPT | SDHSTS_DATA_FLAG, SDHSTS);
 
@@ -1342,13 +1357,12 @@ sdhost_request(struct bcm2835_host *host, struct mmc_host *mmc,
     if (host->reset_clock)
         sdhost_set_clock_inner(host, host->clock);
 
+#if 0
     if (mrq->cmd->arg == 0x21002 || mrq->cmd->arg == 0x40940)
-        debug("host: %p, host->mrq: %p, mrq->opcode: %d, arg: 0x%x",
-            host, host->mrq, mrq->cmd->opcode, mrq->cmd->arg);
+        debug("host: %p, host->mrq: %p, mrq: %p\n     mrq->cmd: %p (opcode: %d, arg: 0x%x)\n     mrq->data: %p (blocks: %d)",
+            host, host->mrq, mrq, mrq->cmd, mrq->cmd->opcode, mrq->cmd->arg, mrq->data, mrq->data->blocks);
 
-    //acquire(&host->lock);
 
-#if 1
     if (host->mrq != NULL) {
         trace("[%d] host: %p, host->mrq: %p", cpuid(), host, host->mrq);
         bcm2835_host_dump(host);
@@ -1514,6 +1528,7 @@ sdhost_add_host(struct bcm2835_host *host)
     return 0;
 }
 
+// SDHostを使用可能にする
 static int
 sdhost_probe(struct bcm2835_host *host)
 {
