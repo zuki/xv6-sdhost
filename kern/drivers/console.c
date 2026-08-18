@@ -1,5 +1,3 @@
-#include <console.h>
-
 #include <types.h>
 #include <driver.h>
 #include <arm.h>
@@ -9,8 +7,8 @@
 #include <mm.h>
 #include <string.h>
 #include <vfs.h>
+#include <console.h>
 
-struct spinlock dbglock;
 static int panicked = -1;
 
 // Driver Definition
@@ -34,16 +32,7 @@ struct driver console_driver = {
     console_seek,
 };
 
-#define INPUT_BUF 128
-struct serial_channel {
-    char buf[INPUT_BUF];
-    size_t r;                   // Read index
-    size_t w;                   // Write index
-    size_t e;                   // Edit index
-    int opens;
-    int open_mode;
-    struct spinlock lock;
-} channel;
+struct serial_channel g_channel;
 
 #define C(x)  ((x)-'@')         // Control-x
 #define BACKSPACE 0x100
@@ -63,9 +52,9 @@ static void console_intr1(int (*getc)())
 {
     int c, prof = 0;
 
-    acquire(&channel.lock);
+    acquire(&g_channel.lock);
     if (panicked >= 0) {
-        release(&channel.lock);
+        release(&g_channel.lock);
         while (1) ;
     }
 
@@ -75,34 +64,34 @@ static void console_intr1(int (*getc)())
             prof = 1;
             break;
         case C('U'):           // Kill line.
-            while (channel.e != channel.w
-                   && channel.buf[(channel.e - 1) % INPUT_BUF] != '\n') {
-                channel.e--;
+            while (g_channel.e != g_channel.w
+                   && g_channel.buf[(g_channel.e - 1) % INPUT_BUF] != '\n') {
+                g_channel.e--;
                 consputc(BACKSPACE);
             }
             break;
         case C('H'):
         case '\x7f':           // Backspace
-            if (channel.e != channel.w) {
-                channel.e--;
+            if (g_channel.e != g_channel.w) {
+                g_channel.e--;
                 consputc(BACKSPACE);
             }
             break;
         default:
-            if (c != 0 && channel.e - channel.r < INPUT_BUF) {
+            if (c != 0 && g_channel.e - g_channel.r < INPUT_BUF) {
                 c = (c == '\r') ? '\n' : c;
-                channel.buf[channel.e++ % INPUT_BUF] = c;
+                g_channel.buf[g_channel.e++ % INPUT_BUF] = c;
                 consputc(c);
                 if (c == '\n' || c == C('D')
-                    || channel.e == channel.r + INPUT_BUF) {
-                    channel.w = channel.e;
-                    wakeup(&channel.r);
+                    || g_channel.e == g_channel.r + INPUT_BUF) {
+                    g_channel.w = g_channel.e;
+                    wakeup(&g_channel.r);
                 }
             }
             break;
         }
     }
-    release(&channel.lock);
+    release(&g_channel.lock);
 
     if (prof) {
         //mm_dump();
@@ -148,7 +137,7 @@ void vprintfmt(void (*putch)(int), const char *fmt, va_list ap)
     char *s;
 
     if (panicked >= 0 && panicked != cpuid()) {
-        release(&channel.lock);
+        release(&g_channel.lock);
         while (1) ;
     }
 
@@ -228,14 +217,14 @@ void cprintf(const char *fmt, ...)
 {
     va_list ap;
 
-    acquire(&channel.lock);
+    acquire(&g_channel.lock);
     va_start(ap, fmt);
     vprintfmt(uart_putchar, fmt, ap);
     va_end(ap);
-    release(&channel.lock);
+    release(&g_channel.lock);
 }
 
-/* Caller should hold channel.lock. */
+/* Caller should hold g_channel.lock. */
 void cprintf1(const char *fmt, ...)
 {
     va_list ap;
@@ -249,17 +238,17 @@ void panic(const char *fmt, ...)
 {
     va_list ap;
 
-    acquire(&channel.lock);
+    acquire(&g_channel.lock);
     if (panicked < 0)
         panicked = cpuid();
     else {
-        release(&channel.lock);
+        release(&g_channel.lock);
         while (1) ;
     }
     va_start(ap, fmt);
     vprintfmt(uart_putchar, fmt, ap);
     va_end(ap);
-    release(&channel.lock);
+    release(&g_channel.lock);
 
     cprintf("%s:%d: kernel panic at cpu %d.\n", __FILE__, __LINE__,
             cpuid());
@@ -313,6 +302,7 @@ int console_preinit(void) {
 
 int console_init(void)
 {
+    initlock(&g_channel.lock, "console");
     int err = register_driver(DEVMAJOR_CONSOLE, &console_driver);
     info("console_init ok");
     return err;
@@ -320,15 +310,15 @@ int console_init(void)
 
 int console_open(minor_t minor, int mode)
 {
-    channel.opens++;
-    channel.open_mode = mode;
+    g_channel.opens++;
+    g_channel.open_mode = mode;
     return 0;
 }
 
 int console_close(minor_t minor)
 {
-    channel.opens--;
-    channel.open_mode = 0;
+    g_channel.opens--;
+    g_channel.open_mode = 0;
     return 0;
 }
 
@@ -336,21 +326,21 @@ int console_read(minor_t minor, char *buffer, off_t offset, size_t size)
 {
     //char *p = buffer;
     int count = 0;
-    acquire(&channel.lock);
+    acquire(&g_channel.lock);
     while (size > 0) {
-        while (channel.r == channel.w) {
+        while (g_channel.r == g_channel.w) {
             if (thisproc()->killed) {
-                release(&channel.lock);
+                release(&g_channel.lock);
                 return -1;
             }
-            sleep(&channel.r, &channel.lock);
+            sleep(&g_channel.r, &g_channel.lock);
         }
-        int c = channel.buf[channel.r++ % INPUT_BUF];
+        int c = g_channel.buf[g_channel.r++ % INPUT_BUF];
         if (c == C('D')) {      // EOF
             if (size < (size_t)buffer) {
                 // Save ^D for next time, to make sure
                 // caller gets a 0-byte result.
-                channel.r--;
+                g_channel.r--;
             }
             break;
         }
@@ -360,19 +350,19 @@ int console_read(minor_t minor, char *buffer, off_t offset, size_t size)
         if (c == '\n')
             break;
     }
-    //debug("buffer: 0x%x, size: 0x%x, buffer: %s, r: %d, w: %d, e: %d, buffer-p: %d", buffer, size, p, channel.r, channel.w, channel.e, (size_t)(buffer - p));
+    //debug("buffer: 0x%x, size: 0x%x, buffer: %s, r: %d, w: %d, e: %d, buffer-p: %d", buffer, size, p, g_channel.r, g_channel.w, g_channel.e, (size_t)(buffer - p));
 
-    release(&channel.lock);
+    release(&g_channel.lock);
     //return (int)(buffer - p);
     return count;
 }
 
 int console_write(minor_t minor, const char *buffer, off_t offset, size_t size)
 {
-    acquire(&channel.lock);
+    acquire(&g_channel.lock);
     for (size_t i = 0; i < size; i++)
         consputc(buffer[i] & 0xff);
-    release(&channel.lock);
+    release(&g_channel.lock);
 
     return size;
 }

@@ -5,7 +5,19 @@
 #include <arm.h>
 #include <spinlock.h>
 
-extern struct spinlock dbglock;
+#define INPUT_BUF 128
+
+struct serial_channel {
+    char buf[INPUT_BUF];
+    size_t r;                   // Read index
+    size_t w;                   // Write index
+    size_t e;                   // Edit index
+    int opens;
+    int open_mode;
+    struct spinlock lock;
+};
+
+extern struct serial_channel g_channel;
 
 int console_preinit(void);
 void cprintf1(const char *fmt, ...);
@@ -27,13 +39,13 @@ void panic(const char *fmt, ...);
     }                                                               \
 })
 
-#define LOG1(level, ...)                        \
+#define LOG1(_level, ...)                        \
 ({                                              \
-    acquire(&dbglock);                          \
+    acquire(&g_channel.lock);                     \
     cprintf1("[%d]%s: ", cpuid(), __func__);    \
     cprintf1(__VA_ARGS__);                      \
     cprintf1("\n");                             \
-    release(&dbglock);                          \
+    release(&g_channel.lock);                          \
 })
 
 #ifdef LOG_ERROR
