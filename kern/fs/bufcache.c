@@ -53,23 +53,25 @@ void sync_bufcache()
 struct buf *get_block(device_t dev, uint32_t blockno, boolean issec)
 {
     struct buf *cur;
-    trace("dev: 0x%x, bno: 0x%x, issec: %d", dev, blockno, issec);
+    if (blockno == 0x20) trace("dev: 0x%x, bno: 0x%x, issec: %d", dev, blockno, issec);
     /* 1. bufcacheにあればrefcountを増分して返す */
     acquire(&bufcache.lock);
+    //if (blockno == 0x20 || blockno == 0x28) debug("acquire bufcache.lock for bno 0x%x", blockno);
     for (cur = (struct buf *) bufcache.head; cur; cur = (struct buf *) cur->node.next) {
         if (cur->flags & BCF_ALLOCATED && cur->dev == dev && cur->blockno == blockno && cur->issec == issec) {
             cur->refcount++;
-            trace("hit: dev: 0x%x, bno: 0x%x", cur->dev, cur->blockno);
+            if (blockno == 0x20) trace("hit: dev: 0x%x, bno: 0x%x", cur->dev, cur->blockno);
             /* curをキャッシュリストの先頭に移動させる */
             _queue_remove(&bufcache, &cur->node);
             _queue_insert(&bufcache, &cur->node);
             cur->flags |= BCF_BUSY;
             release(&bufcache.lock);
+            //if (blockno == 0x20 || blockno == 0x28) debug("release bufcache.lock for bno 0x%x", blockno);
             return cur;
         }
     }
     /* 2. bufcacheになければ読み込む */
-    trace("no hit: dev: 0x%x, blockno: 0x%x, issec: %s", dev, blockno, issec ? "true" : "false");
+    if (blockno == 0x20)  trace("no hit: dev: 0x%x, blockno: 0x%x, issec: %s", dev, blockno, issec ? "true" : "false");
     return _load_block(dev, blockno, issec);
 }
 
@@ -111,7 +113,7 @@ static struct buf *_load_block(device_t dev, uint32_t blockno, boolean issec)
 
     /* bufcacheからリサイクルする */
     entry = _find_free_entry();
-    trace("recycle entry: %p", entry);
+    if (blockno == 0x20)  trace("recycle entry: %p", entry);
     entry->refcount = 1;
     entry->flags |= BCF_ALLOCATED;  // すでにBCF_BUSYがセットされている
     entry->dev = dev;
@@ -124,7 +126,7 @@ static struct buf *_load_block(device_t dev, uint32_t blockno, boolean issec)
         entry->block = (uint8_t *)kalloc(1);
         memset(entry->block, 0, BC_BLOCK_SIZE);
     }
-    trace("entry->block: %p", entry->block);
+    if (blockno == 0x20) trace("entry->block: %p", entry->block);
     disb();
     _read_entry(entry);
 
@@ -157,7 +159,6 @@ static inline struct buf *_find_free_entry(void)
     /* リサイクルするエントリを先頭に移動する */
     _queue_remove(&bufcache, &last->node);
     _queue_insert(&bufcache, &last->node);
-    //release(&bufcache.lock);
     if (last->block) {
         // ここでlastがdirtyだったら書き戻す
         _write_entry(last);
@@ -170,6 +171,7 @@ static inline struct buf *_find_free_entry(void)
         disb();
     }
     release(&bufcache.lock);
+    trace("release bufcache.lock");
     return last;
 }
 
@@ -179,7 +181,7 @@ static inline int _read_entry(struct buf *entry)
     int size = entry->issec ? BC_SECTOR_SIZE : BC_BLOCK_SIZE;
     int bytes;
 
-    trace("read: dev: 0x%x, buffer: 0x%x, bno: 0x%x, size: 0x%x", entry->dev, entry->block, entry->blockno, size);
+    if (entry->blockno == 0x20 || entry->blockno == 0x28) debug("read: dev: 0x%x, buffer: 0x%x, bno: 0x%x, size: 0x%x", entry->dev, entry->block, entry->blockno, size);
 
     bytes = dev_read(entry->dev, (char *)entry->block, entry->blockno, size);
     if (bytes != size) {
@@ -187,6 +189,7 @@ static inline int _read_entry(struct buf *entry)
         panic("read_entry\n");
         return -1;
     }
+    if (entry->blockno == 0x20) trace("read ok");
     disb();
     return 0;
 }

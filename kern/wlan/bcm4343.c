@@ -407,7 +407,7 @@ static void bcm4343_scan_result_recv(struct bcm4343 *self, const void *buff, uns
     entry->len = len;
     acquire(&self->lock);
     trace("bcm4343: %p, &scan_queue: %p", self, &self->scan_queue);
-    trace("enqueue: entry: %p, len=0x%x, q->size: %d", entry, entry->len, self->scan_queue.num);
+    debug("enqueue: entry: %p, len=0x%x, q->size: %d", entry, entry->len, self->scan_queue.num);
     // スキャン結果キューにbuffを登録する
     if (!queue_push(&self->scan_queue, entry)) {
         error("queue_push scan_queue failed");

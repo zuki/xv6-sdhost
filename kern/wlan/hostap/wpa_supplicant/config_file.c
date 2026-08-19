@@ -85,7 +85,7 @@ static struct wpa_ssid * wpa_config_read_network(FILE *f, int *line, int id)
     int errors = 0, end = 0;
     char buf[2000], *pos, *pos2;
 
-    wpa_printf(MSG_MSGDUMP, "Line: %d - start of a new network block",
+    wpa_printf(MSG_DEBUG, "Line: %d - start of a new network block",
            *line);
     ssid = os_zalloc(sizeof(*ssid));
     if (ssid == NULL)
@@ -295,7 +295,7 @@ static int wpa_config_process_blob(struct wpa_config *config, FILE *f,
 }
 #endif /* CONFIG_NO_CONFIG_BLOBS */
 
-
+// wpa_supplicant.confを読み込んでパースする
 struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
                     bool ro)
 {
@@ -340,6 +340,7 @@ struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
     }
 
     while (wpa_config_get_line(buf, sizeof(buf), f, &line, &pos)) {
+        // network構成要素のパース
         if (os_strcmp(pos, "network={") == 0) {
             // ネットワーク構成データをファイルからセット
             ssid = wpa_config_read_network(f, &line, id++);
@@ -388,7 +389,7 @@ struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
                 continue;
             }
 #endif /* CONFIG_NO_CONFIG_BLOBS */
-        //
+        // countryなどのグローバル変数のパース
         } else if (wpa_config_process_global(config, pos, line) < 0) {
             wpa_printf(MSG_ERROR, "Line %d: Invalid configuration "
                    "line '%s'.", line, pos);

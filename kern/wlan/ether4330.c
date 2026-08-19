@@ -1883,6 +1883,7 @@ static void wlcmd(Ctlr *ctl, int write, int op, void *data, int dlen, void *res,
     freeb(b);
     qunlock(&ctl->cmdlock);
     poperror();
+    if(0)print("wlcmd %d ok\n");
 }
 
 /* valを引数にコマンドopの処理する */
@@ -2097,6 +2098,7 @@ static void wlscanstart(Ctlr *ctl)
 
     wlcmdint(ctl, 49, 0);    /* PASSIVE_SCAN */
     wlsetvar(ctl, "escan", params, sizeof params);
+    print("escan start\n");
 }
 
 /* APスキャン結果をセットする */
@@ -2427,6 +2429,7 @@ static long etherbcmctl(Ether* edev, const void* buf, long n)
     }
     // cbで示されたコマンドを取り出す
     ct = lookupcmd(cb, cmds, nelem(cmds));
+    //print("farmcmd %d start\n", ct->index);
     switch(ct->index) {
     case CMauth:
         /* cbの第一引数をwpaキーワードしてセットする */
@@ -2639,6 +2642,7 @@ static void etherbcmattach(Ether *edev)
     }
     qunlock(&ctlr->alock);
     poperror();
+    print("etherbcmattach ok\n");
 }
 
 /* bufの内容に基づいてマルチキャストをセットする */

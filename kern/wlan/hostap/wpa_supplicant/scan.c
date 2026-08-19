@@ -279,7 +279,7 @@ static void wpas_trigger_scan_cb(struct wpa_radio_work *work, int deinit)
 
 
 /**
- * wpa_supplicant_trigger_scan - Request driver to start a scan
+ * wpa_supplicant_trigger_scan - スキャンを開始するようドライバに要求する
  * @wpa_s: Pointer to wpa_supplicant data
  * @params: Scan parameters
  * @default_ies: Whether or not to use the default IEs in the Probe Request
@@ -1066,7 +1066,7 @@ static void wpa_supplicant_scan(void *eloop_ctx, void *timeout_ctx)
     struct wpa_driver_scan_params *scan_params;
     size_t max_ssids;
     int connect_without_scan = 0;
-
+    wpa_dbg(wpa_s, MSG_DEBUG, "wpa_supplicant_scan start");
     wpa_s->ignore_post_flush_scan_res = 0;
 
     if (wpa_s->wpa_state == WPA_INTERFACE_DISABLED) {
@@ -1606,7 +1606,7 @@ void wpa_supplicant_update_scan_int(struct wpa_supplicant *wpa_s, int sec)
 
 
 /**
- * wpa_supplicant_req_scan - Schedule a scan for neighboring access points
+ * wpa_supplicant_req_scan - 近隣のアクセスポイント用にスキャンをスケジュールする
  * @wpa_s: Pointer to wpa_supplicant data
  * @sec: Number of seconds after which to scan
  * @usec: Number of microseconds after which to scan

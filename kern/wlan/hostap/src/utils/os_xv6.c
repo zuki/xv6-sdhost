@@ -26,9 +26,11 @@ int vprintf(const char *fmt, va_list ap, boolean nl)
     // char vbuf[1024];
     int rc;
     rc = vsnprintfmt(vbuf, 1024, fmt, ap);
-    cprintf(vbuf);
+    acquire(&g_channel.lock);
+    cprintf1(vbuf);
     if (nl)
         cprintf1("\n");
+    release(&g_channel.lock);
     return rc;
 }
 

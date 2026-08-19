@@ -363,16 +363,18 @@ emmc_init(struct emmc *self, void (*sleep_fn)(void *), void *sleep_arg)
     return 0;
 }
 
+// cntはreadバイト数
 size_t
 emmc_read(struct emmc *self, void *buf, size_t cnt)
 {
+    // offsetはバイト単位: bno*SECTOR_SIZE
     trace("offset: 0x%llx", self->ull_offset);
     if (self->ull_offset % SD_BLOCK_SIZE != 0) {
         return -1;
     }
-    uint32_t nblock = self->ull_offset / SD_BLOCK_SIZE;
+    uint32_t block_no = self->ull_offset / SD_BLOCK_SIZE;
 
-    if (emmc_do_read(self, (uint8_t *) buf, cnt, nblock) != cnt) {
+    if (emmc_do_read(self, (uint8_t *) buf, cnt, block_no) != cnt) {
         return -1;
     }
     return cnt;
@@ -524,6 +526,7 @@ emmc_ensure_data_mode(struct emmc *self)
     uint32_t status = self->last_r0;
     uint32_t cur_state = (status >> 9) & 0xf;
     trace("status 0x%x", cur_state);
+    // 0: idle, 1: ready, 2: ident, 3: stby, 4: tran, 5: data, 6: rcv, 7: prg, 8: dis
     if (cur_state == 3) {
         // Currently in the stand-by state - select it
         if (!emmc_issue_command
@@ -623,13 +626,13 @@ emmc_do_data_command(struct emmc *self, int is_write, uint8_t * buf,
         if (emmc_issue_command(self, command, block_no, 5000000)) {
             break;
         } else {
-            warn("error sending CMD%d", command);
+            trace("error sending CMD%d", command);
             trace("error = 0x%x", self->last_error);
 
             if (++retry_count < max_retries) {
                 trace("Retrying");
             } else {
-                trace("Giving up");
+                error("Giving up sending CMD%d", command);
             }
         }
     }
@@ -651,7 +654,8 @@ emmc_do_read(struct emmc *self, uint8_t * buf, size_t buf_size,
         return -1;
     }
 
-    trace("reading from block %u", block_no);
+    //if (block_no == 0x2187c || block_no == 0x2187d) debug("reading from block 0x%x", block_no);
+    if (block_no == 0x40948) debug("reading from block 0x%x", block_no);
 
     if (emmc_do_data_command(self, 0, buf, buf_size, block_no) < 0) {
         return -1;

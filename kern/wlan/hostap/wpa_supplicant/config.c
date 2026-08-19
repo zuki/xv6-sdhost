@@ -4736,30 +4736,30 @@ void wpa_config_debug_dump_networks(struct wpa_config *config)
 
 
 /**
- * Structure for global configuration parsing. This data is used to implement a
- * generic parser for the global interface configuration. The table of variables
- * is defined below in this file (global_fields[]).
+ * グローバル構成解析用の構造体。このデータは、グローバルインタフェース構成用の
+ * 汎用パーサの実装に使用される。変数テーブルは、このファイルの以下に定義されている
+ * （global_fields[]）.
  */
 struct global_parse_data {
-    /* Configuration variable name */
+    /* 構成変数名 */
     char *name;
 
-    /* Parser function for this variable. The parser functions return 0 or 1
-     * to indicate success. Value 0 indicates that the parameter value may
-     * have changed while value 1 means that the value did not change.
-     * Error cases (failure to parse the string) are indicated by returning
-     * -1. */
+    /* この変数用のパーサ関数。パーサ関数は、成功した場合は 0 または 1 を返す。
+     * 値 0 はパラメータの値が変更された可能性があることを示し、値 1 は値が
+     * 変更されなかったことを意味する。エラーの場合（文字列の解析に失敗した場合）は
+     * -1 を返すことで示される。
+     */
     int (*parser)(const struct global_parse_data *data,
               struct wpa_config *config, int line, const char *value);
 
-    /* Getter function to print the variable in text format to buf. */
+    /* 変数をテキスト形式でbufに出力するゲッター関数。 */
     int (*get)(const char *name, struct wpa_config *config, long offset,
            char *buf, size_t buflen, int pretty_print);
 
-    /* Variable specific parameters for the parser. */
+    /* パー作用の変数固有のパラメタ. */
     void *param1, *param2, *param3;
 
-    /* Indicates which configuration variable has changed. */
+    /* どの構成変数が変更されたのかを示す. */
     unsigned int changed_flag;
 };
 
@@ -4979,6 +4979,7 @@ static int wpa_global_config_parse_ipv4(const struct global_parse_data *data,
 #endif /* CONFIG_P2P */
 
 
+// countryフィールドのパーサ関数
 static int wpa_config_process_country(const struct global_parse_data *data,
                       struct wpa_config *config, int line,
                       const char *pos)
@@ -5394,6 +5395,7 @@ static int wpa_config_process_mld_connect_bssid_pref(
 #define IPV4(f) #f, wpa_global_config_parse_ipv4, wpa_config_get_ipv4,  \
     OFFSET(f), NULL, NULL
 
+// グローバルフィールド定義
 static const struct global_parse_data global_fields[] = {
 #ifdef CONFIG_CTRL_IFACE
     { STR(ctrl_interface), 0 },
@@ -5674,7 +5676,7 @@ const char * wpa_config_get_global_field_name(unsigned int i, int *no_var)
 
 
 /**
- * wpa_config_process_global - グローバル構成内の変数をセットする
+ * wpa_config_process_global - グローバル構成内の変数をセットする (countryなど)
  * @config: グローバル構成データへのポインタ
  * @pos: "{name}={value}" 形式の変数名と変数値
  * @line: 構成ファイル上のライン番号、使用しない場合は 0

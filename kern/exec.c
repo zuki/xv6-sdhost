@@ -58,7 +58,6 @@ static int get_file(char *path, struct proc *p, struct vfile **file)
         trace("uid %d can't access %s", p->uid, path);
         return -EPERM;
     }
-
     // 指定されたファイルをopen
     if ((err = vfs_open(p->cwd, path, O_RDONLY, 0, p->uid, file)) < 0) {
         trace("failed open %s", path);
@@ -69,6 +68,7 @@ static int get_file(char *path, struct proc *p, struct vfile **file)
         vfs_close(*file);
         return -EISDIR;
     }
+
     return 0;
 }
 
@@ -254,7 +254,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
     uint64_t ip_base = 0;
     long err = -EACCES;
 
-    trace("path='%s', argv=%p, envp=%p", path, argv, envp);
+    debug("path='%s', argv=%p, envp=%p", path, argv, envp);
 
     // 呼び出し元のプロセスをcurprocとする
     struct proc *curproc = thisproc();
@@ -263,7 +263,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         trace("get_file: %s, err: %d", path, err);
         return err;
     }
-
+    debug("get_file ok");
     // 呼び出し元のページテーブルをoldpgdirに保存し、
     // 実行ファイル用のページテーブルをpgdirとして新規作成する
     void *oldpgdir = curproc->pgdir, *pgdir = vm_init();
@@ -559,7 +559,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
 
     uvm_switch(curproc->pgdir);
     vm_free(oldpgdir);
-    trace("exec %s ok", curproc->name);
+    debug("exec %s ok", curproc->name);
     if (has_ip && ip)
         kmfree((void *)ip);
 

@@ -105,19 +105,21 @@ int v6_mknod(struct vnode *parent, const char *filename, mode_t mode, device_t d
 int v6_lookup(struct vnode *vnode, const char *filename, struct vnode **result)
 {
     struct v6_inode *ip;
-    trace("vnode->ino: %d, rdev: 0x%x, mode: 0x%x, ip->valid: %d, COMP: %s", vnode->ino, vnode->rdev, vnode->mode, VTOI(vnode)->valid, filename);
+    trace("v6_lookup %s in %d", filename, vnode->ino);
     v6_ilock(VTOI(vnode));
+    trace("ilocked");
     ip = v6_dirlookup(VTOI(vnode), (char *)filename);
     trace("ip->ino: %d", ip ? ITOV(ip)->ino : -1);
     v6_iunlockput(VTOI(vnode));
     if (ip) {
-        trace("OK: %s, ip->ino: %d, ip->type: %d", filename, ITOV(ip)->ino, ip->type);
+        debug("OK: %s, ip->ino: %d, ip->type: %d", filename, ITOV(ip)->ino, ip->type);
         v6_ilock(ip);
         v6_iunlock(ip);
         if (result)
             *result = ITOV(ip);
         return 0;
     } else {
+        trace("ng");
         return -ENOENT;
     }
 }
@@ -311,6 +313,7 @@ int dir_find_entry_by_name(struct vnode *dir,  const char *filename, struct dire
         if (strncmp(filename, de0.name, DIRSIZ) == 0) {
             if (offp) *offp = offset;
             if (de) memmove(de, &de0, DESIZE);
+            trace("found");
             return 0;
         }
     }

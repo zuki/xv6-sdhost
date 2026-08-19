@@ -35,18 +35,18 @@ int wpa_supplicant_is_connected(void)
 
 int wpa_supplicant_main(const char *confname)
 {
-    trace("start");
+    debug("start");
     struct wpa_interface iface;
     int exitcode = 0;
     struct wpa_params params;
 
     memset(&params, 0, sizeof(params));
-    params.wpa_debug_level = MSG_INFO;     // これがwpa_supplicantの出力レベル
+    params.wpa_debug_level = MSG_MSGDUMP;     // これがwpa_supplicantの出力レベル
 
     global = wpa_supplicant_init(&params);
     if (global == NULL)
         return -1;
-
+    debug("init ok");
     memset(&iface, 0, sizeof(iface));
     iface.driver = "xv6";
     iface.ifname = "wlan0";
@@ -54,11 +54,12 @@ int wpa_supplicant_main(const char *confname)
 
     if (wpa_supplicant_add_iface(global, &iface, NULL) == NULL)
         exitcode = -1;
-
+    debug("add_iface ok");
     if (exitcode == 0) {
-        bcm4343_dump_status();
+        //bcm4343_dump_status();
         struct net_device *dev = net_device_by_index(NET_INDEX_BCM4343);
         set_ip_config(dev);
+        debug("run");
         exitcode = wpa_supplicant_run(global);
     }
 

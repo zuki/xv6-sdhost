@@ -262,7 +262,7 @@ sdhost_request_sync(struct bcm2835_host *host, struct mmc_request *req)
 {
     assert(req != 0);
     req->done = 0;
-
+    if (req->cmd->arg == 0x40948 && host->busy) debug("sleep on host->busy: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
     while (host->busy) {
         host->sleep_fn(host->sleep_arg);
         dsb();
@@ -271,13 +271,14 @@ sdhost_request_sync(struct bcm2835_host *host, struct mmc_request *req)
     host->busy = 1;
     dsb();
 
+    if (req->cmd->arg == 0x40948) debug("sdhost_request: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
     sdhost_request(host, &host->mmc, req);
-
+    if (req->cmd->arg == 0x40948 && !req->done) debug("sleep on req not done: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
     while (!req->done) {
         host->sleep_fn(host->sleep_arg);    // sleep(&card, &cardlock);
         dsb();
     }
-
+    if (req->cmd->arg == 0x40948)  debug("req done");
     host->mrq = 0;
     host->busy = 0;
     dsb();
@@ -324,7 +325,7 @@ mmc_request_done(struct mmc_host *mmc, struct mmc_request *req)
 {
     assert(req != 0);
     req->done = 1;
-    trace("request done");
+    if (req->cmd->arg == 0x40948) debug("request done: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
     dsb();
     wakeup(((struct bcm2835_host *)mmc)->sleep_arg);
 }
@@ -762,13 +763,13 @@ sdhost_send_command(struct bcm2835_host *host, struct mmc_command *cmd)
 //     WARN_ON(host->cmd);
 
     if (cmd->data) {
-        trace("send_command 0x%x arg 0x%x "
+        if (cmd->arg == 0x40940) trace("send_command 0x%x arg 0x%x "
               "(flags 0x%x) - %s %d*%d",
               cmd->opcode, cmd->arg, cmd->flags,
               (cmd->data->flags & MMC_DATA_READ) ?
               "read" : "write", cmd->data->blocks, cmd->data->blksz);
     } else {
-        trace("send_command 0x%x arg 0x%x (flags 0x%x)",
+        if (cmd->arg == 0x40940) trace("send_command 0x%x arg 0x%x (flags 0x%x)",
               cmd->opcode, cmd->arg, cmd->flags);
     }
 
@@ -867,7 +868,7 @@ sdhost_send_command(struct bcm2835_host *host, struct mmc_command *cmd)
 
     write(sdcmd | SDCMD_NEW_FLAG, SDCMD);
 
-    trace("finish");
+    if (cmd->arg == 0x40940) trace("finish");
     return 1;
 }
 
@@ -876,6 +877,9 @@ static void
 sdhost_finish_data(struct bcm2835_host *host)
 {
     struct mmc_data *data = host->data;
+    if (!data) {
+        return;
+    }
     assert(data);
 
     trace("finish_data(error %d, stop %d, sbc %d)",
@@ -904,8 +908,10 @@ static void
 sdhost_transfer_complete(struct bcm2835_host *host)
 {
     assert(!(host->cmd));
-    assert(host->data);
-    assert(host->data_complete);
+    //assert(host->data);
+    //assert(host->data_complete);
+    if (!host->data || !host->data_complete)
+        return;
 
     struct mmc_data *data = host->data;
     host->data = 0;
@@ -944,7 +950,7 @@ static void
 sdhost_finish_command(struct bcm2835_host *host)
 {
     uint32_t sdcmd;
-    trace("finish_command (0x%x)", read(SDCMD));
+    if (host->cmd->arg == 0x40940) trace("finish_command (0x%x)", read(SDCMD));
 #if 0
     if (!host->cmd && !host->mrq)
         trace("host: %p, host->cmd: %p, host->mrq: %p", host, host->cmd, host->mrq);
@@ -1357,12 +1363,12 @@ sdhost_request(struct bcm2835_host *host, struct mmc_host *mmc,
     if (host->reset_clock)
         sdhost_set_clock_inner(host, host->clock);
 
-#if 0
-    if (mrq->cmd->arg == 0x21002 || mrq->cmd->arg == 0x40940)
-        debug("host: %p, host->mrq: %p, mrq: %p\n     mrq->cmd: %p (opcode: %d, arg: 0x%x)\n     mrq->data: %p (blocks: %d)",
+
+    if (/* mrq->cmd->arg == 0x21002 || */ mrq->cmd->arg == 0x40900)
+        trace("host: %p, host->mrq: %p, mrq: %p\n     mrq->cmd: %p (opcode: %d, arg: 0x%x)\n     mrq->data: %p (blocks: %d)",
             host, host->mrq, mrq, mrq->cmd, mrq->cmd->opcode, mrq->cmd->arg, mrq->data, mrq->data->blocks);
 
-
+#if 0
     if (host->mrq != NULL) {
         trace("[%d] host: %p, host->mrq: %p", cpuid(), host, host->mrq);
         bcm2835_host_dump(host);

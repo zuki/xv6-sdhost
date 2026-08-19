@@ -22,11 +22,15 @@ static void sd_sleep(void *chan)
 {
     int locked = cardlock.locked;
     //info("[%d] pid=%c, chan=0x%p", cpuid(), thisproc()->pid, chan);
-    if (!locked)
+    if (!locked) {
         acquire(&cardlock);
+        debug("acquire cardlock");
+    }
     sleep(chan, &cardlock);
-    if (!locked)
+    if (!locked) {
         release(&cardlock);
+        debug("release cardlock");
+    }
 }
 
 struct driver sd_driver = {
@@ -70,6 +74,7 @@ void sd_postinit(void)
     char buf[BSIZE];
 
     acquire(&cardlock);
+    //debug("acquire cardlock");
     int ret = emmc_init(&card, sd_sleep, (void *)&card);
     //assert(ret == 0);
     if (ret)
@@ -79,7 +84,7 @@ void sd_postinit(void)
     assert(emmc_read(&card, buf, BSIZE) == BSIZE);
 
     release(&cardlock);
-
+    //debug("release cardlock");
     //assert(mbr.signature == 0xAA55);
 
     memmove(&mbr, buf, 512);
@@ -101,10 +106,12 @@ void sd_intr(void *params)
 {
     struct emmc *sdcard = (struct emmc *)params;
     acquire(&cardlock);
+    trace("acquire cardlock");
     emmc_intr(sdcard);
     disb();
     wakeup(sdcard);
     release(&cardlock);
+    trace("release cardlock");
 }
 
 #if 0
@@ -199,33 +206,36 @@ int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
         return -EFAULT;
 
     boolean sector = (size == SECTOR_SIZE);
-
     acquire(&cardlock);
+    if (offset == 0x20 || offset == 0x28) debug("acquire cardlock for off: 0x%x, size: 0x%x", offset, size);
     if (sector) {
         bno = (fs_lba(minor) + offset) * SECTOR_SIZE;
-        trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+        trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
         // seekはバイト単位
         emmc_seek(&card, bno);
         if (emmc_read(&card, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
             release(&cardlock);
+            if (offset == 0x20 || offset == 0x28) trace("err: release cardlock for off: 0x%x, size: 0x%x", offset, size);
             return -EIO;
         }
     } else {
         if ((offset + (size / BSIZE)) > ptinfo[minor].nsecs)
             size = ptinfo[minor].nsecs - offset;
         bno = (fs_lba(minor) + offset * 8) * SECTOR_SIZE;
-        //trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+        if (offset == 0x20 || offset == 0x28) debug("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
         // seekはバイト単位
         emmc_seek(&card, bno);
         for (int count = 0; count < (size / BSIZE); count++) {
             if (emmc_read(&card, buffer, BSIZE) != BSIZE) {
                 release(&cardlock);
+                if (offset == 0x20 || offset == 0x28) debug("err: release cardlock for off: 0x%x, size: 0x%x", offset, size);
                 return -EIO;
             }
             buffer = buffer + BSIZE;
         }
     }
     release(&cardlock);
+    if (offset == 0x20 || offset == 0x28)  debug("release cardlock for off: 0x%x, size: 0x%x", offset, size);
     return size;
 }
 

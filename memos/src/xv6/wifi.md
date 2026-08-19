@@ -5197,6 +5197,148 @@ status: unassociated
 [0]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.104 dev=net3
 ```
 
+## `bin/init`のget_file()でストールしている
+
+```bash
+[2]execve: path='/bin/init', argv=0x0, envp=0x0
+[0]sd_read: acquire cardlock                                        // carlock (1)
+[2]v6_ilock: acquiresleep: ino=1                                    // ino=1 は v6の'/'
+[0]sdhost_request_sync: sdhost_request: op=13, arg=0x50480000       // op=13は SEND_STATUS コマンドでemmc_do_read()を呼び出すと常に実行される
+[2]sd_read: acquire cardlock                                        // cardlock (2)
+[0]mmc_request_done: request done: op=13, arg=0x50480000            // op=13の実行ではcardlockをacquireしていない
+
+[0]sdhost_request_sync: sdhost_request: op=17, arg=0x21002          // op=17は READ_SINGLE_BLOCK
+[0]sdhost_request_sync: sleep on req not done: op=17, arg=0x21002
+[2]sdhost_request_sync: sleep on host->busy: op=13, arg=0x50480000
+[3]mmc_request_done: request done: op=17, arg=0x21002
+[1]sd_read: release cardlock                                        // これはどちらのcardlock?
+
+[0]sdhost_request_sync: sdhost_request: op=13, arg=0x50480000
+[1]sd_read: acquire cardlock
+[0]mmc_request_done: request done: op=13, arg=0x50480000
+
+[0]sdhost_request_sync: sdhost_request: op=18, arg=0x40940          // op=18は READ_MULTIPLE_BLOCK
+[0]sdhost_request_sync: sleep on req not done: op=18, arg=0x40940
+[1]sdhost_request_sync: sleep on host->busy: op=13, arg=0x50480000
+[0]mmc_request_done: request done: op=18, arg=0x40940
+[1]sd_read: release cardlock                                        // これはどのcardlock?
+
+[3]sdhost_request_sync: sdhost_request: op=13, arg=0x50480000
+[1]sd_read: acquire cardlock
+[3]mmc_request_done: request done: op=13, arg=0x50480000
+[3]sdhost_request_sync: sdhost_request: op=17, arg=0x20820
+[3]sdhost_request_sync: sleep on req not done: op=17, arg=0x20820
+[1]sdhost_request_sync: sleep on host->busy: op=13, arg=0x50480000
+[2]mmc_request_done: request done: op=17, arg=0x20820
+[0]sd_read: release cardlock
+[1]sdhost_request_sync: sdhost_request: op=13, arg=0x50480000
+[0]sd_read: acquire cardlock
+[1]mmc_request_done: request done: op=13, arg=0x50480000
+[1]sdhost_request_sync: sdhost_request: op=18, arg=0x40940
+[1]sdhost_request_sync: sleep on req not done: op=18, arg=0x40940
+[0]sdhost_request_sync: sleep on host->busy: op=13, arg=0x50480000
+[0]mmc_request_done: request done: op=18, arg=0x40940
+[1]sd_read: release cardlock
+[3]sdhost_request_sync: sdhost_request: op=13, arg=0x50480000
+[1]sd_read: acquire cardlock
+[3]mmc_request_done: request done: op=13, arg=0x50480000
+[3]sdhost_request_sync: sdhost_request: op=17, arg=0x2187d          // 0x2187d -> 0x430fa00 : wpa_supplicant.conf のディレクトリ情報
+[3]sdhost_request_sync: sleep on req not done: op=17, arg=0x2187d
+[1]sdhost_request_sync: sleep on host->busy: op=13, arg=0x50480000
+[2]mmc_request_done: request done: op=17, arg=0x2187d
+[1]sd_read: release cardlock
+[3]sdhost_request_sync: sdhost_request: op=13, arg=0x50480000
+[1]sd_read: acquire cardlock
+[3]mmc_request_done: request done: op=13, arg=0x50480000
+[3]sdhost_request_sync: sdhost_request: op=18, arg=0x40940
+[3]sdhost_request_sync: sleep on req not done: op=18, arg=0x40940
+[1]sdhost_request_sync: sleep on host->busy: op=13, arg=0x50480000
+[0]mmc_request_done: request done: op=18, arg=0x40940
+[2]sd_read: release cardlock
+[3]sdhost_request_sync: sdhost_request: op=13, arg=0x50480000
+[2]v6_iget: acquire v6_icache.lock
+[3]mmc_request_done: request done: op=13, arg=0x50480000
+[2]v6_iget: release v6_icache.lock
+[3]sdhost_request_sync: sdhost_request: op=17, arg=0x2187c          // 0x2187c -> 0x430f800 : wpa_supplicant.confの内容
+[2]v6_iunlock: releasesleep: ino=1
+[3]sdhost_request_sync: sleep on req not done: op=17, arg=0x2187c
+[2]v6_iput: acquiresleep: ino=1
+[2]v6_iput: releasesleep: ino=1
+
+[2]v6_ilock: acquiresleep: ino=2                                        // ino=2 は '/bin'
+[2]sd_read: acquire cardlock
+[2]sdhost_request_sync: sleep on host->busy: op=13, arg=0x50480000
+[1]mmc_request_done: request done: op=17, arg=0x2187c
+[0]sd_read: release cardlock
+[1]sdhost_request_sync: sdhost_request: op=13, arg=0x50480000
+[1]mmc_request_done: request done: op=13, arg=0x50480000
+[1]sdhost_request_sync: sdhost_request: op=18, arg=0x40900
+[1]sdhost_request_sync: sleep on req not done: op=18, arg=0x40900
+Setting country code to 'JP'
+
+  1 sleeping icode                                                      // op=18, arg=0x40900
+  2 runnable idle
+  3 runnable idle
+  4 runnable idle
+  5 runnable idle
+  6 running  wifi_reader
+  7 runnable wifi_timer
+  8 running  wpa_supplicant
+  9 runnable ether_reader
+ 10 sleeping workqueue
+ 11 sleeping recycle
+
+farmcmd 18 start
+cmd 3700040 ok                                                          // country codeの書き込みは成功している。次のコマンドに移行しないのは?
+```
+
+## 8/18 console.[hc]を修正してデバッグ出力が混ざらないようにした
+
+```bash
+[1]execve: path='/bin/init', argv=0x0, envp=0x0                         // /bin/initの実行と
+wpa_supplicant_init start                                               // wpa_supplicantのルーター接続処理が並行
+[1]v6_ilock: acquiresleep: ino=1                                        // '/'のinode検索
+wpa_supplicant v2.11
+wpa_supplicant_init ok
+[3]wpa_supplicant_main: init ok
+Initializing interface 'wlan0' conf '4:/wpa_supplicant.conf'
+  driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
+Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+[3]v6_iunlock: releasesleep: ino=1
+[2]emmc_do_read: reading from block 0x2187d                             // /d/wpa_supplicant.conf のディレクトリ情報
+[3]v6_iput: acquiresleep: ino=1
+[3]v6_iput: releasesleep: ino=1
+[3]v6_ilock: acquiresleep: ino=2                                        // '/bin'のinode検索
+[1]v6_iunlock: releasesleep: ino=2
+[2]emmc_do_read: reading from block 0x2187c                             // /d/wpa_supplicant.confのデータ読み込み
+[1]v6_ilock: acquiresleep: ino=2
+country='JP'
+[2]sdhost_request_sync: sdhost_request: op=18, arg=0x40948              // '/bin'ディレクトリの読み込み
+[2]sdhost_request_sync: sleep on req not done: op=18, arg=0x40948       // この読み込みが終わらずsleepから覚めない
+Priority group 0
+   id=0 ssid='MSRS_TDF_A5_A11'
+Add interface wlan0 to a new radio N/A
+Failed to attach pkt_type filter
+Own MAC address: b8:27:eb:fe:bd:1d
+RSN: flushing PMKID list in the driver
+Setting scan request: 0.100000 sec
+Setting country code to 'JP'
+farmcmd 18 start
+eap_peer_sm_init ok
+EAPOL: SUPP_PAE entering state DISCONNECTED
+EAPOL: Supplicant port status: Unauthorized
+EAPOL: KEY_RX entering state NO_KEY_RECEIVE
+EAPOL: SUPP_BE entering state INITIALIZE
+EAP: EAP entering state DISABLED
+eapol_sm_init ok
+wpa_supplicant_init_eapol ok
+Added interface wlan0
+State: DISCONNECTED -> DISCONNECTED                                     // scanが始まらない
+wpa_supplicant_add_iface ok
+[1]wpa_supplicant_main: add_iface ok
+[1]wpa_supplicant_main: run
+```
+
 ## macアドレス
 
 - raspi wlan:      b8:27:eb:fe:bd:1d
@@ -5382,3 +5524,13 @@ $ cflow --tree --brief emmc.c
   \-emmc_do_write() <size_t emmc_do_write (struct emmc *self, const uint8_t *buf, size_t buf_size, uint32_t block_no) at emmc.c:665>
     \-emmc_do_data_command() <int emmc_do_data_command (struct emmc *self, int is_write, uint8_t *buf, size_t buf_size, uint32_t block
 ```
+
+## wlanのデバッグレベルの設定
+
+1. `hostap/src/util/wpa_debug_xv6.c`の`wpa_debug_level`
+2. `hostap/wpa_wupplicat/main_xv6.c`の`wpa_supplicant_main()`内の`params.wpa_debug_level`
+
+## ether4343のデバッグの設定
+
+1. `ether4343.c`のSDIODEBUG, SBDEBUG, EVENTDEBUG, VARDEBUG, FWDEBUG
+2. `ether4343.c`の`static int iodebug`

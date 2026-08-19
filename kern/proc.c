@@ -192,14 +192,15 @@ user_init(void)
 {
     extern char icode[], eicode[];
 
-    trace("user_init start: icode = 0x%x, size = 0x%x", icode, (size_t)(eicode - icode));
+    debug("user_init start: icode = 0x%x, size = 0x%x", icode, (size_t)(eicode - icode));
     struct proc *p = proc_initx("icode", icode, (size_t)(eicode - icode));
-    trace("p->pid = %d", p->pid);
+    debug("p->pid = %d", p->pid);
     p->cwd = vfs_clone_vnode(get_rootfs()->root_node);
-    trace("p->cwd->ino = %d", p->cwd->ino);
-
+    debug("p->cwd->ino = %d", p->cwd->ino);
+    debug("acquire ptable.lock")
     acquire(&ptable.lock);
     list_push_back(&ptable.sched_que, &p->link);
+    debug("release ptable.lock");
     release(&ptable.lock);
     info("user_init ok");
 }
@@ -272,20 +273,21 @@ forkret(void)
 #endif
 
         usb_init();
+        disb();
         bcm4343_init("4:/firmware");    // 末尾に/は付けない
-        isb();
+        disb();
         net_init();
-        isb();
+        disb();
+        //wpasupplicant_init("4:/wpa_supplicant.conf");
+        //disb();
         net_run();
-        isb();
-        wpasupplicant_init("4:/wpa_supplicant.conf");
-        isb();
+        disb();
         kthread_create("ether_reader", ether_reader, NULL, 1);
-        isb();
+        disb();
         workqueue_init();
-        isb();
+        disb();
         kthread_create("recycle", recycle_proc, NULL, 1);
-        isb();
+        disb();
     } else {
         release(&ptable.lock);
     }

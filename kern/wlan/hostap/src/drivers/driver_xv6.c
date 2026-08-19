@@ -41,6 +41,7 @@
 #include <wlan/bcm4343.h>
 #include <console.h>
 #include <cstring.h>
+#include <proc.h>
 
 // stationドライバ : raspiとwifiルータの間の通信を行う
 struct brcmf_bss_info_le {
@@ -524,6 +525,9 @@ static int wpa_driver_xv6_set_country(void *priv, const char *alpha2)
     }
 
     wpa_printf(MSG_INFO, "Setting country code to '%s'", country);
+
+    //FIXME
+    //procdump();
 
     assert(drv->netdev != 0);
     if (!bcm4343_control(drv->netdev, "country %s", country)) {

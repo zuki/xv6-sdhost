@@ -71,6 +71,8 @@
 #include <ap/hostapd.h>
 #endif /* CONFIG_MESH */
 
+#include <console.h>
+
 const char *const wpa_supplicant_version =
 "wpa_supplicant v" VERSION_STR "\n"
 "Copyright (c) 2003-2024, Jouni Malinen <j@w1.fi> and contributors";
@@ -5783,14 +5785,12 @@ int wpa_supplicant_update_mac_addr(struct wpa_supplicant *wpa_s)
             wpa_printf(MSG_ERROR, "failed l2_packet_init");
             return -1;
         }
-        if (l2_packet_set_packet_filter(wpa_s->l2,
-                        L2_PACKET_FILTER_PKTTYPE))
-            wpa_dbg(wpa_s, MSG_DEBUG,
-                "Failed to attach pkt_type filter");
+        if (l2_packet_set_packet_filter(wpa_s->l2, L2_PACKET_FILTER_PKTTYPE)) {  // これは常に失敗
+            //wpa_dbg(wpa_s, MSG_DEBUG, "Failed to attach pkt_type filter");
+        }
 
         if (l2_packet_get_own_addr(wpa_s->l2, wpa_s->own_addr)) {
-            wpa_msg(wpa_s, MSG_ERROR,
-                "Failed to get own L2 address");
+            wpa_msg(wpa_s, MSG_ERROR, "Failed to get own L2 address");
             return -1;
         }
     } else {
@@ -5961,6 +5961,7 @@ int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s)
             wpa_supplicant_delayed_sched_scan(wpa_s,
                               interface_count % 3,
                               100000))
+            // スキャン要求をセットする
             wpa_supplicant_req_scan(wpa_s, interface_count % 3,
                         100000);
 #endif /* ANDROID */
@@ -7208,6 +7209,7 @@ static int wpa_supplicant_init_iface(struct wpa_supplicant *wpa_s,
 #else /* CONFIG_BACKEND_FILE */
         wpa_s->confname = os_strdup(iface->confname);
 #endif /* CONFIG_BACKEND_FILE */
+        // wpa_supplicant.confの読み込み
         wpa_s->conf = wpa_config_read(wpa_s->confname, NULL, false);
         if (wpa_s->conf == NULL) {
             wpa_printf(MSG_ERROR, "Failed to read or parse "
@@ -7779,6 +7781,7 @@ struct wpa_supplicant * wpa_supplicant_add_iface(struct wpa_global *global,
                iface->driver, global->params.override_driver);
         t_iface.driver = global->params.override_driver;
     }
+
     if (global->params.override_ctrl_interface) {
         wpa_printf(MSG_DEBUG, "Override interface parameter: "
                "ctrl_interface ('%s' -> '%s')",
@@ -7787,6 +7790,7 @@ struct wpa_supplicant * wpa_supplicant_add_iface(struct wpa_global *global,
         t_iface.ctrl_interface =
             global->params.override_ctrl_interface;
     }
+
     if (wpa_supplicant_init_iface(wpa_s, &t_iface)) {
         wpa_printf(MSG_DEBUG, "Failed to add interface %s",
                iface->ifname);
@@ -8118,7 +8122,7 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
         wpa_supplicant_deinit(global);
         return NULL;
     }
-    // 乱数期の初期化: random.cで処理済み
+    // 乱数器の初期化: random.cで処理済み
     random_init(params->entropy_file);
     global->ctrl_iface = wpa_supplicant_global_ctrl_iface_init(global);
     if (global->ctrl_iface == NULL) {
@@ -8150,6 +8154,8 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
 #endif /* CONFIG_WIFI_DISPLAY */
     eloop_register_timeout(WPA_SUPPLICANT_CLEANUP_INTERVAL, 0,
                    wpas_periodic, global, NULL);
+
+    wpa_printf(MSG_DEBUG, "wpa_supplicant_init ok");
 
     return global;
 }

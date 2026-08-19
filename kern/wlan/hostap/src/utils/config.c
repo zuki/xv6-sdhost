@@ -35,7 +35,8 @@ static void skip_line_end(FILE *stream)
 	}
 }
 
-
+// ファイルから1行取り出し、行頭行末のスペース、#で始まるコメントを削除し、
+// 行頭のポインタを_posにセットし、そのポインタを返す
 char * wpa_config_get_line(char *s, int size, FILE *stream, int *line,
 			   char **_pos)
 {
@@ -64,8 +65,7 @@ char * wpa_config_get_line(char *s, int size, FILE *stream, int *line,
 			continue;
 
 		/*
-		 * Remove # comments unless they are within a double quoted
-		 * string.
+		 * 二重引用符で囲まれた文字列内にある場合を除き、#で始まるコメントを削除する。
 		 */
 		sstart = pos;
 		end = os_strchr(sstart, '#');
@@ -86,7 +86,7 @@ char * wpa_config_get_line(char *s, int size, FILE *stream, int *line,
 		else
 			end = pos + os_strlen(pos) - 1;
 
-		/* Remove trailing white space. */
+		/* 行末の空白類を削除する. */
 		while (end > pos &&
 		       (*end == '\n' || *end == ' ' || *end == '\t' ||
 			*end == '\r'))
