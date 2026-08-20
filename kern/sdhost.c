@@ -262,7 +262,7 @@ sdhost_request_sync(struct bcm2835_host *host, struct mmc_request *req)
 {
     assert(req != 0);
     req->done = 0;
-    if (req->cmd->arg == 0x40948 && host->busy) debug("sleep on host->busy: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
+    if (req->cmd->arg == 0x40948 && host->busy) trace("sleep on host->busy: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
     while (host->busy) {
         host->sleep_fn(host->sleep_arg);
         dsb();
@@ -271,14 +271,14 @@ sdhost_request_sync(struct bcm2835_host *host, struct mmc_request *req)
     host->busy = 1;
     dsb();
 
-    if (req->cmd->arg == 0x40948) debug("sdhost_request: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
+    if (req->cmd->arg == 0x40948) trace("sdhost_request: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
     sdhost_request(host, &host->mmc, req);
-    if (req->cmd->arg == 0x40948 && !req->done) debug("sleep on req not done: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
+    if (req->cmd->arg == 0x40948 && !req->done) trace("sleep on req not done: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
     while (!req->done) {
         host->sleep_fn(host->sleep_arg);    // sleep(&card, &cardlock);
         dsb();
     }
-    if (req->cmd->arg == 0x40948)  debug("req done");
+    if (req->cmd->arg == 0x40948)  trace("req done");
     host->mrq = 0;
     host->busy = 0;
     dsb();
@@ -325,7 +325,7 @@ mmc_request_done(struct mmc_host *mmc, struct mmc_request *req)
 {
     assert(req != 0);
     req->done = 1;
-    if (req->cmd->arg == 0x40948) debug("request done: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
+    if (req->cmd->arg == 0x40948) trace("request done: op=%d, arg=0x%x", req->cmd->opcode, req->cmd->arg);
     dsb();
     wakeup(((struct bcm2835_host *)mmc)->sleep_arg);
 }

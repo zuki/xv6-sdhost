@@ -18,6 +18,7 @@
 #include <random.h>
 #include <proc.h>
 #include <console.h>
+#include <spinlock.h>
 
 static char vbuf[1024];
 
@@ -245,26 +246,35 @@ int os_get_time(struct os_time *t)
     return 0;
 }
 
+extern struct spinlock clocklock;
+extern uint64_t jiffies;
+
 int os_get_reltime(struct os_reltime *t)
 {
-    long ticks = get_ticks();           // 1 tick = 10 ms
-    t->sec = ticks / HZ;                // HZ = 100
-    t->usec = (ticks % HZ) * 10000;
+    acquire(&clocklock);
+    uint32_t current_ticks = jiffies;   // 1 tick = 10 ms
+    release(&clocklock);
+
+    t->sec = current_ticks / HZ;        // HZ = 100
+    t->usec = (current_ticks % HZ) * 10000;
 
     return 0;
 }
 
 void os_sleep(os_time_t sec, os_time_t usec)
 {
-    if (sec)
-    {
-        delayus(sec * 1000000);
-    }
+    uint64_t total_usec = ((uint64_t)sec * 1000000) + usec;
+    uint32_t ticks_to_wait = total_usec / 10000;    // 1tick = 10ms 単位
 
-    if (usec)
-    {
-        delayus(usec);
+    if (ticks_to_wait == 0)
+        ticks_to_wait = 1;
+
+    acquire(&clocklock);
+    uint32_t target_ticks = jiffies + ticks_to_wait;
+    while (jiffies < target_ticks) {
+        sleep(&jiffies, &clocklock);
     }
+    release(&clocklock);
 }
 
 size_t os_strlcpy(char *dest, const char *src, size_t siz)

@@ -1,5 +1,5 @@
 /*
- * Event loop - empty template (basic structure, but no OS specific operations)
+ * イベントループ - 空のテンプレート（基本的な構造のみ、OS固有の操作は含まない）
  * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,7 @@
 
 #include <utils/common.h>
 #include <utils/eloop.h>
+#include <utils/wpa_debug.h>
 
 extern int l2_packet_auth_active (void);
 
@@ -65,8 +66,10 @@ int eloop_register_read_sock(int sock, eloop_sock_handler handler,
     tmp = (struct eloop_sock *)
         kmrealloc(eloop.readers,
             (eloop.reader_count + 1) * sizeof(struct eloop_sock), sizeof(*eloop.readers));
-    if (tmp == NULL)
+    if (tmp == NULL) {
+        wpa_printf(MSG_ERROR, "eloop_register_read_sock kmrealloc failed");
         return -1;
+    }
 
     tmp[eloop.reader_count].sock = sock;
     tmp[eloop.reader_count].eloop_data = eloop_data;
@@ -116,10 +119,13 @@ int eloop_register_timeout(unsigned int secs, unsigned int usecs,
                void *eloop_data, void *user_data)
 {
     struct eloop_timeout *timeout, *tmp, *prev;
+    wpa_printf(MSG_EXCESSIVE, "eloop_register_timeout: %u sec %u usecs", secs, usecs);
 
     timeout = (struct eloop_timeout *) kmalloc(sizeof(*timeout));
-    if (timeout == NULL)
+    if (timeout == NULL) {
+        wpa_printf(MSG_ERROR, "eloop_register_timeout kmalloc failed");
         return -1;
+    }
     os_get_reltime(&timeout->time);
     timeout->time.sec += secs;
     timeout->time.usec += usecs;
@@ -153,7 +159,7 @@ int eloop_register_timeout(unsigned int secs, unsigned int usecs,
         timeout->next = prev->next;
         prev->next = timeout;
     }
-
+    wpa_printf(MSG_EXCESSIVE, "eloop_register_timeout ok");
     return 0;
 }
 
@@ -297,24 +303,27 @@ int eloop_register_signal_reconfig(eloop_signal_handler handler,
 void eloop_run(void)
 {
     int i;
-    struct os_reltime now;
+    volatile struct os_reltime now;
+
+    //wpa_printf(MSG_EXCESSIVE, "eloop_run start");
 
     while (!eloop.terminate) {
+        // 0 sec, 10000/200000 usec delay
         os_sleep(0, l2_packet_auth_active () ? 10000 : 200000);
 
-        /* check if some registered timeouts have occurred */
+        /* 登録されているtimeoutが発火するかチェックする */
         if (eloop.timeout) {
             struct eloop_timeout *tmp;
 
             os_get_reltime(&now);
             if (!os_reltime_before(&now, &eloop.timeout->time)) {
+                //wpa_printf(MSG_EXCESSIVE, "fire %u.%u",
+                //    eloop.timeout->time.sec, eloop.timeout->time.usec);
                 tmp = eloop.timeout;
                 eloop.timeout = eloop.timeout->next;
-                tmp->handler(tmp->eloop_data,
-                         tmp->user_data);
+                tmp->handler(tmp->eloop_data, tmp->user_data);
                 kmfree(tmp);
             }
-
         }
 
         eloop.reader_table_changed = 0;
@@ -327,6 +336,7 @@ void eloop_run(void)
                 break;
         }
     }
+    //wpa_printf(MSG_EXCESSIVE, "eloop_run end");
 }
 
 

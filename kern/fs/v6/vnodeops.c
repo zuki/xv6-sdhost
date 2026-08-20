@@ -112,7 +112,7 @@ int v6_lookup(struct vnode *vnode, const char *filename, struct vnode **result)
     trace("ip->ino: %d", ip ? ITOV(ip)->ino : -1);
     v6_iunlockput(VTOI(vnode));
     if (ip) {
-        debug("OK: %s, ip->ino: %d, ip->type: %d", filename, ITOV(ip)->ino, ip->type);
+        trace("OK: %s, ip->ino: %d, ip->type: %d", filename, ITOV(ip)->ino, ip->type);
         v6_ilock(ip);
         v6_iunlock(ip);
         if (result)

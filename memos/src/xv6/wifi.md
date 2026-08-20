@@ -5339,6 +5339,307 @@ wpa_supplicant_add_iface ok
 [1]wpa_supplicant_main: run
 ```
 
+## eloop_run()でos_sleep()が正常に機能していないことが発覚。
+
+- gogole aiの指摘でこの関数を修正することでwpa_supplicantもシェルも動くようになった
+
+```bash
+emmc control 0x0 0x0 0x0
+ether4330: chip 0x4345 rev 6 type 1
+ether4330: addr b8:27:eb:fe:bd:1d
+etherbcmattach ok
+[0]net_device_register: dev=net3, type=3 (WLAN)
+[0]net_protocol_register: type=0x0800 (IP)
+[1]wpa_supplicant_main: start
+[0]net_protocol_register: type=0x0806 (ARP)
+wpa_supplicant v2.11
+[0]ip_protocol_register: type=1 (ICMP)
+wpa_supplicant_init ok
+[0]ip_protocol_register: type=17 (UDP)
+Initializing interface 'wlan0' conf '4:/wpa_supplicant.conf'
+  driver 'xv6' ctrl_interface 'N/A' bridge 'N/A'
+[0]ip_protocol_register: type=6 (TCP)
+Configuration file '4:/wpa_supplicant.conf' -> '4:/wpa_supplicant.conf'
+[0]net_init: net_init ok
+[0]netrun: open net3
+[0]net_device_open: dev=net3, state=up
+[0]netrun: open net1
+[0]net_device_open: dev=net1, state=up
+[0]netrun: running...
+country='JP'
+Line: 7 - start of a new network block
+Priority group 0
+   id=0 ssid='MSRS_TDF_A5_A11'
+Add interface wlan0 to a new radio N/A
+Own MAC address: b8:27:eb:fe:bd:1d
+RSN: flushing PMKID list in the driver
+Setting scan request: 0.100000 sec
+Setting country code to 'JP'
+eap_peer_sm_init ok
+EAPOL: SUPP_PAE entering state DISCONNECTED
+EAPOL: Supplicant port status: Unauthorized
+EAPOL: KEY_RX entering state NO_KEY_RECEIVE
+EAPOL: SUPP_BE entering state INITIALIZE
+EAP: EAP entering state DISABLED
+eapol_sm_init ok
+wpa_supplicant_init_eapol ok
+Added interface wlan0
+State: DISCONNECTED -> DISCONNECTED
+[0]ip_route_add: route added: network=192.168.10.0, netmask=255.255.255.0, nexthop=0.0.0.0, iface=192.168.10.104 dev=net3
+[0]ip_iface_register: registered: dev=net3, unicast=192.168.10.104, netmask=255.255.255.0, broadcast=192.168.10.255
+[0]ip_route_add: route added: network=0.0.0.0, netmask=0.0.0.0, nexthop=192.168.10.1, iface=192.168.10.104 dev=net3
+[0]wpa_supplicant_main: run
+$ wpa_supplicant_scan start
+State: DISCONNECTED -> SCANNING
+Starting AP scan for wildcard SSID
+Add radio work 'scan'@ffff0000073cbe10
+First radio work item in the queue - schedule start immediately
+Starting radio work 'scan'@ffff0000073cbe10 after 0.200000 second wait
+escan start
+[2]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073caf30, len=0x1e6, q->size: 0
+[3]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073ca8b0, len=0x19e, q->size: 1
+[0]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073d4e70, len=0x1e6, q->size: 2
+EAPOL: disable timer tick
+[2]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073d4810, len=0x242, q->size: 3
+[0]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073cb7b0, len=0x1e6, q->size: 4
+[2]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073d6390, len=0x16e, q->size: 5
+[2]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073c5800, len=0x1ea, q->size: 6
+[0]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073d5d30, len=0x1a6, q->size: 7
+[0]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073c51a0, len=0x1ea, q->size: 8
+[3]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073c6680, len=0x1ea, q->size: 9
+[3]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073c42c0, len=0x1ea, q->size: 10
+[3]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073c6000, len=0x16e, q->size: 11
+[1]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073379b0, len=0x1ea, q->size: 12
+[0]bcm4343_scan_result_recv: enqueue: entry: 0xffff000007336ad0, len=0x1a6, q->size: 13
+Event SCAN_RESULTS (3) received
+[1]bcm4343_recv_scan_result: queue num 0
+BSS: Start scan result update 1
+BSS: Add new id 0 BSSID f8:b7:97:87:2c:df SSID 'MSRS_TDF_A5_A11' freq 5210
+BSS: f8:b7:97:87:2c:df has multiple entries in the scan results - select the most current one
+Previous last_update: 7.190000 (freq 5210)
+New last_update: 7.190000 (freq 5210)
+Ignore this BSS entry since the previous update looks more current
+BSS: f8:b7:97:87:2c:df has multiple entries in the scan results - select the most current one
+Previous last_update: 7.190000 (freq 5210)
+New last_update: 7.190000 (freq 5210)
+Ignore this BSS entry since the previous update looks more current
+BSS: Add new id 1 BSSID f8:b7:97:87:2c:de SSID 'MSRS_TDF_A2_S04' freq 2462
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.190000 (freq 2462)
+New last_update: 7.190000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.190000 (freq 2462)
+New last_update: 7.190000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.190000 (freq 2462)
+New last_update: 7.190000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: Add new id 2 BSSID fa:b7:97:87:2c:de SSID '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' freq 2452
+BSS: fa:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.190000 (freq 2452)
+New last_update: 7.190000 (freq 2452)
+Ignore this BSS entry since the previous update looks more current
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.190000 (freq 2462)
+New last_update: 7.190000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: f8:b7:97:87:2c:de has multiple entries in the scan results - select the most current one
+Previous last_update: 7.190000 (freq 2462)
+New last_update: 7.190000 (freq 2462)
+Ignore this BSS entry since the previous update looks more current
+BSS: Add new id 3 BSSID a0:95:7f:d3:b4:3c SSID 'A0957FD3B43D-2G' freq 2437
+BSS: a0:95:7f:d3:b4:3c has multiple entries in the scan results - select the most current one
+Previous last_update: 7.190000 (freq 2437)
+New last_update: 7.190000 (freq 2437)
+Ignore this BSS entry since the previous update looks more current
+BSS: last_scan_res_used=%zu/%zu
+New scan results available (own=0 ext=0)
+Radio work 'scan'@ffff0000073cbe10 done in 3.000000 seconds
+radio_work_free('scan'@ffff0000073cbe10): num_active_works --> 0
+Selecting BSS from priority group 0
+0: f8:b7:97:87:2c:df ssid='MSRS_TDF_A5_A11' wpa_ie_len=0 rsn_ie_len=20 caps=0x431 level=65500 freq=5210  wps
+   selected based on RSN IE
+MLD: No Multi-Link element
+   selected BSS f8:b7:97:87:2c:df ssid='MSRS_TDF_A5_A11'
+Considering connect request: reassociate: 0
+  selected: f8:b7:97:87:2c:df  bssid: 00:00:00:00:00:00  pending: 00:00:00:00:00:00
+  wpa_state: SCANNING  ssid=ffff0000073c8500  current_ssid=0
+[2]bcm4343_scan_result_recv: enqueue: entry: 0xffff0000073d45f0, len=0xe, q->size: 0
+Request association with f8:b7:97:87:2c:df
+No ongoing scan/p2p-scan found to abort
+Add radio work 'connect'@ffff0000073d5430
+First radio work item in the queue - schedule start immediately
+Starting radio work 'connect'@ffff0000073d5430 after 0.200000 second wait
+WPA: clearing own WPA/RSN IE
+RSN: clearing own RSNXE
+RSN: PMKSA cache search - network_ctx=ffff0000073c8500 try_opportunistic=0 akmp=0x0
+RSN: Search for BSSID f8:b7:97:87:2c:df
+RSN: No PMKSA cache entry found
+RSN: using IEEE 802.11i/D9.0
+WPA: Selected cipher suites: group 16 pairwise 16 key_mgmt 2 proto 2
+WPA: Selected mgmt group cipher 32
+WPA: clearing AP WPA IE
+WPA: set AP RSN IE: 30 14 01 00 00 0f ac 04 01 00 00 0f ac 04 01 00
+00 0f ac 02 00 00
+WPA: clearing AP RSNXE
+WPA: AP group 0x10 network profile group 0x18; available group 0x10
+WPA: using GTK CCMP
+WPA: AP pairwise 0x10 network profile pairwise 0x18; available pairwise 0x10
+WPA: using PTK CCMP
+WPA: AP key_mgmt 0x2 network profile key_mgmt 0x2; available key_mgmt 0x2
+WPA: using KEY_MGMT WPA-PSK
+WPA: AP mgmt_group_cipher 0x20 network profile mgmt_group_cipher 0x0; available mgmt_group_cipher 0x0
+WPA: not using MGMT group cipher
+WPA: Set own WPA IE default: 30 14 01 00 00 0f ac 04 01 00 00 0f ac 04 01 00
+00 0f ac 02 0c 00
+RSN: Set own RSNXE default: Automatic auth_alg selection: 0x1
+No supported operating classes IE to add
+Trying to associate with f8:b7:97:87:2c:df (SSID='MSRS_TDF_A5_A11' freq=5210 MHz)
+Cancelling scan request
+State: SCANNING -> ASSOCIATING
+Limit connection to BSSID f8:b7:97:87:2c:df freq=5210 MHz based on scan results (bssid_set=0 wps=0)
+Event ASSOC (0) received
+State: ASSOCIATING -> ASSOCIATED
+Associated to a new BSS: BSSID=f8:b7:97:87:2c:df
+Associated with f8:b7:97:87:2c:df
+WPA: Association event - clear replay counter
+WPA: Clear old PTK
+EAPOL: External notification - portEnabled=0
+EAPOL: External notification - portValid=0
+EAPOL: External notification - EAP success=0
+EAPOL: External notification - portEnabled=1
+EAPOL: SUPP_PAE entering state CONNECTING
+EAPOL: enable timer tick
+EAPOL: SUPP_BE entering state IDLE
+EAP: EAP entering state INITIALIZE
+EAP: EAP entering state IDLE
+Setting authentication timeout: 10 sec 0 usec
+Cancelling scan request
+Setting authentication timeout: 10 sec 0 usec
+EAPOL: External notification - EAP success=0
+EAPOL: External notification - EAP fail=0
+EAPOL: External notification - portControl=Auto
+RX EAPOL from f8:b7:97:87:2c:df (encrypted=-1)
+Setting authentication timeout: 10 sec 0 usec
+IEEE 802.1X RX: version=1 type=3 length=117
+  EAPOL-Key type=2
+  key_info 0x8a (ver=2 keyidx=0 rsvd=0 Pairwise Ack)
+  key_length=16 key_data_length=22
+  replay_counter: 00 00 00 00 00 00 00 01
+  key_nonce: df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12 2b
+12 8c f5 c8 81 67 af 55 46 a0 ad 38 3a ac 4d 58
+  key_iv: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  key_rsc: 00 00 00 00 00 00 00 00
+  key_id (reserved): 00 00 00 00 00 00 00 00
+  key_mic: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+EAP: EAP entering state DISABLED
+WPA: RX message 1 of 4-Way Handshake from f8:b7:97:87:2c:df (ver=2)
+RSN: msg 1/4 key data: dd 14 00 0f ac 04 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00
+WPA: PMKID in EAPOL-Key: dd 14 00 0f ac 04 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00
+RSN: PMKID from Authenticator: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+RSN: no matching PMKID found
+State: ASSOCIATED -> 4WAY_HANDSHAKE
+WPA: Renewed SNonce: ae 4a a8 de 5a af 44 bb 42 9d 62 cb ed 43 9f 7d
+21 bf 7c 82 05 c4 69 d1 47 8c 5a 88 bd c1 90 e7
+WPA: PTK derivation using PRF(SHA1)
+WPA: PTK derivation - A1=b8:27:eb:fe:bd:1d A2=f8:b7:97:87:2c:df
+WPA: Nonce1: ae 4a a8 de 5a af 44 bb 42 9d 62 cb ed 43 9f 7d
+21 bf 7c 82 05 c4 69 d1 47 8c 5a 88 bd c1 90 e7
+WPA: Nonce2: df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12 2b
+12 8c f5 c8 81 67 af 55 46 a0 ad 38 3a ac 4d 58
+WPA: WPA IE for msg 2/4: 30 14 01 00 00 0f ac 04 01 00 00 0f ac 04 01 00
+00 0f ac 02 0c 00
+WPA: Replay Counter: 00 00 00 00 00 00 00 01
+WPA: Sending EAPOL-Key 2/4
+WPA: Send EAPOL-Key frame to f8:b7:97:87:2c:df ver=2 mic_len=16 key_mgmt=0x2
+WPA: EAPOL-Key MIC using HMAC-SHA1
+WPA: Derived Key MIC: fc b2 df 14 0e 99 82 d1 00 bc f0 4a 99 64 ab 0a
+RX EAPOL from f8:b7:97:87:2c:df (encrypted=-1)
+IEEE 802.1X RX: version=1 type=3 length=151
+  EAPOL-Key type=2
+  key_info 0x13ca (ver=2 keyidx=0 rsvd=0 Pairwise Install Ack MIC Secure Encr)
+  key_length=16 key_data_length=56
+  replay_counter: 00 00 00 00 00 00 00 02
+  key_nonce: df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12 2b
+12 8c f5 c8 81 67 af 55 46 a0 ad 38 3a ac 4d 58
+  key_iv: df 6f 5e ab ad 4a 51 fd f2 32 39 6d 08 8e 12 2b
+  key_rsc: 6a 67 0b 00 00 00 00 00
+  key_id (reserved): 00 00 00 00 00 00 00 00
+  key_mic: 8e 67 d9 9d 1b a7 06 72 63 7b 41 fb 0a 2c 50 7b
+WPA: EAPOL-Key MIC using HMAC-SHA1
+RSN: encrypted key data: e3 d1 d7 1d db 7a cc db d2 5b 85 8f 07 cc d7 04
+cb 95 d5 8d 85 b1 79 9b 26 d7 e1 71 68 38 e4 f3
+cd 1e 2a 1b 9a 82 98 a2 33 5c a2 12 9e 95 62 43
+11 f2 b1 3d d6 8a a1 b4
+WPA: Decrypt Key Data using AES-UNWRAP (KEK length 16)
+State: 4WAY_HANDSHAKE -> 4WAY_HANDSHAKE
+RSN: RX message 3 of 4-Way Handshake from f8:b7:97:87:2c:df (ver=2)
+WPA: IE KeyData: 30 14 01 00 00 0f ac 04 01 00 00 0f ac 04 01 00
+00 0f ac 02 00 00 dd 16 00 0f ac 01 01 00 ce 12
+0f 86 b6 d9 40 54 f4 33 fe e9 9e 6b 89 bf dd 00
+WPA: RSN IE in EAPOL-Key: 30 14 01 00 00 0f ac 04 01 00 00 0f ac 04 01 00
+00 0f ac 02 00 00
+WPA: Sending EAPOL-Key 4/4
+WPA: Send EAPOL-Key frame to f8:b7:97:87:2c:df ver=2 mic_len=16 key_mgmt=0x2
+WPA: EAPOL-Key MIC using HMAC-SHA1
+WPA: Derived Key MIC: c6 8b cb 9b dd cd 6f 19 b6 70 0b b0 a2 ae c7 9e
+WPA: Installing PTK to the driver
+EAPOL: External notification - portValid=1
+State: 4WAY_HANDSHAKE -> GROUP_HANDSHAKE
+WPA: Installing GTK to the driver (keyidx=1 tx=0 len=16)
+WPA: RSC: 6a 67 0b 00 00 00
+WPA: Key negotiation completed with f8:b7:97:87:2c:df [PTK=CCMP GTK=CCMP]
+Cancelling authentication timeout
+State: GROUP_HANDSHAKE -> COMPLETED
+Radio work 'connect'@ffff0000073d5430 done in 0.020000 seconds
+radio_work_free('connect'@ffff0000073d5430): num_active_works --> 0
+CTRL-EVENT-CONNECTED - Connection to f8:b7:97:87:2c:df completed [id=0 id_str=]
+EAPOL: External notification - portValid=1
+EAPOL: External notification - EAP success=1
+EAPOL: SUPP_PAE entering state AUTHENTICATING
+EAPOL: SUPP_BE entering state SUCCESS
+EAP: EAP entering state DISABLED
+EAPOL: SUPP_PAE entering state AUTHENTICATED
+EAPOL: Supplicant port status: Authorized
+EAPOL: SUPP_BE entering state IDLE
+EAPOL authentication completed - result=SUCCESS
+EAPOL: startWhen --> 0
+EAPOL: disable timer tick
+
+execve: Operation not permitted
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+RX EAPOL from f8:b7:97:87:2c:dc (encrypted=-1)
+Not associated - Delay processing of received EAPOL frame (state=COMPLETED connected_addr=f8:b7:97:87:2c:df)
+
+
+$ /bin/ls /
+drwxrwxr-x    1 root wheel 2026-08-20 07:11:13   4096 .
+drwxrwxr-x    1 root wheel 2026-08-20 07:11:13   4096 ..
+drwxrwxr-x    2 root wheel 2026-08-20 07:11:13   1472 bin
+drwxrwxr-x    3 root wheel 2026-08-20 07:11:13    192 dev
+drwxr-xr-x    4 root wheel 2026-08-20 07:11:13    128 proc
+drwxrwxrwx    5 root wheel 2026-08-20 07:11:13    256 lib
+-rwxr-xr-x    9 root wheel 2026-08-20 07:11:13     34 test.txt
+$ /bin/dns                                                          // このコマンドはストール
+```
+
 ## macアドレス
 
 - raspi wlan:      b8:27:eb:fe:bd:1d

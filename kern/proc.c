@@ -241,6 +241,8 @@ scheduler(void)
  */
 static void recycle_proc(void *arg);
 
+extern void wpasupplicant_init_thread(void *arg);
+
 static void
 forkret(void)
 {
@@ -274,20 +276,30 @@ forkret(void)
 
         usb_init();
         disb();
+
         bcm4343_init("4:/firmware");    // 末尾に/は付けない
         disb();
+
+        wpasupplicant_init("4:/wpa_supplicant.conf");
+        disb();
+
         net_init();
         disb();
-        //wpasupplicant_init("4:/wpa_supplicant.conf");
-        //disb();
+
         net_run();
         disb();
+
         kthread_create("ether_reader", ether_reader, NULL, 1);
         disb();
+
+        //kthread_create("wpa_supplicant_init", wpasupplicant_init_thread, NULL, 1);
+        //disb();
+
         workqueue_init();
         disb();
         kthread_create("recycle", recycle_proc, NULL, 1);
         disb();
+
     } else {
         release(&ptable.lock);
     }

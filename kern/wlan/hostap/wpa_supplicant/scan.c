@@ -1984,7 +1984,7 @@ scan:
 
 
 /**
- * wpa_supplicant_cancel_scan - Cancel a scheduled scan request
+ * wpa_supplicant_cancel_scan - スケジュールされたスキャン要求をキャンセルする
  * @wpa_s: Pointer to wpa_supplicant data
  *
  * This function is used to cancel a scan request scheduled with

@@ -239,12 +239,12 @@ int vfs_lookup(struct vnode *cwd, const char *path, int flags, uid_t uid, struct
                 return -ENXIO;
             }
             cur = vfs_clone_vnode(mp->root_node);
-            debug("CHG: cur to [[%s]] %d", cur->mp->ops->fstype, cur->ino);
+            trace("CHG: cur to [[%s]] %d", cur->mp->ops->fstype, cur->ino);
         }
 
         // pathの終端にきたら、resultにvnodeをセットして成功で復帰
         if (path[i] == '\0') {
-            debug("[[%s]] OK: cur->ino: %d, ref: %d", cur->mp->ops->fstype, cur->ino, cur->refcount);
+            trace("[[%s]] OK: cur->ino: %d, ref: %d", cur->mp->ops->fstype, cur->ino, cur->refcount);
             *result = cur;
             return 0;
         }
@@ -709,10 +709,10 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
     if (!(mode & S_IFMT))
         mode |= S_IFREG;
 
-    debug("[[%s]] cwd: %d, path: %s, create: %d", cwd->mp->ops->fstype, cwd->ino, path, flags & O_CREAT);
+    trace("[[%s]] cwd: %d, path: %s, create: %d", cwd->mp->ops->fstype, cwd->ino, path, flags & O_CREAT);
     if ((error = vfs_lookup(cwd, path, (flags & O_CREAT) ? VLOOKUP_PARENT_OF : VLOOKUP_NORMAL, uid, &vnode)) < 0)
         return error;
-    debug("path: %s, vnode: %d", path, vnode->ino);
+    trace("path: %s, vnode: %d", path, vnode->ino);
     if (flags & O_CREAT) {
         const char *filename = path_last_component(path);
         if (!path_valid_component(filename)) {
@@ -729,7 +729,7 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
         // パスの最後の要素を検索する。エラー(ENOENT)の場合は新規ファイルを作成する
         if ((vnode->ops->lookup(parent, filename, &vnode)) == -ENOENT) {
             error = parent->ops->create(parent, filename, mode, uid, &vnode);
-            debug("created %s with ino: %d under parent: %d", filename, vnode->ino, parent->ino);
+            trace("created %s with ino: %d under parent: %d", filename, vnode->ino, parent->ino);
             vfs_release_vnode(parent);
             if (error) {
                 vfs_release_vnode(vnode);
@@ -738,7 +738,7 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
         }
     }
 
-    debug("cwd: ino: %d, rdev: 0x%x, mp->dev: 0x%x, mp->ops: 0x%x; child: %s, ino: %d, rdev: 0x%x, mp->dev: 0x%x, mp->ops: 0x%x", cwd->ino, cwd->rdev, cwd->mp->dev, cwd->mp->ops, path, vnode->ino, vnode->rdev, vnode->mp->dev, vnode->mp->ops);
+    trace("cwd: ino: %d, rdev: 0x%x, mp->dev: 0x%x, mp->ops: 0x%x; child: %s, ino: %d, rdev: 0x%x, mp->dev: 0x%x, mp->ops: 0x%x", cwd->ino, cwd->rdev, cwd->mp->dev, cwd->mp->ops, path, vnode->ino, vnode->rdev, vnode->mp->dev, vnode->mp->ops);
 
     // これから使用するvnodeが削除されないようclone
     vfs_clone_vnode(vnode);
@@ -761,7 +761,7 @@ int vfs_open(struct vnode *cwd, const char *path, int flags, mode_t mode, uid_t 
     if (S_ISCHR(vnode->mode) || S_ISBLK(vnode->mode))
         f->ops = &device_vfile_ops;
     if ((error = f->ops->open(f, flags)) < 0) {
-        debug("failed file open");
+        trace("failed file open");
         free_vfile(f);
     } else {
         if (file)

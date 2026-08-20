@@ -654,8 +654,8 @@ emmc_do_read(struct emmc *self, uint8_t * buf, size_t buf_size,
         return -1;
     }
 
-    //if (block_no == 0x2187c || block_no == 0x2187d) debug("reading from block 0x%x", block_no);
-    if (block_no == 0x40948) debug("reading from block 0x%x", block_no);
+    //if (block_no == 0x2187c || block_no == 0x2187d) trace("reading from block 0x%x", block_no);
+    if (block_no == 0x40948) trace("reading from block 0x%x", block_no);
 
     if (emmc_do_data_command(self, 0, buf, buf_size, block_no) < 0) {
         return -1;

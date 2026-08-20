@@ -56,7 +56,7 @@ struct buf *get_block(device_t dev, uint32_t blockno, boolean issec)
     if (blockno == 0x20) trace("dev: 0x%x, bno: 0x%x, issec: %d", dev, blockno, issec);
     /* 1. bufcacheにあればrefcountを増分して返す */
     acquire(&bufcache.lock);
-    //if (blockno == 0x20 || blockno == 0x28) debug("acquire bufcache.lock for bno 0x%x", blockno);
+    //if (blockno == 0x20 || blockno == 0x28) trace("acquire bufcache.lock for bno 0x%x", blockno);
     for (cur = (struct buf *) bufcache.head; cur; cur = (struct buf *) cur->node.next) {
         if (cur->flags & BCF_ALLOCATED && cur->dev == dev && cur->blockno == blockno && cur->issec == issec) {
             cur->refcount++;
@@ -66,7 +66,7 @@ struct buf *get_block(device_t dev, uint32_t blockno, boolean issec)
             _queue_insert(&bufcache, &cur->node);
             cur->flags |= BCF_BUSY;
             release(&bufcache.lock);
-            //if (blockno == 0x20 || blockno == 0x28) debug("release bufcache.lock for bno 0x%x", blockno);
+            //if (blockno == 0x20 || blockno == 0x28) trace("release bufcache.lock for bno 0x%x", blockno);
             return cur;
         }
     }
@@ -181,7 +181,7 @@ static inline int _read_entry(struct buf *entry)
     int size = entry->issec ? BC_SECTOR_SIZE : BC_BLOCK_SIZE;
     int bytes;
 
-    if (entry->blockno == 0x20 || entry->blockno == 0x28) debug("read: dev: 0x%x, buffer: 0x%x, bno: 0x%x, size: 0x%x", entry->dev, entry->block, entry->blockno, size);
+    if (entry->blockno == 0x20 || entry->blockno == 0x28) trace("read: dev: 0x%x, buffer: 0x%x, bno: 0x%x, size: 0x%x", entry->dev, entry->block, entry->blockno, size);
 
     bytes = dev_read(entry->dev, (char *)entry->block, entry->blockno, size);
     if (bytes != size) {

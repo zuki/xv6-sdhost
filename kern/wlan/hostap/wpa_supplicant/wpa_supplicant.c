@@ -8116,7 +8116,7 @@ struct wpa_global * wpa_supplicant_init(struct wpa_params *params)
         params->wpa_debug_timestamp;
     wpa_printf(MSG_DEBUG, "wpa_supplicant v%s", VERSION_STR);
 
-    // イベントループデータ構造体の初期化
+    // イベントループデータ構造体の初期化 : eloop_xv6.c
     if (eloop_init()) {
         wpa_printf(MSG_ERROR, "Failed to initialize event loop");
         wpa_supplicant_deinit(global);
@@ -9010,7 +9010,6 @@ void dump_freq_data(struct wpa_supplicant *wpa_s, const char *title,
             i, cur->freq, cur->flags);
     }
 }
-
 
 /*
  * Find the operating frequencies of any of the virtual interfaces that

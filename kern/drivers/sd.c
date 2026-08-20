@@ -1,6 +1,7 @@
 #include <emmc.h>
 #include <list.h>
 #include <spinlock.h>
+#include <sleeplock.h>
 #include <fs/bufcache.h>
 #include <types.h>
 #include <console.h>
@@ -20,17 +21,10 @@ static int ptnum = 0;
 
 static void sd_sleep(void *chan)
 {
-    int locked = cardlock.locked;
     //info("[%d] pid=%c, chan=0x%p", cpuid(), thisproc()->pid, chan);
-    if (!locked) {
-        acquire(&cardlock);
-        debug("acquire cardlock");
-    }
+    //if (!holding(&cardlock))
+    //    panic("sd_sleep: cardlock must be held before calling sd_sleep");
     sleep(chan, &cardlock);
-    if (!locked) {
-        release(&cardlock);
-        debug("release cardlock");
-    }
 }
 
 struct driver sd_driver = {
@@ -74,7 +68,7 @@ void sd_postinit(void)
     char buf[BSIZE];
 
     acquire(&cardlock);
-    //debug("acquire cardlock");
+    //trace("acquire cardlock");
     int ret = emmc_init(&card, sd_sleep, (void *)&card);
     //assert(ret == 0);
     if (ret)
@@ -84,7 +78,7 @@ void sd_postinit(void)
     assert(emmc_read(&card, buf, BSIZE) == BSIZE);
 
     release(&cardlock);
-    //debug("release cardlock");
+    //trace("release cardlock");
     //assert(mbr.signature == 0xAA55);
 
     memmove(&mbr, buf, 512);
@@ -207,7 +201,7 @@ int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
 
     boolean sector = (size == SECTOR_SIZE);
     acquire(&cardlock);
-    if (offset == 0x20 || offset == 0x28) debug("acquire cardlock for off: 0x%x, size: 0x%x", offset, size);
+    if (offset == 0x20 || offset == 0x28) trace("acquire cardlock for off: 0x%x, size: 0x%x", offset, size);
     if (sector) {
         bno = (fs_lba(minor) + offset) * SECTOR_SIZE;
         trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
@@ -222,20 +216,20 @@ int sd_read(minor_t minor, char *buffer, off_t offset, size_t size)
         if ((offset + (size / BSIZE)) > ptinfo[minor].nsecs)
             size = ptinfo[minor].nsecs - offset;
         bno = (fs_lba(minor) + offset * 8) * SECTOR_SIZE;
-        if (offset == 0x20 || offset == 0x28) debug("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
+        if (offset == 0x20 || offset == 0x28) trace("lba: 0x%x, offset: 0x%x, bno: 0x%x (0x%x), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
         // seekはバイト単位
         emmc_seek(&card, bno);
         for (int count = 0; count < (size / BSIZE); count++) {
             if (emmc_read(&card, buffer, BSIZE) != BSIZE) {
                 release(&cardlock);
-                if (offset == 0x20 || offset == 0x28) debug("err: release cardlock for off: 0x%x, size: 0x%x", offset, size);
+                if (offset == 0x20 || offset == 0x28) trace("err: release cardlock for off: 0x%x, size: 0x%x", offset, size);
                 return -EIO;
             }
             buffer = buffer + BSIZE;
         }
     }
     release(&cardlock);
-    if (offset == 0x20 || offset == 0x28)  debug("release cardlock for off: 0x%x, size: 0x%x", offset, size);
+    if (offset == 0x20 || offset == 0x28)  trace("release cardlock for off: 0x%x, size: 0x%x", offset, size);
     return size;
 }
 
@@ -251,13 +245,15 @@ int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size)
         return -EFAULT;
 
     boolean sector = (size == SECTOR_SIZE);
-
+    acquire(&cardlock);
     if (sector) {
         bno = (fs_lba(minor) + offset) * SECTOR_SIZE;
         trace("lba: 0x%x, offset: %d, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
         emmc_seek(&card, bno);
-        if (emmc_write(&card, buffer, SECTOR_SIZE) != SECTOR_SIZE)
+        if (emmc_write(&card, buffer, SECTOR_SIZE) != SECTOR_SIZE) {
+            release(&cardlock);
             return -EIO;
+        }
     } else {
         if ((offset + (size / BSIZE)) > ptinfo[minor].nsecs)
             size = ptinfo[minor].nsecs - offset;
@@ -265,11 +261,14 @@ int sd_write(minor_t minor, const char *buffer, off_t offset, size_t size)
         trace("lba: 0x%x, offset: %d, bno: 0x%x (0x%x byte), size: 0x%x", fs_lba(minor), offset * 8, bno / SECTOR_SIZE, bno, size);
         emmc_seek(&card, bno);
         for (int count = 0; count < (size / BSIZE); count++) {
-            if (emmc_write(&card, buffer, BSIZE) != BSIZE)
+            if (emmc_write(&card, buffer, BSIZE) != BSIZE) {
+                release(&cardlock);
                 return -EIO;
+            }
             buffer = buffer + BSIZE;
         }
     }
+    release(&cardlock);
 
     return size;
 }

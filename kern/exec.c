@@ -254,7 +254,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
     uint64_t ip_base = 0;
     long err = -EACCES;
 
-    debug("path='%s', argv=%p, envp=%p", path, argv, envp);
+    trace("path='%s', argv=%p, envp=%p", path, argv, envp);
 
     // 呼び出し元のプロセスをcurprocとする
     struct proc *curproc = thisproc();
@@ -263,7 +263,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
         trace("get_file: %s, err: %d", path, err);
         return err;
     }
-    debug("get_file ok");
+    trace("get_file ok");
     // 呼び出し元のページテーブルをoldpgdirに保存し、
     // 実行ファイル用のページテーブルをpgdirとして新規作成する
     void *oldpgdir = curproc->pgdir, *pgdir = vm_init();
@@ -559,7 +559,7 @@ int execve(const char *path, char *const argv[], char *const envp[])
 
     uvm_switch(curproc->pgdir);
     vm_free(oldpgdir);
-    debug("exec %s ok", curproc->name);
+    trace("exec %s ok", curproc->name);
     if (has_ip && ip)
         kmfree((void *)ip);
 

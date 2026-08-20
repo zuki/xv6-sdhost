@@ -100,6 +100,7 @@ void clock_intr()
     acquire(&clocklock);
     jiffies++;
     update_times();
+    wakeup(&jiffies);
     release(&clocklock);
     run_timer_list();
     //acquire(&clocklock);
@@ -117,13 +118,17 @@ long clock_gettime(clockid_t clk_id, struct timespec *tp)
         default:
             return -EINVAL;
         case CLOCK_REALTIME:
+            acquire(&clocklock);
             tp->tv_nsec = xtime.tv_nsec;
             tp->tv_sec = xtime.tv_sec;
+            release(&clocklock);
             break;
         case CLOCK_PROCESS_CPUTIME_ID:
+            acquire(&clocklock);
             ptime = (p->stime + p->utime) * TICK_NSEC;
             tp->tv_nsec = ptime % 1000000000;
             tp->tv_sec  = ptime / 1000000000;
+            release(&clocklock);
             break;
     }
 #if 0
@@ -141,8 +146,10 @@ long clock_settime(clockid_t clk_id, const struct timespec *tp)
             return -EINVAL;
         case CLOCK_REALTIME:
             //if (capable(CAP_SYS_TIME)) {
-                xtime.tv_nsec = tp->tv_nsec;
-                xtime.tv_sec = tp->tv_sec;
+            acquire(&clocklock);
+            xtime.tv_nsec = tp->tv_nsec;
+            xtime.tv_sec = tp->tv_sec;
+            release(&clocklock);
             //} else {
             //    return -EPERM;
             //}
