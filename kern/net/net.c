@@ -293,6 +293,7 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
         }
     }
     /* unsupported protocol */
+    //debug("unsupported protocol: %u", type);
     mutex_unlock(&mutex);
     return 0;
 }

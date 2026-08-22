@@ -280,16 +280,16 @@ forkret(void)
         bcm4343_init("4:/firmware");    // 末尾に/は付けない
         disb();
 
-        wpasupplicant_init("4:/wpa_supplicant.conf");
-        disb();
-
         net_init();
         disb();
 
         net_run();
         disb();
 
-        kthread_create("ether_reader", ether_reader, NULL, 1);
+        kthread_create("ether_reader", ether_reader, NULL, 32);
+        disb();
+
+        wpasupplicant_init("4:/wpa_supplicant.conf");
         disb();
 
         //kthread_create("wpa_supplicant_init", wpasupplicant_init_thread, NULL, 1);
@@ -299,7 +299,7 @@ forkret(void)
         disb();
         kthread_create("recycle", recycle_proc, NULL, 1);
         disb();
-
+        //procdump();
     } else {
         release(&ptable.lock);
     }
@@ -821,7 +821,7 @@ struct proc *kthread_create(const char *name, void(*func)(void *),
     acquire(&ptable.lock);
     list_push_back(&ptable.sched_que, &p->link);
     release(&ptable.lock);
-
+    trace("create kthread %s", name);
     return p;
 }
 
@@ -830,7 +830,7 @@ void ether_reader(void *param)
     while(1) {
         switch(NET_DRV) {
             case NET_INDEX_BCM4343:
-                //bcm4343_net_handler();
+                bcm4343_net_handler();
             case NET_INDEX_LAN7800:
                 lan7800_net_handler();
             case NET_INDEX_CDC:

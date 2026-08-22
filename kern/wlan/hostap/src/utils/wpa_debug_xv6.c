@@ -11,7 +11,7 @@
 #include <utils/includes.h>
 #include <utils/common.h>
 
-int wpa_debug_level = MSG_MSGDUMP;
+int wpa_debug_level = MSG_DEBUG;
 int wpa_debug_show_keys = 1;        // キーワードを出力するか
 int wpa_debug_timestamp = 0;
 int wpa_debug_syslog = 0;

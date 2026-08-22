@@ -998,7 +998,7 @@ void wpa_bss_update_end(struct wpa_supplicant *wpa_s, struct scan_info *info,
 		}
 	}
 
-	wpa_printf(MSG_DEBUG, "BSS: last_scan_res_used=%zu/%zu",
+	wpa_printf(MSG_DEBUG, "BSS: last_scan_res_used=%llu/%llu",
 		   wpa_s->last_scan_res_used, wpa_s->last_scan_res_size);
 }
 

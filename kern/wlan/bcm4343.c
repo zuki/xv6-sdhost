@@ -25,6 +25,8 @@
 #include <net/util.h>
 #include <net/platform.h>
 #include <net/ether.h>
+#include <l2_packet/l2_packet.h>
+#include <utils/wpa_debug.h>
 
 extern void ether4330link(void);
 
@@ -211,15 +213,24 @@ long bcm4343_recv_frame(struct net_device *dev, uint8_t *buff, uint64_t *rlen)
     // 受信キューの先頭エントリをbuffに読み込む
     acquire(&self->lock);
     entry = (struct bcm4343_queue_entry *)queue_pop(&self->rx_queue);
-    release(&self->lock);
-    if (entry == NULL || entry->len == 0)
+
+#if 0
+    if (entry) {
+        wpa_printf(MSG_DEBUG, "data len: %u", entry->len);
+        wpa_hexdump(MSG_DEBUG, "dequeue data", (const void *)entry->data, entry->len);
+    }
+#endif
+    // 条件にself->rx_queue.num == 0は不要。あるとentryがあってもここでreturnしてしまう
+    if (entry == NULL || entry->len == 0) {
+        release(&self->lock);
         return -1;
+    }
+    release(&self->lock);
     assert(rlen != 0);
     memmove(buff, (const void *)entry->data, entry->len);
     *rlen = entry->len;
     kmfree(entry);
-    //hexdump (buff, len, "wlanrx");
-
+    //wpa_printf(MSG_DEBUG, "deque ok");
     return 0;
 }
 
@@ -299,13 +310,8 @@ boolean bcm4343_recv_scan_result(struct bcm4343 *self, void *buff, unsigned *rle
     trace("dequeue: entry: %p, len=0x%x, q->size: %d, isnull : %s", entry, entry->len, self->scan_queue.num, entry == NULL ? "yes" : "no");
     //hexdump (entry->data, entry->len, "entry");
     // FIXME: entry == 0 とならない件を解決する
-    if (!entry || entry->len == 0) {
-        debug("no more result");
-        release(&self->lock);
-        return false;
-    }
-    if (self->scan_queue.num == 0) {
-        debug("queue num 0");
+    if (entry == NULL || entry->len == 0 || self->scan_queue.num == 0) {
+        trace("no more result");
         release(&self->lock);
         return false;
     }
@@ -393,8 +399,7 @@ static void bcm4343_frame_received(struct bcm4343 *self, const void *buff, unsig
         release(&self->lock);
         return;
     }
-    // TODO: どうするか検討
-    //intr_raise_irq(INTR_IRQ_SOFTIRQ);
+    //wpa_hexdump(MSG_DEBUG, "enqueue data", (const void *)entry->data, entry->len);
     release(&self->lock);
 }
 
@@ -407,7 +412,7 @@ static void bcm4343_scan_result_recv(struct bcm4343 *self, const void *buff, uns
     entry->len = len;
     acquire(&self->lock);
     trace("bcm4343: %p, &scan_queue: %p", self, &self->scan_queue);
-    debug("enqueue: entry: %p, len=0x%x, q->size: %d", entry, entry->len, self->scan_queue.num);
+    trace("enqueue: entry: %p, len=0x%x, q->size: %d", entry, entry->len, self->scan_queue.num);
     // スキャン結果キューにbuffを登録する
     if (!queue_push(&self->scan_queue, entry)) {
         error("queue_push scan_queue failed");
@@ -463,4 +468,38 @@ void addethercard (const char *name, ether_pnp_t *handler)
 {
     assert(handler != 0);
     ether_pnp_handler = handler;
+}
+
+void bcm4343_net_handler(void)
+{
+    struct net_device *dev = net_device_by_index(NET_INDEX_BCM4343);
+    if (!dev) return;
+
+    uint8_t rx_buf[FRAME_BUFFER_SIZE];
+    uint64_t rx_len;
+
+    while (bcm4343_recv_frame(dev, rx_buf, &rx_len) == 0) {
+        //wpa_printf(MSG_DEBUG, "handler: rlen=%u", rx_len);
+        // bufferにはethernetヘッダーがあるのでsrc_addrを取り出した後、ヘッダーを削除する
+        if (rx_len <= sizeof(struct ether_hdr))
+            continue;
+
+        //wpa_hexdump(MSG_DEBUG, "l2 rcv", (const void *)rx_buf, sizeof(struct ether_hdr));
+        struct ether_hdr *hdr = (struct ether_hdr *)rx_buf;
+        uint16_t type = ntoh16(hdr->type);
+        size_t hdr_len = sizeof(struct ether_hdr);
+
+        if (memcmp(dev->addr, hdr->dst, ETHER_ADDR_LEN) != 0) {
+            if (memcmp(ETHER_ADDR_BROADCAST, hdr->dst, ETHER_ADDR_LEN) != 0) {
+                /* 自分向けでないので無視する */
+                continue;
+            }
+        }
+
+        if (type == ETHER_TYPE_EAPOL) {
+            l2_packet_push(dev, rx_buf, rx_len);
+        } else {
+            net_input_handler(type, (const uint8_t *)(rx_buf + hdr_len), rx_len - hdr_len, dev);
+        }
+    }
 }

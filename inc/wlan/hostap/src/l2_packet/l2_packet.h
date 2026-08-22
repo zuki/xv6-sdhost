@@ -15,7 +15,9 @@
 #ifndef H_WLAN_L2_PACKET_H
 #define H_WLAN_L2_PACKET_H
 
+#include <types.h>
 #include <utils/common.h>
+#include <net/net.h>
 
 /**
  * struct l2_packet_data - l2_packet内部データ構造体
@@ -146,5 +148,8 @@ void l2_packet_notify_auth_start(struct l2_packet_data *l2);
  */
 int l2_packet_set_packet_filter(struct l2_packet_data *l2,
                 enum l2_packet_filter_type type);
+
+
+void l2_packet_push(struct net_device *dev, uint8_t *buffer, uint64_t rlength);
 
 #endif /* L2_PACKET_H */

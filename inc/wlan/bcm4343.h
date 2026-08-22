@@ -98,5 +98,7 @@ boolean bcm4343_destroy_opennet(struct bcm4343 *self);
 
 void bcm4343_dump_status(void);
 
+void bcm4343_net_handler(void);
+
 #endif
 

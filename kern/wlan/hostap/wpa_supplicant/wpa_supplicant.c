@@ -2415,7 +2415,7 @@ void wpas_connect_work_done(struct wpa_supplicant *wpa_s)
     radio_work_done(work);
 }
 
-
+// 使わない
 int wpas_update_random_addr(struct wpa_supplicant *wpa_s,
                 enum wpas_mac_addr_style style,
                 struct wpa_ssid *ssid)
@@ -2559,6 +2559,7 @@ void wpa_s_clear_sae_rejected(struct wpa_supplicant *wpa_s)
 }
 
 
+// 使わない
 int wpas_restore_permanent_mac_addr(struct wpa_supplicant *wpa_s)
 {
     if (wpa_drv_set_mac_addr(wpa_s, NULL) < 0) {
@@ -5763,7 +5764,7 @@ static int wpas_eapol_needs_l2_packet(struct wpa_supplicant *wpa_s)
         !(wpa_s->drv_flags2 & WPA_DRIVER_FLAGS2_CONTROL_PORT_RX);
 }
 
-
+// #5916からcall
 int wpa_supplicant_update_mac_addr(struct wpa_supplicant *wpa_s)
 {
     uint8_t prev_mac_addr[ETH_ALEN];
@@ -5775,10 +5776,11 @@ int wpa_supplicant_update_mac_addr(struct wpa_supplicant *wpa_s)
         !(wpa_s->drv_flags & WPA_DRIVER_FLAGS_P2P_DEDICATED_INTERFACE)) {
         // ここが実行されている
         l2_packet_deinit(wpa_s->l2);
+        //wpa_printf(MSG_DEBUG, "wpa_supplicant_update_mac_addr: call l2_packet_init");
         wpa_s->l2 = l2_packet_init(wpa_s->ifname,
                        wpa_drv_get_mac_addr(wpa_s),
                        ETH_P_EAPOL,
-                       wpas_eapol_needs_l2_packet(wpa_s) ?
+                       wpas_eapol_needs_l2_packet(wpa_s) ?          // true
                        wpa_supplicant_rx_eapol_cb : NULL,
                        wpa_s, 0);
         if (wpa_s->l2 == NULL) {
@@ -5899,13 +5901,13 @@ fail:
 
 
 /**
- * wpa_supplicant_driver_init - Initialize driver interface parameters
+ * wpa_supplicant_driver_init - ドライバインタフェースパラメタを初期化する
  * @wpa_s: Pointer to wpa_supplicant data
  * Returns: 0 on success, -1 on failure
  *
- * This function is called to initialize driver interface parameters.
- * wpa_drv_init() must have been called before this function to initialize the
- * driver interface.
+ * この関数はドライバインタフェースパラメタを初期化するために呼ばれる。
+ * この関数を呼び出す前に、ドライバインターフェースを初期化するために
+ * wpa_drv_init() を呼び出す必要がある。
  */
 int wpa_supplicant_driver_init(struct wpa_supplicant *wpa_s)
 {
@@ -7745,17 +7747,18 @@ static int wpa_supplicant_match_existing(struct wpa_global *global)
 
 
 /**
- * wpa_supplicant_add_iface - Add a new network interface
+ * wpa_supplicant_add_iface - 新規ネットワークインタフェースを追加する
  * @global: Pointer to global data from wpa_supplicant_init()
  * @iface: Interface configuration options
  * @parent: Parent interface or %NULL to assign new interface as parent
  * Returns: Pointer to the created interface or %NULL on failure
  *
- * This function is used to add new network interfaces for %wpa_supplicant.
- * This can be called before wpa_supplicant_run() to add interfaces before the
- * main event loop has been started. In addition, new interfaces can be added
- * dynamically while %wpa_supplicant is already running. This could happen,
- * e.g., when a hotplug network adapter is inserted.
+ * この関数は、%wpa_supplicant に新規ネットワークインタフェースを追加するために
+ * 使用する。wpa_supplicant_run() の前にこの関数を呼び出すことで、メインのイベント
+ * ループが開始される前にインタフェースを追加することができる。また、%wpa_supplicant が
+ * すでに実行中の場合でも、動的に新しいインタフェースを追加することが可能である。
+ * これは、たとえばホットプラグ対応のネットワークアダプタが挿入された際などに発生する
+ * だろう。
  */
 struct wpa_supplicant * wpa_supplicant_add_iface(struct wpa_global *global,
                          struct wpa_interface *iface,

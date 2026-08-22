@@ -5640,6 +5640,88 @@ drwxrwxrwx    5 root wheel 2026-08-20 07:11:13    256 lib
 $ /bin/dns                                                          // このコマンドはストール
 ```
 
+##
+
+```bash
+Trying to associate with f8:b7:97:87:2c:df (SSID='MSRS_TDF_A5_A11' freq=5210 MHz)
+Cancelling scan request
+State: SCANNING -> ASSOCIATING
+Limit connection to BSSID f8:b7:97:87:2c:df freq=5210 MHz based on scan results (bssid_set=0 wps=0)
+Event ASSOC (0) received
+State: ASSOCIATING -> ASSOCIATED
+Associated to a new BSS: BSSID=f8:b7:97:87:2c:df
+Associated with f8:b7:97:87:2c:df
+WPA: Association event - clear replay counter
+WPA: Clear old PTK
+EAPOL: External notification - portEnabled=0
+EAPOL: External notification - portValid=0
+EAPOL: External notification - EAP success=0
+EAPOL: External notification - portEnabled=1
+EAPOL: SUPP_PAE entering state CONNECTING
+EAPOL: enable timer tick
+EAPOL: SUPP_BE entering state IDLE
+EAP: EAP entering state INITIALIZE
+EAP: EAP entering state IDLE
+Setting authentication timeout: 10 sec 0 usec
+Cancelling scan request
+Setting authentication timeout: 10 sec 0 usec
+EAPOL: External notification - EAP success=0
+EAPOL: External notification - EAP fail=0
+EAPOL: External notification - portControl=Auto
+                                                    // ここで　l2 rcv: b8 27 eb fe bd 1d f8 b7 97 87 2c df 88 8e を
+                                                    // 受け取り RX EAPOL from f8:b7:97:87:2c:df (encrypted=-1)となるはずがならず
+EAP: EAP entering state DISABLED                    // EAPがdisableになってしまう
+```
+
+## ethertypeによる振り分けをbcm4343_net_handler()で行うよう変更
+
+```c
+void bcm4343_net_handler(void)
+{
+    struct net_device *dev = net_device_by_index(NET_INDEX_BCM4343);
+    if (!dev) return;
+
+    uint8_t rx_buf[FRAME_BUFFER_SIZE];
+    uint64_t rx_len;
+
+    while (bcm4343_recv_frame(dev, rx_buf, &rx_len) == 0) {
+        if (rx_len <= sizeof(struct ether_hdr))
+            continue;
+
+        struct ether_hdr *hdr = (struct ether_hdr *)rx_buf;
+        uint16_t type = ntoh16(hdr->type);
+        size_t hdr_len = sizeof(struct ether_hdr);
+
+        if (memcmp(dev->addr, hdr->dst, ETHER_ADDR_LEN) != 0) {
+            if (memcmp(ETHER_ADDR_BROADCAST, hdr->dst, ETHER_ADDR_LEN) != 0) {
+                /* 自分向けでないので無視する */
+                continue;
+            }
+        }
+        // etherタイプで処理を振り分ける
+        if (type == ETHER_TYPE_EAPOL) {
+            l2_packet_push(dev, rx_buf, rx_len);    // この関数をl2_packet_receive()の代わりに使う
+        } else {
+            net_input_handler(type, (const uint8_t *)(rx_buf + hdr_len), rx_len - hdr_len, dev);
+        }
+    }
+}
+```
+
+この変更でwpa_supplicantが成功する(l2_packet_pushは成功)ところまで来たが、
+まだether処理ができない。送信ができないか?
+
+以下はipv6データ。
+
+```bash
+dequeue data: b8 27 eb fe bd 1d f8 b7 97 87 2c dc 86 dd 60 00
+00 00 00 24 00 01 fe 80 00 00 00 00 00 00 fa b7
+97 ff fe 87 2c dc ff 02 00 00 00 00 00 00 00 00
+00 00 00 00 00 01 3a 00 01 00 05 02 00 00 82 00
+b7 cb 00 01 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 0a 3c 00 00
+```
+
 ## macアドレス
 
 - raspi wlan:      b8:27:eb:fe:bd:1d

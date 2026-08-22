@@ -30,6 +30,8 @@
 
 #define SOCK_FD        1
 
+
+
 // l2_packet内部データ構造体
 struct l2_packet_data {
     unsigned short protocol;
@@ -38,6 +40,8 @@ struct l2_packet_data {
     uint8_t own_addr[ETHER_ADDR_LEN];
     struct net_device *dev;
 };
+
+static struct l2_packet_data *g_l2 = NULL;
 
 static void l2_packet_receive(int sock, void *eloop_ctx, void *sock_ctx);
 
@@ -75,6 +79,8 @@ struct l2_packet_data * l2_packet_init(const char *ifname, const uint8_t *own_ad
 
     if (eloop_register_read_sock(SOCK_FD, l2_packet_receive, l2, 0) < 0)
         return NULL;
+
+    g_l2 = l2;
 
     return l2;
 }
@@ -135,8 +141,29 @@ int l2_packet_send (struct l2_packet_data *l2, const uint8_t *dst_addr,
     return 0;
 }
 
+void l2_packet_push(struct net_device *dev, uint8_t *buffer, uint64_t rlength)
+{
+    if (g_l2 == NULL || g_l2->rx_callback == NULL) {
+        return;
+    }
+
+    struct ether_hdr *header = (struct ether_hdr *)buffer;
+    uint8_t src_addr[ETHER_ADDR_LEN];
+    memcpy(src_addr, header->src, ETHER_ADDR_LEN);
+
+    wpa_hexdump(MSG_DEBUG, "l2 rcv (from ether_reader)", (const void *)buffer, sizeof(struct ether_hdr));
+
+    g_l2->rx_callback(
+        g_l2->rx_callback_ctx,
+        src_addr,
+        buffer + sizeof(*header),
+        rlength - sizeof(*header)
+    );
+}
+
 static void l2_packet_receive (int sock, void *eloop_ctx, void *sock_ctx)
 {
+#if 0
     assert (sock == SOCK_FD);
     struct l2_packet_data *l2 = (struct l2_packet_data *) eloop_ctx;
     assert (l2 != 0);
@@ -150,13 +177,17 @@ static void l2_packet_receive (int sock, void *eloop_ctx, void *sock_ctx)
         // bufferにはethernetヘッダーがあるのでsrc_addrを取り出した後、ヘッダーを削除する
         if (rlength <= sizeof(struct ether_hdr))
             continue;
+
+        wpa_hexdump(MSG_DEBUG, "l2 rcv", (const void *)buffer, sizeof(struct ether_hdr));
         struct ether_hdr *header = (struct ether_hdr *)buffer;
         uint8_t src_addr[MAC_ADDRESS_SIZE];
+
         memcpy(src_addr, header->src, ETHER_ADDR_LEN);
         l2->rx_callback(l2->rx_callback_ctx, src_addr, buffer+sizeof(*header), rlength-sizeof(*header));
 
         yield ();
     }
+#endif
 }
 
 #define AUTH_DURATION_SECS    5
