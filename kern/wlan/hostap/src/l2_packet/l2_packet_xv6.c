@@ -75,7 +75,7 @@ struct l2_packet_data * l2_packet_init(const char *ifname, const uint8_t *own_ad
 
     l2->dev = net_dev;
     assert (l2->dev != 0);
-    l2->dev->type = protocol;
+    l2->dev->type = NET_DEVICE_TYPE_WLAN;
 
     if (eloop_register_read_sock(SOCK_FD, l2_packet_receive, l2, 0) < 0)
         return NULL;

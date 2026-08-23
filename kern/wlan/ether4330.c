@@ -1504,6 +1504,7 @@ static void txstart(Ether *edev)
         poperror();
         qunlock(&ctl->pktlock);
         freeb(b);
+        //print("tx ok\n");
     }
     poperror();
     qunlock(&ctl->tlock);

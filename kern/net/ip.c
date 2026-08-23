@@ -8,6 +8,7 @@
 #include <net/platform.h>
 #include <console.h>
 #include <string.h>
+#include <utils/os.h>
 
 struct ip_hdr {
     uint8_t vhl;
@@ -392,24 +393,36 @@ static void ip_input(const uint8_t *data, size_t len, struct net_device *dev)
 }
 
 #include <net/ether.h>
+extern struct arp_cache *arp_cachep;
+
 static int ip_output_device(struct ip_iface *iface, const uint8_t *data, size_t len, ip_addr_t dst)
 {
     uint8_t hwaddr[NET_DEVICE_ADDR_LEN] = {};
     int ret;
     static int try = 0;
+    static int try2 = 0;
 
     if (NET_IFACE(iface)->dev->flags & IFF_NOARP) {
         if (dst == iface->broadcast || dst == IP_ADDR_BROADCAST) {
             memcpy(hwaddr, NET_IFACE(iface)->dev->broadcast, NET_IFACE(iface)->dev->alen);
         } else {
+try_do:
             do {
                 ret = arp_resolve(NET_IFACE(iface), dst, hwaddr);
                 if (ret == ARP_RESOLVE_FOUND) {
+                    trace("arp resolved");
                     goto ok;
                 }
-                delayus(10000);
-            } while (++try < 3);
-            error("arp not resolved");
+                delayus(100000);
+            } while (try++ < 10);
+            if (try2++ < 3) {
+                mutex_lock(&arp_mutex);
+                sleep(arp_cachep, &arp_mutex);
+                mutex_unlock(&arp_mutex);
+                try = 0;
+                goto try_do;
+            }
+            error("arp not resolved: %d", ret);
             return ret;
         }
     }

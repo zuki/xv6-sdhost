@@ -5722,11 +5722,111 @@ b7 cb 00 01 00 00 00 00 00 00 00 00 00 00 00 00
 00 00 00 00 00 00 0a 3c 00 00
 ```
 
+## ntpに成功
+
+```bash
+$ /bin/ntp
+[1]dns_resolve: udp_id: 0
+[1]dns_resolve: bind ok
+=== DNS Packet ===
+        id: 1
+      flag: 0x0001
+   qdcount: 1
+   ancount: 0
+   nscount: 0
+   arcount: 0
+      dist: '3'ntp'3'jst'5'mfeed'2'ad'2'jp'0'
+     qtype: 1
+    qclass: 1
+=== DNS dump ===
++------------------+-------------------------------------------------+------------------+
+| 0xffff0000073c9960 | 00 01 01 00 00 01 00 00 00 00 00 00 03 6e 74 70 | .............ntp |
+| 0xffff0000073c9970 | 03 6a 73 74 05 6d 66 65 65 64 02 61 64 02 6a 70 | .jst.mfeed.ad.jp |
+| 0xffff0000073c9980 | 00 00 01 00 01                                  | .....            |
++------------------+-------------------------------------------------+------------------+
+
+
+[1]udp_output: 192.168.10.104:53000 => 8.8.8.8:53, len=45 (payload=37)
+[1]ip_output_core: dev=net3, dst=8.8.8.8, protocol=17, len=65
+[1]arp_resolve: cache not found, pa=192.168.10.1
+[2]arp_resolve: resolved, pa=192.168.10.1, ha=f8:b7:97:87:2c:dc
+[2]ip_output_device: arp resolved
+[2]ip_output_device: hwaddr: f8:b7:97:87:2c:dc
+=== DNS Packet ===
+        id: 1
+      flag: 0x8081
+   qdcount: 1
+   ancount: 3
+   nscount: 0
+   arcount: 0
+      dist: '3'ntp'3'jst'5'mfeed'2'ad'2'jp'0'
+     qtype: 1
+    qclass: 1
+      name: 0xc00c
+      type: 1
+     class: 1
+       ttl: 11500
+       len: 4
+        ip: 210.173.160.27
+      name: 0xc00c
+      type: 1
+     class: 1
+       ttl: 11500
+       len: 4
+        ip: 210.173.160.57
+      name: 0xc00c
+      type: 1
+     class: 1
+       ttl: 11500
+       len: 4
+        ip: 210.173.160.87
+=== DNS dump ===
++------------------+-------------------------------------------------+------------------+
+| 0xffff0000073c9750 | 00 01 81 80 00 01 00 03 00 00 00 00 03 6e 74 70 | .............ntp |
+| 0xffff0000073c9760 | 03 6a 73 74 05 6d 66 65 65 64 02 61 64 02 6a 70 | .jst.mfeed.ad.jp |
+| 0xffff0000073c9770 | 00 00 01 00 01 c0 0c 00 01 00 01 00 00 2c ec 00 | .............,.. |
+| 0xffff0000073c9780 | 04 d2 ad a0 1b c0 0c 00 01 00 01 00 00 2c ec 00 | .............,.. |
+| 0xffff0000073c9790 | 04 d2 ad a0 39 c0 0c 00 01 00 01 00 00 2c ec 00 | ....9........,.. |
+| 0xffff0000073c97a0 | 04 d2 ad a0 57                                  | ....W            |
++------------------+-------------------------------------------------+------------------+
+
+
+[0]ntp_get_time: ntp_ip 210.173.160.27
+[0]udp_output: 192.168.10.104:123 => 210.173.160.27:123, len=56 (payload=48)
+[0]ip_output_core: dev=net3, dst=210.173.160.27, protocol=17, len=76
+[0]arp_resolve: resolved, pa=192.168.10.1, ha=f8:b7:97:87:2c:dc
+[0]ip_output_device: arp resolved
+[0]ip_output_device: hwaddr: f8:b7:97:87:2c:dc
+$ /bin/date
+2026年 8日23日 日曜日 17時47分57秒 JST
+$
+```
+
+- デバッグ出力を削除
+
+```bash
+EAPOL: SUPP_PAE entering state AUTHENTICATED
+EAPOL: Supplicant port status: Authorized
+EAPOL: SUPP_BE entering state IDLE
+EAPOL authentication completed - result=SUCCESS
+EAPOL: startWhen --> 0
+EAPOL: disable timer tick
+
+$ /bin/date
+1900年 1日 1日 月曜日  9時 0分15秒 JST
+$ /bin/ntp
+$ /bin/date
+2026年 8日23日 日曜日 17時59分22秒 JST              // ntpから設定できている
+$
+```
+
 ## macアドレス
 
 - raspi wlan:      b8:27:eb:fe:bd:1d
 - MSRS_TDF_A5_A11: f8:b7:97:87:2c:df
 - MSRS_TDF_A2_S04: f8:b7:97:87:2c:de
+
+12:b0:d6:67:d5:7d
 
 ```bash
 wpasupplicant_init()

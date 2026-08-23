@@ -27,6 +27,7 @@
 #include <net/ether.h>
 #include <l2_packet/l2_packet.h>
 #include <utils/wpa_debug.h>
+#include <utils/common.h>
 
 extern void ether4330link(void);
 
@@ -66,6 +67,7 @@ static int bcm4343_linkup(struct net_device *dev)
 
 static int bcm4343_transmit(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst)
 {
+    trace("transmit: type: 0x%x", type);
     return ether_transmit_helper(dev, type, data, len, dst, bcm4343_send_frame);
 }
 
@@ -91,6 +93,10 @@ int bcm4343_init(const char *firm_path)
     net_dev->index = NET_INDEX_BCM4343;
     net_dev->type = NET_DEVICE_TYPE_WLAN;
     net_dev->mtu = ETHER_PAYLOAD_SIZE_MAX;
+    net_dev->flags = (IFF_BROADCAST | IFF_NOARP);
+    net_dev->hlen = ETHER_HDR_SIZE;
+    net_dev->alen = ETHER_ADDR_LEN;
+    memcpy(net_dev->broadcast, ETHER_ADDR_BROADCAST, ETHER_ADDR_LEN);
     snprintf(net_dev->name, sizeof(net_dev->name), "net%d", net_dev->index);
     net_dev->priv = bcm4343;
 
@@ -489,16 +495,21 @@ void bcm4343_net_handler(void)
         uint16_t type = ntoh16(hdr->type);
         size_t hdr_len = sizeof(struct ether_hdr);
 
+        //wpa_printf(MSG_DEBUG, "dst_addr: " MACSTR, MAC2STR(hdr->dst));
+
         if (memcmp(dev->addr, hdr->dst, ETHER_ADDR_LEN) != 0) {
             if (memcmp(ETHER_ADDR_BROADCAST, hdr->dst, ETHER_ADDR_LEN) != 0) {
                 /* 自分向けでないので無視する */
+                //wpa_printf(MSG_DEBUG, "ignore dst_addr: " MACSTR, MAC2STR(hdr->dst));
                 continue;
             }
         }
 
         if (type == ETHER_TYPE_EAPOL) {
+            trace("call l2_packet_push");
             l2_packet_push(dev, rx_buf, rx_len);
         } else {
+            trace("call net_input_handler");
             net_input_handler(type, (const uint8_t *)(rx_buf + hdr_len), rx_len - hdr_len, dev);
         }
     }

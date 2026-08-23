@@ -57,17 +57,17 @@ struct net_device {
     unsigned int index;
     char name[IFNAMSIZ];
     uint16_t type;          // NET_DEVICE_TYPE_XXX
-    uint16_t mtu;
-    uint16_t flags;
-    uint16_t hlen; /* header length */
-    uint16_t alen; /* address length */
+    uint16_t mtu;           // L2 MTU : ETHER_PAYLOAD_SIZE_MAX
+    uint16_t flags;         // IFF_XXx : net/if.hで定義
+    uint16_t hlen;          // header length
+    uint16_t alen;          // address length
     uint8_t addr[NET_DEVICE_ADDR_LEN];
     union {
         uint8_t peer[NET_DEVICE_ADDR_LEN];
         uint8_t broadcast[NET_DEVICE_ADDR_LEN];
     };
     struct net_device_ops *ops;
-    void *priv;                     // 各ドライバ固有の構造体、struct lan7800, struct bcm4343など
+    void *priv;             // 各ドライバ固有の構造体、struct lan7800, struct bcm4343など
 };
 
 // これはxv6-net由来

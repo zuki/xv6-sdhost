@@ -12,6 +12,7 @@
 #include <clock.h>
 #include <console.h>
 #include <string.h>
+#include <utils/wpa_debug.h>
 
 struct net_protocol {
     struct net_protocol *next;
@@ -266,6 +267,12 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
 {
     struct net_protocol *proto;
     struct net_protocol_queue_entry *entry;
+#if 0
+    if (type != 0x86dd) {
+        debug("type: 0x%x", type);
+        wpa_hexdump(MSG_DEBUG, "net_input", data, len);
+    }
+#endif
 
     mutex_lock(&mutex);
     for (proto = protocols; proto; proto = proto->next) {
@@ -286,7 +293,7 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
                 return -1;
             }
             trace("queue pushed (num:%u), dev=%s, type=0x%04x, len=%llu", proto->queue.num, dev->name, type, len);
-            //debugdump(data, len, "net_input_data");
+            //wpa_hexdump(MSG_DEBUG, "net_input", entry->data, entry->len);
             intr_raise_irq(INTR_IRQ_SOFTIRQ);
             mutex_unlock(&mutex);
             return 0;
