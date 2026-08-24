@@ -30,6 +30,7 @@
 - [Silicon Macで実行](xv6/m3.md)
 - [kthreadの実装を修正](xv6/kthread.md)
 - [wifiの実装](xv6/wifi.md)
+    - [wifi機能開発時の記録](xv6/wifi_work.md)
 
 ## その他のメモ
 
